@@ -6,10 +6,14 @@ import os
 import zipfile
 from pathlib import Path
 
-import streamlit as st
-from PIL import Image
+from dotenv import load_dotenv
 
-from generator import DoorGenerator
+load_dotenv()
+
+import streamlit as st  # noqa: E402
+from PIL import Image  # noqa: E402
+
+from generator import DoorGenerator  # noqa: E402
 
 # Page config
 st.set_page_config(
@@ -114,10 +118,18 @@ def main() -> None:
             api_key = st.text_input(
                 "Gemini API Key",
                 type="password",
-                help="Your Google Gemini API key. Set GEMINI_API_KEY env var to avoid entering each time.",
+                help="Your Google Gemini API key. "
+                "Set GEMINI_API_KEY env var to avoid entering each time.",
             )
             if not api_key:
                 st.warning("Enter your API key to enable generation")
+
+        # Transparent background toggle
+        remove_bg = st.toggle(
+            "Transparent background",
+            value=False,
+            help="Remove white background from generated images (adds ~3s per image)",
+        )
 
         # Reset button
         if st.button("Reset All", use_container_width=True):
@@ -191,6 +203,7 @@ def main() -> None:
                         door_temp_path,
                         aspect_ratio=selected_aspect_ratio,
                         door_style_name=door_name,
+                        remove_bg=remove_bg,
                     )
 
                 door_temp_path.unlink(missing_ok=True)
@@ -308,6 +321,7 @@ def main() -> None:
                     base_signature=base_signature,
                     aspect_ratio=aspect_ratio,
                     wood_description=wood_description,
+                    remove_bg=remove_bg,
                 )
 
                 if result.image_data:

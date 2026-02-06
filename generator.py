@@ -1,5 +1,6 @@
 """Gemini image generation with thought signature support."""
 
+import io
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -9,6 +10,45 @@ from typing import Any
 from google import genai
 from google.genai import types
 from PIL import Image
+
+# Lazy-loaded background remover
+_bg_remover = None
+
+
+def _get_bg_remover():
+    """Lazily initialize the background remover."""
+    global _bg_remover
+    if _bg_remover is None:
+        from carvekit.api.high import HiInterface
+
+        _bg_remover = HiInterface(
+            object_type="object",
+            batch_size_seg=1,
+            batch_size_matting=1,
+            device="cpu",
+            seg_mask_size=640,
+            matting_mask_size=2048,
+            trimap_prob_threshold=231,
+            trimap_dilation=30,
+            trimap_erosion_iters=5,
+            fp16=False,
+        )
+    return _bg_remover
+
+
+def remove_background(image_data: bytes) -> bytes:
+    """Remove background from image, returning PNG with transparency."""
+    # Load image from bytes
+    img = Image.open(io.BytesIO(image_data)).convert("RGB")
+
+    # Remove background
+    remover = _get_bg_remover()
+    result = remover([img])[0]
+
+    # Save as PNG with transparency
+    output = io.BytesIO()
+    result.save(output, format="PNG")
+    return output.getvalue()
 
 
 @dataclass
@@ -88,7 +128,11 @@ class DoorGenerator:
             return "9:16"
 
     def learn_door_style(
-        self, door_image_path: Path, aspect_ratio: str = "3:4", door_style_name: str = "cabinet door"
+        self,
+        door_image_path: Path,
+        aspect_ratio: str = "3:4",
+        door_style_name: str = "cabinet door",
+        remove_bg: bool = False,
     ) -> GenerationResult:
         """
         Have Gemini generate its own version of the door to capture its understanding.
@@ -106,11 +150,12 @@ class DoorGenerator:
         """
 
         prompt = (
-            "Generate a photorealistic product image of a Shaker-style cabinet door. "
-            "Use the reference image to match the exact design details: "
-            "the panel depth, edge profile, rail/stile proportions, and wood grain direction. "
-            "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, white background, professional lighting."
+            f"Flat, front-facing catalog photo of a {door_style_name}. "
+            f"Match the reference image exactly: same panel shape, edge profiles, "
+            f"rail/stile proportions, and construction details. "
+            f"Straight-on orthographic view, no angle or rotation. "
+            f"Plain white background. Even, flat lighting with no harsh shadows. "
+            f"Simple product photo style for a cabinet manufacturer catalog."
         )
 
         parts: list[types.Part] = [
@@ -142,6 +187,10 @@ class DoorGenerator:
                         error="No image returned from API",
                         aspect_ratio=aspect_ratio,
                     )
+
+                # Remove background if requested
+                if remove_bg:
+                    image_data = remove_background(image_data)
 
                 return GenerationResult(
                     image_data=image_data,
@@ -182,6 +231,7 @@ class DoorGenerator:
         base_signature: bytes,
         aspect_ratio: str = "3:4",
         wood_description: str | None = None,
+        remove_bg: bool = False,
     ) -> GenerationResult:
         """
         Generate a door variation with a specific wood type.
@@ -198,17 +248,15 @@ class DoorGenerator:
         Returns:
             GenerationResult with image data, new signature, or error
         """
-        # Build prompt with optional wood description
-        base_prompt = (
-            f"Using the same door style and shape from before, change the wood "
-            f"to match this swatch image. The wood type is {wood_name}. "
-            f"Keep the exact same door style, shape, and panel design. "
-            f"Only change the wood grain, color, and texture to match the swatch. "
+        # Build prompt - keep it simple for catalog-style output
+        prompt = (
+            f"Same cabinet door, now in {wood_name}. "
+            f"Keep the exact same flat, front-facing view and white background. "
+            f"Only change the wood: match the grain pattern, color, and texture "
+            f"from the swatch image. "
         )
         if wood_description:
-            base_prompt += f"Wood characteristics: {wood_description} "
-        base_prompt += "Produce a photorealistic product image suitable for e-commerce."
-        prompt = base_prompt
+            prompt += f"Wood characteristics: {wood_description} "
 
         # Build content parts - signature first to reference the learned door
         parts: list[types.Part] = [
@@ -241,6 +289,10 @@ class DoorGenerator:
                         thought_signature=new_signature,
                         error="No image returned from API",
                     )
+
+                # Remove background if requested
+                if remove_bg:
+                    image_data = remove_background(image_data)
 
                 return GenerationResult(
                     image_data=image_data,
