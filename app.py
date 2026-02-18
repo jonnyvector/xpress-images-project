@@ -1,19 +1,24 @@
-"""Streamlit UI for cabinet door image generation."""
+"""Streamlit UI for cabinet door image generation with multi-tab support."""
 
 import io
 import json
 import os
+import uuid
 import zipfile
+from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 
 import streamlit as st
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
 from PIL import Image
 
-from generator import DoorGenerator
+from generator import STYLES, DoorGenerator, add_watermark
 
 # Page config
 st.set_page_config(
-    page_title="Cabinet Door Generator",
+    page_title="Cabinet Door & Drawer Generator",
     page_icon=":wood:",
     layout="wide",
 )
@@ -57,6 +62,11 @@ OUTPUT_DIR = Path("output")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 
+# ---------------------------------------------------------------------------
+# Helpers: swatch/wood lookups (unchanged)
+# ---------------------------------------------------------------------------
+
+
 def get_swatch_files() -> list[Path]:
     """Get all image files from the swatches directory."""
     if not SWATCHES_DIR.exists():
@@ -76,10 +86,50 @@ def load_wood_types() -> dict[str, dict]:
 
 def get_wood_description(swatch_path: Path, wood_types: dict[str, dict]) -> str | None:
     """Get description for a wood type by matching swatch filename to JSON key."""
-    # Normalize: lowercase and convert underscores to hyphens
     key = swatch_path.stem.lower().replace("_", "-")
     if key in wood_types:
         return wood_types[key].get("description") or None
+    return None
+
+
+def get_reference_image_by_key(key: str) -> Path | None:
+    """Find a reference door image by wood type key in swatches/references/."""
+    key_underscore = key.replace("-", "_")
+    ref_dir = Path("swatches/references")
+    if not ref_dir.exists():
+        return None
+    for prefix in ("door-", "door_"):
+        for k in (key, key_underscore):
+            for ext in (".jpg", ".jpeg", ".png", ".webp"):
+                ref_path = ref_dir / f"{prefix}{k}{ext}"
+                if ref_path.exists():
+                    return ref_path
+    return None
+
+
+def get_reference_image(swatch_path: Path) -> Path | None:
+    """Find a reference door image for this wood type in swatches/references/."""
+    key = swatch_path.stem.lower().replace("_", "-")
+    return get_reference_image_by_key(key)
+
+
+def get_virtual_wood_types(
+    wood_types: dict[str, dict], swatch_files: list[Path]
+) -> list[tuple[str, dict]]:
+    """Get wood types that have a swatch_key but no swatch file of their own."""
+    swatch_stems = {f.stem.lower().replace("_", "-") for f in swatch_files}
+    return [
+        (key, data)
+        for key, data in wood_types.items()
+        if data.get("swatch_key") and key not in swatch_stems
+    ]
+
+
+def resolve_swatch_path(swatch_key: str, swatch_files: list[Path]) -> Path | None:
+    """Find a swatch file matching a key."""
+    for f in swatch_files:
+        if f.stem.lower().replace("_", "-") == swatch_key:
+            return f
     return None
 
 
@@ -94,291 +144,558 @@ def create_zip(results: list[tuple[str, bytes]], door_name: str) -> bytes:
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         for wood_name, image_data in results:
             filename = f"{door_name}_{wood_name.lower().replace(' ', '_')}.png"
-            zf.writestr(filename, image_data)
+            zf.writestr(filename, add_watermark(image_data, wood_name))
     return zip_buffer.getvalue()
 
 
-def main() -> None:
-    """Main application."""
-    st.title("Cabinet Door Generator")
-    st.markdown("Generate door style variations across different wood types")
+# ---------------------------------------------------------------------------
+# Tab state management
+# ---------------------------------------------------------------------------
 
-    # Sidebar for API key
-    with st.sidebar:
-        st.header("Settings")
-        env_api_key = os.environ.get("GEMINI_API_KEY", "")
-        if env_api_key:
-            api_key = env_api_key
-            st.success("Using API key from environment")
+
+def _default_tab_state() -> dict:
+    """Return a fresh per-tab state dict."""
+    return {
+        "learned_signature": None,
+        "base_door_image": None,
+        "generation_results": [],
+        "generation_errors": [],
+        "door_name": None,
+        "door_style": None,
+        "product_type": "Cabinet Door",
+        "selected_swatches": [],
+        # Background generation
+        "generation_running": False,
+        "generation_future": None,
+    }
+
+
+def add_tab() -> str:
+    """Add a new tab and return its ID."""
+    tab_id = uuid.uuid4().hex[:8]
+    st.session_state.tab_ids.append(tab_id)
+    tab_num = st.session_state.next_tab_number
+    st.session_state.next_tab_number = tab_num + 1
+    st.session_state.tab_labels[tab_id] = f"Door {tab_num}"
+    st.session_state.tabs[tab_id] = _default_tab_state()
+    return tab_id
+
+
+def remove_tab(tab_id: str) -> None:
+    """Remove a tab by ID (cancel any running future)."""
+    ts = st.session_state.tabs.get(tab_id, {})
+    future = ts.get("generation_future")
+    if future and not future.done():
+        future.cancel()
+    st.session_state.tab_ids.remove(tab_id)
+    st.session_state.tab_labels.pop(tab_id, None)
+    st.session_state.tabs.pop(tab_id, None)
+
+
+# ---------------------------------------------------------------------------
+# Background generation worker (runs in thread — no session state access)
+# ---------------------------------------------------------------------------
+
+
+def _run_generation_worker(
+    api_key: str,
+    base_signature: bytes,
+    door_style: str,
+    selections: list[dict],
+    aspect_ratio: str = "9:16",
+) -> tuple[list[tuple[str, bytes]], list[tuple[str, str]]]:
+    """Generate variations in a background thread.
+
+    Returns (successful, failed) lists.
+    """
+    generator = DoorGenerator(api_key=api_key)
+    successful: list[tuple[str, bytes]] = []
+    failed: list[tuple[str, str]] = []
+
+    for sel in selections:
+        wood_name = sel["wood_name"]
+        result = generator.generate_variation(
+            swatch_image_path=sel["swatch_path"],
+            wood_name=wood_name,
+            base_signature=base_signature,
+            wood_description=sel["wood_description"],
+            reference_image_path=sel["reference_image"],
+            door_style=door_style,
+            aspect_ratio=aspect_ratio,
+        )
+        if result.image_data:
+            successful.append((wood_name, result.image_data))
         else:
-            api_key = st.text_input(
-                "Gemini API Key",
-                type="password",
-                help="Your Google Gemini API key. Set GEMINI_API_KEY env var to avoid entering each time.",
-            )
-            if not api_key:
-                st.warning("Enter your API key to enable generation")
+            failed.append((wood_name, result.error or "Unknown error"))
 
-        # Reset button
-        if st.button("Reset All", use_container_width=True):
-            for key in [
-                "learned_signature",
-                "learned_aspect_ratio",
-                "base_door_image",
-                "generation_results",
-                "generation_errors",
-                "door_name",
-            ]:
-                if key in st.session_state:
-                    del st.session_state[key]
-            st.rerun()
+    return successful, failed
+
+
+# ---------------------------------------------------------------------------
+# Build the selection list from selected swatch keys
+# ---------------------------------------------------------------------------
+
+
+def _build_selections(selected_swatches: list[str]) -> list[dict]:
+    """Build the selections list from selected swatch keys."""
+    wood_types = load_wood_types()
+    all_swatch_files = get_swatch_files()
+    selections: list[dict] = []
+    for p in selected_swatches:
+        if p.startswith("virtual:"):
+            key = p[8:]
+            wt = wood_types.get(key, {})
+            borrowed = resolve_swatch_path(wt.get("swatch_key", ""), all_swatch_files)
+            selections.append(
+                {
+                    "wood_name": wt.get("name", key),
+                    "swatch_path": borrowed,
+                    "text_prompt": None,
+                    "wood_description": wt.get("description"),
+                    "reference_image": None,
+                }
+            )
+        else:
+            swatch_path = Path(p)
+            selections.append(
+                {
+                    "wood_name": swatch_name_from_path(swatch_path),
+                    "swatch_path": swatch_path,
+                    "text_prompt": None,
+                    "wood_description": get_wood_description(swatch_path, wood_types),
+                    "reference_image": get_reference_image(swatch_path),
+                }
+            )
+    return selections
+
+
+# ---------------------------------------------------------------------------
+# Render a single tab
+# ---------------------------------------------------------------------------
+
+
+def render_tab(tab_id: str, api_key: str) -> None:
+    """Render the full workflow for one tab."""
+    ts = st.session_state.tabs[tab_id]
+
+    # --- Tab header with close button ---
+    if len(st.session_state.tab_ids) > 1:
+        hdr_cols = st.columns([4, 1])
+        with hdr_cols[1]:
+            if st.button("Close Tab", key=f"{tab_id}_close", use_container_width=True):
+                remove_tab(tab_id)
+                st.rerun()
 
     # Main layout: two columns
     col_left, col_right = st.columns([1, 2])
 
     with col_left:
-        # Step 1: Upload and Learn Door
-        st.header("1. Upload & Learn Door Style")
-        uploaded_door = st.file_uploader(
-            "Choose a door image",
-            type=["jpg", "jpeg", "png", "webp"],
-            key="door_upload",
-        )
-
-        if uploaded_door:
-            st.image(uploaded_door, caption="Your Door", use_container_width=True)
-            door_name = st.text_input(
-                "Door style name",
-                value=Path(uploaded_door.name).stem,
-                help="Used for output filenames",
-            )
-
-            # Aspect ratio selector
-            aspect_options = [
-                "3:4 (tall)",
-                "9:16 (very tall)",
-                "1:1 (square)",
-                "4:3 (wide)",
-                "16:9 (very wide)",
-            ]
-            aspect_ratio_choice = st.selectbox(
-                "Door aspect ratio",
-                options=aspect_options,
-                index=0,  # Default to 3:4 for typical cabinet doors
-                help="Match your door's shape",
-            )
-            # Extract just the ratio part
-            selected_aspect_ratio = aspect_ratio_choice.split(" ")[0]
-
-            # Learn button
-            can_learn = api_key and uploaded_door
-            learn_btn = st.button(
-                "Learn Door Style",
-                type="primary" if not st.session_state.get("learned_signature") else "secondary",
-                disabled=not can_learn,
-                use_container_width=True,
-            )
-
-            if learn_btn and can_learn:
-                # Save uploaded door to temp file
-                door_temp_path = OUTPUT_DIR / f"temp_door_{uploaded_door.name}"
-                door_temp_path.write_bytes(uploaded_door.getvalue())
-
-                generator = DoorGenerator(api_key=api_key)
-
-                with st.spinner("Learning door style..."):
-                    result = generator.learn_door_style(
-                        door_temp_path,
-                        aspect_ratio=selected_aspect_ratio,
-                        door_style_name=door_name,
-                    )
-
-                door_temp_path.unlink(missing_ok=True)
-
-                if result.error:
-                    st.error(f"Failed: {result.error}")
-                elif result.thought_signature:
-                    st.session_state.learned_signature = result.thought_signature
-                    st.session_state.learned_aspect_ratio = result.aspect_ratio
-                    st.session_state.base_door_image = result.image_data
-                    st.session_state.door_name = door_name
-                    # Clear old results when learning new door
-                    st.session_state.generation_results = []
-                    st.session_state.generation_errors = []
-                    st.success(f"Door style learned! (aspect ratio: {result.aspect_ratio})")
-                    st.rerun()
-
-            # Show status
-            if st.session_state.get("learned_signature"):
-                st.success("Door style ready for variations")
-
-        # Step 2: Select Wood Types
-        st.header("2. Select Wood Types")
-
-        swatch_files = get_swatch_files()
-
-        if not swatch_files:
-            st.warning(f"No swatches found. Add wood swatch images to the `{SWATCHES_DIR}` folder.")
-            st.info("Supported formats: JPG, PNG, WEBP")
-        else:
-            # Select all / clear buttons
-            btn_col1, btn_col2 = st.columns(2)
-            if btn_col1.button("Select All", use_container_width=True):
-                st.session_state.selected_swatches = [str(f) for f in swatch_files]
-            if btn_col2.button("Clear", use_container_width=True):
-                st.session_state.selected_swatches = []
-
-            if "selected_swatches" not in st.session_state:
-                st.session_state.selected_swatches = []
-
-            # Display swatches in a grid
-            st.markdown("**Available Wood Types:**")
-            cols_per_row = 3
-            for i in range(0, len(swatch_files), cols_per_row):
-                cols = st.columns(cols_per_row)
-                for j, col in enumerate(cols):
-                    idx = i + j
-                    if idx < len(swatch_files):
-                        swatch = swatch_files[idx]
-                        swatch_key = str(swatch)
-                        with col:
-                            img = Image.open(swatch)
-                            st.image(img, use_container_width=True)
-                            selected = st.checkbox(
-                                swatch_name_from_path(swatch),
-                                value=swatch_key in st.session_state.selected_swatches,
-                                key=f"swatch_{idx}",
-                            )
-                            if selected and swatch_key not in st.session_state.selected_swatches:
-                                st.session_state.selected_swatches.append(swatch_key)
-                            elif not selected and swatch_key in st.session_state.selected_swatches:
-                                st.session_state.selected_swatches.remove(swatch_key)
-
-            selected_count = len(st.session_state.selected_swatches)
-            st.markdown(f"**Selected: {selected_count} / {len(swatch_files)}**")
+        _render_upload_and_learn(tab_id, ts, api_key)
+        _render_swatch_selection(tab_id, ts)
 
     with col_right:
-        st.header("3. Generate Variations")
+        _render_generation(tab_id, ts, api_key)
+        _render_results(tab_id, ts)
 
-        # Check if ready to generate
-        has_signature = st.session_state.get("learned_signature") is not None
-        has_swatches = bool(st.session_state.get("selected_swatches"))
-        can_generate = api_key and has_signature and has_swatches
 
-        if not api_key:
-            st.info("Enter your API key in the sidebar")
-        elif not has_signature:
-            st.info("Learn a door style first (Step 1)")
-        elif not has_swatches:
-            st.info("Select at least one wood type (Step 2)")
+# ---------------------------------------------------------------------------
+# Step 1: Upload & Learn Style
+# ---------------------------------------------------------------------------
 
-        generate_btn = st.button(
-            "Generate Variations",
-            type="primary",
-            disabled=not can_generate,
-            use_container_width=True,
+
+def _render_upload_and_learn(tab_id: str, ts: dict, api_key: str) -> None:
+    st.header("1. Upload & Learn Style")
+
+    product_type = st.radio(
+        "Product type",
+        ["Cabinet Door", "Drawer Front"],
+        index=0 if ts.get("product_type", "Cabinet Door") == "Cabinet Door" else 1,
+        horizontal=True,
+        key=f"{tab_id}_product_type_radio",
+    )
+    ts["product_type"] = product_type
+    is_drawer = product_type == "Drawer Front"
+    category = "drawer" if is_drawer else "door"
+    upload_label = "drawer front" if is_drawer else "door"
+
+    uploaded_door = st.file_uploader(
+        f"Choose a {upload_label} image",
+        type=["jpg", "jpeg", "png", "webp"],
+        key=f"{tab_id}_door_upload",
+    )
+
+    if uploaded_door:
+        st.image(uploaded_door, caption=f"Your {upload_label.title()}", use_container_width=True)
+        door_name = st.text_input(
+            "Style name",
+            value=Path(uploaded_door.name).stem,
+            help="Used for output filenames",
+            key=f"{tab_id}_door_name",
         )
 
-        if generate_btn and can_generate:
+        # Style selector filtered by product type
+        style_keys = [k for k, v in STYLES.items() if v["category"] == category]
+        style_names = [STYLES[k]["name"] for k in style_keys]
+        selected_style_idx = st.selectbox(
+            "Style type",
+            options=range(len(style_keys)),
+            format_func=lambda i, _names=style_names: _names[i],
+            index=0,
+            help=f"Select the type of {upload_label} you're generating",
+            key=f"{tab_id}_style_type",
+        )
+        selected_door_style = style_keys[selected_style_idx]
+
+        # Learn button
+        can_learn = bool(api_key and uploaded_door)
+        learn_btn = st.button(
+            f"Learn {upload_label.title()} Style",
+            type="primary" if not ts.get("learned_signature") else "secondary",
+            disabled=not can_learn,
+            use_container_width=True,
+            key=f"{tab_id}_learn_btn",
+        )
+
+        if learn_btn and can_learn:
+            door_temp_path = OUTPUT_DIR / f"temp_door_{tab_id}_{uploaded_door.name}"
+            door_temp_path.write_bytes(uploaded_door.getvalue())
+
             generator = DoorGenerator(api_key=api_key)
-            base_signature = st.session_state.learned_signature
-            aspect_ratio = st.session_state.get("learned_aspect_ratio", "3:4")
-            wood_types = load_wood_types()
 
-            selected_swatches = [
-                (Path(p), swatch_name_from_path(Path(p)))
-                for p in st.session_state.selected_swatches
-            ]
-
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            total = len(selected_swatches)
-
-            successful: list[tuple[str, bytes]] = []
-            failed: list[tuple[str, str]] = []
-
-            for i, (swatch_path, wood_name) in enumerate(selected_swatches):
-                progress_bar.progress((i) / total)
-                status_text.text(f"Generating: {wood_name} ({i + 1}/{total})")
-
-                wood_description = get_wood_description(swatch_path, wood_types)
-                result = generator.generate_variation(
-                    swatch_image_path=swatch_path,
-                    wood_name=wood_name,
-                    base_signature=base_signature,
+            aspect_ratio = "16:9" if is_drawer else "9:16"
+            with st.spinner(f"Learning {upload_label} style..."):
+                result = generator.learn_door_style(
+                    door_temp_path,
+                    door_style_name=door_name,
+                    door_style=selected_door_style,
                     aspect_ratio=aspect_ratio,
-                    wood_description=wood_description,
                 )
 
-                if result.image_data:
-                    successful.append((wood_name, result.image_data))
-                else:
-                    failed.append((wood_name, result.error or "Unknown error"))
+            door_temp_path.unlink(missing_ok=True)
 
-            progress_bar.progress(1.0)
-            status_text.text(f"Complete: {len(successful)} succeeded, {len(failed)} failed")
+            if result.error:
+                st.error(f"Failed: {result.error}")
+            elif result.thought_signature:
+                ts["learned_signature"] = result.thought_signature
+                ts["base_door_image"] = result.image_data
+                ts["door_name"] = door_name
+                ts["door_style"] = selected_door_style
+                ts["aspect_ratio"] = aspect_ratio
+                ts["generation_results"] = []
+                ts["generation_errors"] = []
+                # Update the tab label to use the door name
+                st.session_state.tab_labels[tab_id] = door_name or "Door"
+                st.success("Style learned!")
+                st.rerun()
 
-            # Append to existing results (don't replace)
-            existing = st.session_state.get("generation_results", [])
-            existing_errors = st.session_state.get("generation_errors", [])
-            st.session_state.generation_results = existing + successful
-            st.session_state.generation_errors = existing_errors + failed
+        if ts.get("learned_signature"):
+            st.success(f"{upload_label.title()} style ready for variations")
 
-        # Display base door
-        if st.session_state.get("base_door_image"):
-            st.subheader("Base Door (Learned Style)")
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                st.image(
-                    st.session_state.base_door_image,
-                    caption="Gemini's interpretation - all variations use this",
-                    use_container_width=True,
+
+# ---------------------------------------------------------------------------
+# Step 2: Select Wood Types
+# ---------------------------------------------------------------------------
+
+
+def _render_swatch_selection(tab_id: str, ts: dict) -> None:
+    st.header("2. Select Wood Types")
+
+    swatch_files = get_swatch_files()
+    wood_types = load_wood_types()
+    virtual_types = get_virtual_wood_types(wood_types, swatch_files)
+
+    if not swatch_files and not virtual_types:
+        st.warning(f"No swatches found. Add wood swatch images to the `{SWATCHES_DIR}` folder.")
+        st.info("Supported formats: JPG, PNG, WEBP")
+        return
+
+    # Select all / clear buttons
+    btn_col1, btn_col2 = st.columns(2)
+    all_keys = [str(f) for f in swatch_files] + [f"virtual:{k}" for k, _ in virtual_types]
+    if btn_col1.button("Select All", use_container_width=True, key=f"{tab_id}_select_all"):
+        ts["selected_swatches"] = list(all_keys)
+    if btn_col2.button("Clear", use_container_width=True, key=f"{tab_id}_clear_swatches"):
+        ts["selected_swatches"] = []
+
+    selected_swatches: list[str] = ts.get("selected_swatches", [])
+
+    # Display swatches in a grid
+    st.markdown("**Available Wood Types:**")
+    cols_per_row = 3
+    for i in range(0, len(swatch_files), cols_per_row):
+        cols = st.columns(cols_per_row)
+        for j, col in enumerate(cols):
+            idx = i + j
+            if idx < len(swatch_files):
+                swatch = swatch_files[idx]
+                swatch_key = str(swatch)
+                with col:
+                    img = Image.open(swatch)
+                    st.image(img, use_container_width=True)
+                    selected = st.checkbox(
+                        swatch_name_from_path(swatch),
+                        value=swatch_key in selected_swatches,
+                        key=f"{tab_id}_swatch_{idx}",
+                    )
+                    if selected and swatch_key not in selected_swatches:
+                        selected_swatches.append(swatch_key)
+                    elif not selected and swatch_key in selected_swatches:
+                        selected_swatches.remove(swatch_key)
+
+    # Display virtual wood types
+    if virtual_types:
+        st.markdown("**Composite Material Types:**")
+        for key, data in virtual_types:
+            virtual_key = f"virtual:{key}"
+            borrowed_swatch = resolve_swatch_path(data["swatch_key"], swatch_files)
+            ref_key = data.get("reference_key", key)
+            ref_img = get_reference_image_by_key(ref_key)
+            preview_img = ref_img or borrowed_swatch
+            t_cols = st.columns([1, 2] if preview_img else [1])
+            with t_cols[0]:
+                selected = st.checkbox(
+                    data["name"],
+                    value=virtual_key in selected_swatches,
+                    key=f"{tab_id}_swatch_virtual_{key}",
                 )
-            st.divider()
+                if selected and virtual_key not in selected_swatches:
+                    selected_swatches.append(virtual_key)
+                elif not selected and virtual_key in selected_swatches:
+                    selected_swatches.remove(virtual_key)
+            if preview_img and len(t_cols) > 1:
+                with t_cols[1]:
+                    st.image(
+                        Image.open(preview_img),
+                        caption="Reference",
+                        use_container_width=True,
+                    )
 
-        # Display results
-        results = st.session_state.get("generation_results", [])
-        door_name = st.session_state.get("door_name", "door")
+    ts["selected_swatches"] = selected_swatches
+    selected_count = len(selected_swatches)
+    total_available = len(swatch_files) + len(virtual_types)
+    st.markdown(f"**Selected: {selected_count} / {total_available}**")
 
-        if results:
-            st.subheader(f"Wood Variations ({len(results)})")
 
-            # Download all button
-            if len(results) > 1:
-                zip_data = create_zip(results, door_name)
-                st.download_button(
-                    "Download All as ZIP",
-                    data=zip_data,
-                    file_name=f"{door_name}_variations.zip",
-                    mime="application/zip",
-                    use_container_width=True,
-                )
+# ---------------------------------------------------------------------------
+# Step 3: Generate Variations
+# ---------------------------------------------------------------------------
 
-            # Display grid
-            cols_per_row = 3
-            for i in range(0, len(results), cols_per_row):
-                cols = st.columns(cols_per_row)
-                for j, col in enumerate(cols):
-                    idx = i + j
-                    if idx < len(results):
-                        wood_name, image_data = results[idx]
-                        with col:
-                            st.image(image_data, caption=wood_name, use_container_width=True)
-                            filename = f"{door_name}_{wood_name.lower().replace(' ', '_')}.png"
+
+def _render_generation(tab_id: str, ts: dict, api_key: str) -> None:
+    st.header("3. Generate Variations")
+
+    # --- Harvest completed background generation ---
+    future: Future | None = ts.get("generation_future")
+    if future is not None and future.done():
+        try:
+            successful, failed = future.result()
+        except Exception as exc:
+            successful, failed = [], [("Worker", str(exc))]
+        ts["generation_results"] = ts.get("generation_results", []) + successful
+        ts["generation_errors"] = ts.get("generation_errors", []) + failed
+        ts["generation_future"] = None
+        ts["generation_running"] = False
+
+    is_running = ts.get("generation_running", False)
+
+    # --- Show polling fragment while generation is in progress ---
+    if is_running:
+
+        @st.fragment(run_every=3.0)
+        def _poll_generation():
+            f: Future | None = ts.get("generation_future")
+            if f is not None and f.done():
+                st.rerun()
+            else:
+                count = len(ts.get("selected_swatches", []))
+                st.info(f"Generating {count} variation(s) in the background...")
+
+        _poll_generation()
+
+    has_signature = ts.get("learned_signature") is not None
+    has_swatches = bool(ts.get("selected_swatches"))
+    can_generate = bool(api_key) and has_signature and has_swatches and not is_running
+
+    if not api_key:
+        st.info("Enter your API key in the sidebar")
+    elif not has_signature:
+        st.info("Learn a style first (Step 1)")
+    elif not has_swatches:
+        st.info("Select at least one wood type (Step 2)")
+
+    generate_btn = st.button(
+        "Generate Variations",
+        type="primary",
+        disabled=not can_generate,
+        use_container_width=True,
+        key=f"{tab_id}_generate_btn",
+    )
+
+    if generate_btn and can_generate:
+        # Snapshot immutable inputs
+        base_signature = ts["learned_signature"]
+        door_style = ts.get("door_style", "recessed_panel")
+        selections = _build_selections(ts["selected_swatches"])
+
+        if not selections:
+            st.warning("No valid selections to generate.")
+            return
+
+        # Submit to shared executor
+        executor: ThreadPoolExecutor = st.session_state.executor
+        aspect_ratio = ts.get("aspect_ratio", "9:16")
+        future = executor.submit(
+            _run_generation_worker,
+            api_key,
+            base_signature,
+            door_style,
+            selections,
+            aspect_ratio,
+        )
+        ts["generation_future"] = future
+        ts["generation_running"] = True
+        st.rerun()
+
+
+# ---------------------------------------------------------------------------
+# Display results
+# ---------------------------------------------------------------------------
+
+
+def _render_results(tab_id: str, ts: dict) -> None:
+    # Display base image
+    if ts.get("base_door_image"):
+        is_drawer_result = ts.get("product_type") == "Drawer Front"
+        base_label = "Base Drawer Front" if is_drawer_result else "Base Door"
+        st.subheader(f"{base_label} (Learned Style)")
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.image(
+                add_watermark(ts["base_door_image"]),
+                caption="Gemini's interpretation - all variations use this",
+                use_container_width=True,
+            )
+        st.divider()
+
+    results = ts.get("generation_results", [])
+    door_name = ts.get("door_name", "door")
+
+    if results:
+        st.subheader(f"Wood Variations ({len(results)})")
+
+        if len(results) > 1:
+            zip_data = create_zip(results, door_name)
+            st.download_button(
+                "Download All as ZIP",
+                data=zip_data,
+                file_name=f"{door_name}_variations.zip",
+                mime="application/zip",
+                use_container_width=True,
+                key=f"{tab_id}_download_zip",
+            )
+
+        cols_per_row = 3
+        for i in range(0, len(results), cols_per_row):
+            cols = st.columns(cols_per_row)
+            for j, col in enumerate(cols):
+                idx = i + j
+                if idx < len(results):
+                    wood_name, image_data = results[idx]
+                    watermarked = add_watermark(image_data, wood_name)
+                    with col:
+                        st.image(watermarked, caption=wood_name, use_container_width=True)
+                        filename = f"{door_name}_{wood_name.lower().replace(' ', '_')}.png"
+                        btn_col1, btn_col2 = st.columns(2)
+                        with btn_col1:
                             st.download_button(
                                 "Download",
-                                data=image_data,
+                                data=watermarked,
                                 file_name=filename,
                                 mime="image/png",
-                                key=f"download_{idx}",
+                                key=f"{tab_id}_download_{idx}",
                                 use_container_width=True,
                             )
+                        with btn_col2:
+                            if st.button(
+                                "Discard",
+                                key=f"{tab_id}_discard_{idx}",
+                                use_container_width=True,
+                            ):
+                                ts["generation_results"].pop(idx)
+                                st.rerun()
 
-        # Display errors
-        if st.session_state.get("generation_errors"):
-            with st.expander("Errors", expanded=False):
-                for wood_name, error in st.session_state.generation_errors:
-                    st.error(f"**{wood_name}**: {error}")
+    # Display errors
+    if ts.get("generation_errors"):
+        with st.expander("Errors", expanded=False):
+            for wood_name, error in ts["generation_errors"]:
+                st.error(f"**{wood_name}**: {error}")
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+
+def main() -> None:
+    """Main application."""
+    st.title("Cabinet Door & Drawer Generator")
+    st.markdown("Generate door and drawer front variations across different wood types")
+
+    # --- Initialize multi-tab session state ---
+    if "tab_ids" not in st.session_state:
+        st.session_state.tab_ids = []
+        st.session_state.tab_labels = {}
+        st.session_state.tabs = {}
+        st.session_state.next_tab_number = 1
+        st.session_state.executor = ThreadPoolExecutor(max_workers=4)
+        add_tab()  # start with one default tab
+
+    # --- Sidebar ---
+    with st.sidebar:
+        st.header("Settings")
+        env_api_key = os.environ.get("GEMINI_API_KEY", "")
+        ui_api_key = st.text_input(
+            "Gemini API Key",
+            type="password",
+            value=env_api_key,
+            help="Your Google Gemini API key. Set GEMINI_API_KEY env var to pre-fill.",
+        )
+        api_key = ui_api_key or env_api_key
+        if api_key and api_key == env_api_key and not ui_api_key:
+            st.success("Using API key from environment")
+        elif not api_key:
+            st.warning("Enter your API key to enable generation")
+
+        st.divider()
+
+        if st.button("Reset All", use_container_width=True):
+            # Cancel any running futures
+            for tid in list(st.session_state.tab_ids):
+                future = st.session_state.tabs[tid].get("generation_future")
+                if future and not future.done():
+                    future.cancel()
+            # Re-initialize
+            st.session_state.tab_ids = []
+            st.session_state.tab_labels = {}
+            st.session_state.tabs = {}
+            st.session_state.next_tab_number = 1
+            add_tab()
+            st.rerun()
+
+    # --- Add New Door button above tabs ---
+    if st.button("+ Add New Door", type="secondary"):
+        add_tab()
+        st.rerun()
+
+    # --- Build tab bar ---
+    tab_ids = st.session_state.tab_ids
+    labels = [st.session_state.tab_labels[tid] for tid in tab_ids]
+    ui_tabs = st.tabs(labels)
+
+    # Render each real tab
+    for i, tab_id in enumerate(tab_ids):
+        with ui_tabs[i]:
+            render_tab(tab_id, api_key)
 
 
 if __name__ == "__main__":
