@@ -3,11 +3,14 @@ import { useProjects, useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 import TabBar from './TabBar';
 import ProjectTab from './ProjectTab';
+import DoorLibrary from './DoorLibrary';
 
 export default function Layout() {
-  const { projects, activeProjectId } = useProjects();
+  const { projects, openTabIds, activeProjectId } = useProjects();
+  const openProjects = projects.filter((p) => openTabIds.includes(p.id));
   const dispatch = useDispatch();
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_api_key') ?? '');
+  const [activeView, setActiveView] = useState<'library' | 'project'>('project');
 
   const handleApiKeyChange = useCallback((value: string) => {
     setApiKey(value);
@@ -43,13 +46,8 @@ export default function Layout() {
     }
   }, [dispatch, projects.length]);
 
-  const handleCloseTab = useCallback(async (id: string) => {
-    try {
-      await api.deleteProject(id);
-    } catch (err) {
-      console.error('Failed to delete project:', err);
-    }
-    dispatch({ type: 'REMOVE_PROJECT', id });
+  const handleCloseTab = useCallback((id: string) => {
+    dispatch({ type: 'CLOSE_TAB', id });
   }, [dispatch]);
 
   const handleResetAll = useCallback(async () => {
@@ -90,18 +88,31 @@ export default function Layout() {
       <div className="main-content">
         <div className="top-bar">
           <TabBar
-            projects={projects}
+            projects={openProjects}
             activeId={activeProjectId}
-            onSelect={(id) => dispatch({ type: 'SET_ACTIVE', id })}
+            activeView={activeView}
+            onSelect={(id) => {
+              dispatch({ type: 'SET_ACTIVE', id });
+              setActiveView('project');
+            }}
             onClose={handleCloseTab}
+            onSelectLibrary={() => setActiveView('library')}
           />
           <button onClick={handleAddProject}>+ Add New Door</button>
         </div>
         <div className="content-area">
-          {projects.length === 0 ? (
+          {activeView === 'library' ? (
+            <DoorLibrary
+              projects={projects}
+              onSelectProject={(id) => {
+                dispatch({ type: 'OPEN_TAB', id });
+                setActiveView('project');
+              }}
+            />
+          ) : openProjects.length === 0 ? (
             <div className="status-info">No project selected</div>
           ) : (
-            projects.map((p) => (
+            openProjects.map((p) => (
               <div
                 key={p.id}
                 style={{ display: p.id === activeProjectId ? 'block' : 'none' }}

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import type { Project, Style } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
+import SignatureHistory from './SignatureHistory';
 
 interface Props {
   project: Project;
@@ -292,6 +293,8 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
           Style ready for variations
         </div>
       )}
+
+      {project.has_signature && <SignatureHistory project={project} />}
 
       {error && (
         <div className="status-error" style={{ marginTop: '0.75rem' }}>

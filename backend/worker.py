@@ -230,6 +230,13 @@ def _run_learn(
             project.learning_status = "error"
             project.learning_error = result.error
         elif result.thought_signature:
+            # Archive current signature before overwriting (re-learn)
+            if project.has_signature and project.learned_signature:
+                store.archive_current_version(project_id)
+                # Re-fetch project after archive (version_count updated)
+                project = store.get(project_id)
+                if project is None:
+                    return
             project.learned_signature = result.thought_signature
             project.has_signature = True
             project.base_door_image = result.image_data
@@ -238,6 +245,7 @@ def _run_learn(
             project.generation_status = "idle"
             project.generation_completed = 0
             project.generation_total = 0
+            project.signature_version = 0
             project.learning_status = "done"
             project.learning_error = None
         store.save(project_id)

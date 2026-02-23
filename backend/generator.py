@@ -46,7 +46,7 @@ def add_watermark(image_bytes: bytes, wood_name: str = "") -> bytes:
     text_h = bbox[3] - bbox[1]
     text_x = (CANVAS_SIZE - text_w) // 2
     margin = int(CANVAS_SIZE * 0.05)
-    text_y = CANVAS_SIZE - margin // 2 - text_h // 2 - 86
+    text_y = CANVAS_SIZE - margin // 2 - text_h // 2 - 38
 
     if "walnut" in wood_name.lower():
         outline_color = (220, 220, 220, 180)
@@ -131,6 +131,42 @@ STYLES: dict[str, dict[str, str]] = {
             "The center panel is FLAT and RECESSED — do NOT make a raised panel. "
             "Preserve the exact square edge, cope-and-stick joint seams, frame width, "
             "and proportions from before."
+        ),
+    },
+    "shaker_flat_step": {
+        "name": "Shaker Flat Step",
+        "category": "door",
+        "learn_prompt": (
+            "Generate an exact replica of the reference image. "
+            "This is a SHAKER FLAT STEP door — it has an inner trim/step detail between the frame and panel. "
+            "CRITICAL INNER TRIM PROFILE: The inner trim has a FLAT VERTICAL STEP — a clean right-angle drop "
+            "straight down from the frame surface to the panel. The step is a simple flat ledge, "
+            "NOT angled, NOT beveled, NOT chamfered. There must be NO slope or diagonal surface on the "
+            "inner profile. It must look like a tiny square shelf, not a ramp. Do NOT add shadow or depth "
+            "that makes it look beveled — keep it flat and square. "
+            "JOINT DETAIL: The outer frame uses COPE-AND-STICK joints (butt joints) — stiles run full "
+            "length top to bottom, rails butt into them. But the INNER TRIM is MITERED at 45 degrees "
+            "at the corners. So the outer frame has butt joints while the inner trim has mitered corners. "
+            "The center panel is FLAT and RECESSED — it sits BELOW the frame, NOT raised. "
+            "Use the reference image to match the exact design details: "
+            "the flat step profile, mitered inner trim, butt-joint frame, frame width, "
+            "rail/stile proportions, and wood grain direction. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
+            "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
+            "The entire door must be fully visible and centered with clear white space surrounding it."
+        ),
+        "variation_hint": (
+            "CRITICAL: This is a SHAKER FLAT STEP door. "
+            "The inner trim has a FLAT VERTICAL STEP — a simple right-angle drop, NOT beveled, "
+            "NOT chamfered, NOT angled. No slope or diagonal surface. It must be a flat square ledge. "
+            "Do NOT add shadow or depth that makes the step look beveled or ramped. "
+            "The outer frame has COPE-AND-STICK BUTT JOINTS (stiles run full length, rails butt in). "
+            "The INNER TRIM corners are MITERED at 45 degrees. "
+            "The center panel is FLAT and RECESSED — do NOT make a raised panel. "
+            "Preserve the exact flat step profile, mitered inner trim, butt-joint frame, "
+            "frame width, and proportions from before."
         ),
     },
     "recessed_panel_center_stile": {
@@ -338,6 +374,50 @@ STYLES: dict[str, dict[str, str]] = {
             "CRITICAL: This is a SHAKER door — the center panel must be FLAT and RECESSED below the frame. "
             "Do NOT make a raised panel door. The panel must NOT have a raised bevel or convex surface. "
             "Preserve the exact Shaker flat recessed panel design and square-edge framing from before."
+        ),
+    },
+    "mission": {
+        "name": "Mission",
+        "category": "door",
+        "learn_prompt": (
+            "Generate an exact replica of the reference image. "
+            "This is a MISSION style cathedral arch FLAT PANEL door. "
+            "CRITICAL PANEL TYPE: The center panel is completely FLAT — it is NOT a raised panel. "
+            "There is NO bevel, NO convex surface, NO raised center on the panel whatsoever. "
+            "The panel is a single flat plane that sits FLUSH or slightly RECESSED within the frame. "
+            "ARCH SHAPE: The top edge of the panel forms a cathedral curve shaped like a wide shallow 'M' "
+            "or mustache. There is a modest rounded rise at center, but the DEFINING feature is the two "
+            "DEEP CONCAVE SWOOPS on either side. These concave dips curve well below the center peak "
+            "before sweeping back up to meet the top corners of the frame. "
+            "The concave dips are the dominant visual — they should be deep and dramatic, dropping roughly "
+            "20-25% of the panel height below the center peak. The center rise is gentle and secondary. "
+            "This is NOT a simple arch, NOT a semicircle, NOT a pointed Gothic peak. "
+            "The silhouette reads as: high corners → deep swoop down → moderate rise at center → "
+            "deep swoop down → high corners. "
+            "FRAME PROFILE: The frame's INNER EDGE has a decorative routed profile (ogee or similar) "
+            "that creates shadow lines where the frame meets the panel. These shadow lines come from "
+            "the FRAME molding profile, NOT from the panel being raised. Do NOT misinterpret these "
+            "shadows as a raised panel bevel. "
+            "FRAME PROPORTIONS: The bottom rail is noticeably wider than the stiles (approximately 1.5x). "
+            "The stiles are uniform width. The top rail follows the arch contour. "
+            "Use the reference image to match the exact arch curve, frame molding profile, "
+            "rail/stile proportions, and wood grain direction. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
+            "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
+            "The entire door must be fully visible and centered with clear white space surrounding it."
+        ),
+        "variation_hint": (
+            "CRITICAL: This is a MISSION style cathedral arch FLAT PANEL door. "
+            "The center panel is completely FLAT — it is NOT raised. There is NO bevel, NO convex "
+            "surface, NO raised center. The panel is a single flat plane. "
+            "The shadow lines at the frame-panel junction come from the FRAME's decorative inner "
+            "edge profile, NOT from the panel being raised. Do NOT add any raised panel bevel. "
+            "Preserve the exact cathedral arch — shaped like a wide 'M' with deep concave swoops "
+            "on each side of a modest center rise. The dips are the dominant feature, NOT the peak. "
+            "Preserve the flat panel, decorative frame profile, "
+            "wide bottom rail, and rail/stile proportions from before."
         ),
     },
     "raised_panel": {

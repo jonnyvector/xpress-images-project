@@ -1,7 +1,7 @@
 {
     "alder-select": {
         "name": "Alder Select",
-        "description": "Consistent color and grain with minimal natural characteristics. Color ranges from pale yellow-honey to a warm golden-tan \u2014 shift toward yellow/honey, NOT strongly reddish. A subtle warm undertone is fine but the dominant impression should be golden, not red. Soft straight grain, even texture. Great for staining."
+        "description": "Consistent color and grain with minimal natural characteristics. Color is a warm golden-tan — NOT pale or washed out, and NOT strongly reddish. The dominant impression should be a rich warm golden tone with a subtle honey undertone. Soft straight grain, even texture. Great for staining."
     },
     "alder-natural": {
         "name": "Alder Natural",
@@ -123,7 +123,7 @@
     },
     "ash-select": {
         "name": "Ash Select",
-        "description": "Pale cream with straw-yellow undertones. Mild, subtle cathedral grain patterns. Featuring a moderately open grain pattern, Ash Select displays colors ranging from cream to a very light brown heartwood with lighter colored sapwood. Though some color variation and mineral may be allowed on the face. Reduced allowance for small closed knots and pin knots."
+        "description": "Warm straw-yellow to light golden tone — NOT white or pale cream. The color should have a clear warm yellow-golden cast, not washed out or cool. Moderate cathedral/arch grain patterns on the frame stiles — some gentle sweeping or wavy grain figures, NOT straight vertical grain. The cathedral arches should be present but not overly dramatic or exaggerated. Moderately open grain pattern. Some color variation and mineral may be allowed on the face. Reduced allowance for small closed knots and pin knots."
     },
     "fir-vertical-grain": {
         "name": "Fir Vertical Grain",

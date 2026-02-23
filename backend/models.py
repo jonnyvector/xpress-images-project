@@ -44,6 +44,16 @@ class ProjectResponse(BaseModel):
     results: list[ResultItem]
     errors: list[ErrorItem]
     retrying_indices: list[int] = []
+    signature_version: int = 0
+    version_count: int = 0
+
+
+class VersionSummary(BaseModel):
+    version: int
+    created_at: str
+    door_style: str | None
+    style_notes: str
+    result_count: int
 
 
 class SwatchResponse(BaseModel):

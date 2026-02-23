@@ -14,6 +14,7 @@ from backend.models import (
     ProjectUpdate,
     ResultItem,
     SaveToFolderResponse,
+    VersionSummary,
 )
 from backend.state import ProjectStore
 from backend.worker import start_generation, start_retry
@@ -48,6 +49,8 @@ def _project_response(p) -> ProjectResponse:  # noqa: ANN001
         ],
         errors=[ErrorItem(wood_name=wn, error=err) for wn, err in p.errors],
         retrying_indices=p.retrying_indices,
+        signature_version=p.signature_version,
+        version_count=p.version_count,
     )
 
 
@@ -137,6 +140,61 @@ def get_base_image(project_id: str, request: Request) -> Response:
         media_type="image/png",
         headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
     )
+
+
+@router.get(
+    "/projects/{project_id}/versions",
+    response_model=list[VersionSummary],
+)
+def list_versions(project_id: str, request: Request) -> list[VersionSummary]:
+    store = _get_store(request)
+    project = store.get(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    versions = store.list_versions(project_id)
+    return [VersionSummary(**v) for v in versions]
+
+
+@router.get("/projects/{project_id}/versions/{version}/base-image")
+def get_version_base_image(
+    project_id: str, version: int, request: Request
+) -> Response:
+    store = _get_store(request)
+    project = store.get(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    data = store.get_version_base_image(project_id, version)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Version base image not found")
+    return Response(content=data, media_type="image/png")
+
+
+@router.get("/projects/{project_id}/versions/{version}/results/{idx}/image")
+def get_version_result_image(
+    project_id: str, version: int, idx: int, request: Request
+) -> Response:
+    store = _get_store(request)
+    project = store.get(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    data = store.get_version_result_image(project_id, version, idx)
+    if data is None:
+        raise HTTPException(status_code=404, detail="Version result image not found")
+    return Response(content=data, media_type="image/png")
+
+
+@router.post("/projects/{project_id}/versions/{version}/restore")
+def restore_version(
+    project_id: str, version: int, request: Request
+) -> ProjectResponse:
+    store = _get_store(request)
+    project = store.get(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if not store.restore_version(project_id, version):
+        raise HTTPException(status_code=404, detail="Version not found")
+    project = store.get(project_id)
+    return _project_response(project)
 
 
 @router.get("/projects/{project_id}/results/{idx}/image")

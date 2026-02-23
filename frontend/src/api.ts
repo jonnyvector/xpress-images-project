@@ -1,4 +1,4 @@
-import type { Project, Swatch, Style, GenerationStatus } from './types';
+import type { Project, Swatch, Style, GenerationStatus, SignatureVersion } from './types';
 
 function getApiKey(): string {
   return localStorage.getItem('gemini_api_key') ?? '';
@@ -110,6 +110,15 @@ export async function saveResultsToFolder(
     `/api/projects/${id}/results/save?watermark=${watermark}`,
     { method: 'POST' },
   );
+}
+
+// Versions
+export function listVersions(id: string): Promise<SignatureVersion[]> {
+  return request<SignatureVersion[]>(`/api/projects/${id}/versions`);
+}
+
+export function restoreVersion(id: string, version: number): Promise<Project> {
+  return request<Project>(`/api/projects/${id}/versions/${version}/restore`, { method: 'POST' });
 }
 
 // Swatches & Styles

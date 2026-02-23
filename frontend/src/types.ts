@@ -16,6 +16,16 @@ export interface Project {
   results: ProjectResult[];
   errors: ProjectError[];
   retrying_indices: number[];
+  signature_version: number;
+  version_count: number;
+}
+
+export interface SignatureVersion {
+  version: number;
+  created_at: string;
+  door_style: string | null;
+  style_notes: string;
+  result_count: number;
 }
 
 export interface ProjectResult {
