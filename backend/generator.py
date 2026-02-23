@@ -46,7 +46,7 @@ def add_watermark(image_bytes: bytes, wood_name: str = "") -> bytes:
     text_h = bbox[3] - bbox[1]
     text_x = (CANVAS_SIZE - text_w) // 2
     margin = int(CANVAS_SIZE * 0.05)
-    text_y = CANVAS_SIZE - margin // 2 - text_h // 2 - 8
+    text_y = CANVAS_SIZE - margin // 2 - text_h // 2 - 86
 
     if "walnut" in wood_name.lower():
         outline_color = (220, 220, 220, 180)
@@ -96,6 +96,41 @@ STYLES: dict[str, dict[str, str]] = {
             "the surrounding frame. Do NOT make a raised panel door. The panel must NOT have a raised bevel "
             "or convex surface. Preserve the exact flat recessed panel design, frame molding profile, "
             "and rail/stile proportions from before."
+        ),
+    },
+    "shaker_cope_stick": {
+        "name": "Shaker Cope & Stick",
+        "category": "door",
+        "learn_prompt": (
+            "Generate an exact replica of the reference image. "
+            "This is a SHAKER door with COPE-AND-STICK joinery. "
+            "The frame has a plain SQUARE inner edge — no routed step profile, no applied molding. "
+            "CRITICAL JOINT DETAIL: The frame uses traditional COPE-AND-STICK joints, NOT mitered. "
+            "The vertical stiles run FULL LENGTH top to bottom. The horizontal rails are cope-cut "
+            "to fit over the stile's stick profile, creating a visible SEAM LINE where rail meets stile. "
+            "This seam is a thin horizontal line across each stile at the joint — it should be subtly "
+            "visible, especially on lighter woods. The inner corners are RIGHT-ANGLE BUTT JOINTS, "
+            "NOT 45-degree miters. Do NOT make mitered corners. "
+            "The center panel is FLAT and RECESSED — it sits BELOW the frame, NOT raised. "
+            "Use the reference image to match the exact design details: "
+            "the square inner edge, cope-and-stick joint seams, frame width, rail/stile proportions, "
+            "and wood grain direction. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
+            "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
+            "The entire door must be fully visible and centered with clear white space surrounding it."
+        ),
+        "variation_hint": (
+            "CRITICAL: This is a SHAKER door with COPE-AND-STICK joints — NOT mitered. "
+            "Plain SQUARE inner edge — no routed profile, no applied molding. "
+            "The stile profiles run full length top to bottom; the cope-cut rails butt into them "
+            "at right angles, leaving a visible seam line at each joint. "
+            "Do NOT make mitered corners — NO 45-degree angles. Each inner corner is a right-angle "
+            "butt joint with a subtle visible seam where the cope meets the stick. "
+            "The center panel is FLAT and RECESSED — do NOT make a raised panel. "
+            "Preserve the exact square edge, cope-and-stick joint seams, frame width, "
+            "and proportions from before."
         ),
     },
     "recessed_panel_center_stile": {
@@ -184,6 +219,45 @@ STYLES: dict[str, dict[str, str]] = {
             "Preserve the exact routed step profile, butt-joint corners, frame width, and proportions from before."
         ),
     },
+    "hayes": {
+        "name": "Hayes",
+        "category": "door",
+        "learn_prompt": (
+            "Generate an exact replica of the reference image. "
+            "This is the HAYES style cabinet door with these specific construction details: "
+            "1) WIDE FRAME (rails and stiles) with a SQUARE outer edge profile — the outside "
+            "perimeter of the door has clean, sharp, square-cut edges, NOT rounded or bullnosed. "
+            "2) APPLIED MOLDING — a separate decorative molding strip with a COVE/OGEE stepped profile "
+            "surrounds the center panel, creating a distinct frame-within-a-frame appearance with TWO "
+            "visible borders: the outer frame and the inner applied molding trim. "
+            "3) The APPLIED MOLDING CORNERS are MITERED at 45 degrees — the molding strips meet with "
+            "precise diagonal miter cuts at each corner. "
+            "4) The OUTER FRAME uses traditional COPE-AND-STICK joints at the corners — the rails and "
+            "stiles join with square cope-and-stick joinery, NOT mitered. "
+            "5) The center panel is FLAT and RECESSED — it sits BELOW the applied molding, NOT raised. "
+            "6) There is a clear STEPPED TRANSITION from the outer frame down to the applied molding "
+            "and then down again to the recessed panel — creating visible depth and shadow lines. "
+            "Use the reference image to match the exact design details: "
+            "the square outer edge, applied molding profile, miter joints on molding, "
+            "cope-and-stick joints on frame, frame width, rail/stile proportions, and wood grain direction. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
+            "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
+            "The entire door must be fully visible and centered with clear white space surrounding it."
+        ),
+        "variation_hint": (
+            "CRITICAL STYLE PRESERVATION — this is the HAYES door with ALL of these features: "
+            "1) WIDE FRAME with a SQUARE outer edge — clean sharp square-cut perimeter, NOT rounded or bullnosed. "
+            "2) APPLIED MOLDING with a COVE/OGEE stepped profile creating a frame-within-a-frame look. "
+            "3) Applied molding corners are MITERED at 45 degrees. "
+            "4) Outer frame corners use COPE-AND-STICK joints (NOT mitered). "
+            "5) FLAT RECESSED center panel — do NOT make a raised panel. "
+            "6) Clear stepped depth transitions: outer frame → applied molding → recessed panel. "
+            "Preserve the exact square edge, applied molding profile, miter geometry on molding, "
+            "cope-and-stick joints on frame, and all proportions from before."
+        ),
+    },
     "mitered_recessed_panel_applied_molding": {
         "name": "Mitered Recessed Panel (Applied Molding)",
         "category": "door",
@@ -213,17 +287,21 @@ STYLES: dict[str, dict[str, str]] = {
         ),
     },
     "mitered_flat_panel": {
-        "name": "Mitered Flat Panel",
+        "name": "Skinny Shaker Mitered",
         "category": "door",
         "learn_prompt": (
             "Generate an exact replica of the reference image. "
-            "This is a MITERED FLAT PANEL door — it has a flat, recessed center panel with NARROW rails and stiles. "
-            "The frame corners are joined at 45-DEGREE MITER JOINTS, NOT traditional cope-and-stick joints. "
-            "The mitered corners mean the grain runs at 45 degrees at each corner where the rails meet the stiles. "
-            "The frame is THINNER/NARROWER than a standard shaker door. "
-            "The center panel is FLAT and sits BELOW the frame — it is NOT raised. "
+            "This is a SKINNY SHAKER MITERED door — the defining feature is its EXTREMELY NARROW frame. "
+            "The rails and stiles are VERY THIN — roughly HALF the width of a standard shaker door frame. "
+            "The frame width is approximately 1 to 1.25 inches, making the center panel appear much larger "
+            "relative to the frame than a normal shaker. Do NOT widen the frame — if the frame looks like "
+            "a standard shaker width, it is WRONG. The frame must look noticeably skinny/slim. "
+            "The frame corners are joined at 45-DEGREE MITER JOINTS, NOT cope-and-stick — the grain "
+            "runs at 45 degrees at each corner where rails meet stiles. "
+            "The inner edge is a simple clean square shaker profile — no routed detail, no applied molding. "
+            "The center panel is FLAT and RECESSED — it sits BELOW the frame, NOT raised. "
             "Use the reference image to match the exact design details: "
-            "the miter joint angles, narrow frame width, panel depth, and wood grain direction. "
+            "the very narrow frame width, miter joint angles, panel depth, and wood grain direction. "
             "Create a brand new render - do NOT return the reference image. "
             "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
             "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
@@ -231,10 +309,14 @@ STYLES: dict[str, dict[str, str]] = {
             "The entire door must be fully visible and centered with clear white space surrounding it."
         ),
         "variation_hint": (
-            "CRITICAL: This is a MITERED FLAT PANEL door — the frame corners are 45-degree MITER JOINTS, "
-            "NOT cope-and-stick. Do NOT make square butt joints at the corners. The frame is NARROW/THIN "
-            "compared to a standard shaker. The center panel is FLAT and RECESSED — do NOT make a raised panel. "
-            "Preserve the exact miter joint geometry, narrow frame width, and rail/stile proportions from before."
+            "CRITICAL: This is a SKINNY SHAKER MITERED door. The frame (rails and stiles) must be "
+            "EXTREMELY NARROW — roughly HALF the width of a standard shaker, approximately 1 to 1.25 inches. "
+            "Do NOT widen the frame to standard shaker proportions — the skinny frame is the defining feature. "
+            "If the frame looks like a normal shaker width, it is WRONG. "
+            "The frame corners are 45-degree MITER JOINTS, NOT cope-and-stick or butt joints. "
+            "Simple square shaker inner edge — no routed profile, no applied molding. "
+            "The center panel is FLAT and RECESSED — do NOT make a raised panel. "
+            "Preserve the exact skinny frame width, miter geometry, and proportions from before."
         ),
     },
     "shaker": {
@@ -256,38 +338,6 @@ STYLES: dict[str, dict[str, str]] = {
             "CRITICAL: This is a SHAKER door — the center panel must be FLAT and RECESSED below the frame. "
             "Do NOT make a raised panel door. The panel must NOT have a raised bevel or convex surface. "
             "Preserve the exact Shaker flat recessed panel design and square-edge framing from before."
-        ),
-    },
-    "highpointe": {
-        "name": "Highpointe",
-        "category": "door",
-        "learn_prompt": (
-            "Generate an exact replica of the reference image. "
-            "This is a RECESSED (INSET) panel door with ROPE MOLDING (barley twist trim). "
-            "CRITICAL PANEL GEOMETRY: The center panel is FLAT and RECESSED — it sits BELOW the "
-            "surrounding frame. The panel surface is FLAT and FLUSH — it does NOT rise, bulge, or "
-            "bevel upward. Do NOT create a raised panel. "
-            "DEFINING DECORATIVE FEATURE: A ROPE TWIST MOLDING (also called barley twist or rope trim) "
-            "runs along the inner edge of the frame, forming a continuous decorative border between the "
-            "frame and the recessed panel. This rope detail is a carved/routed twisted rope pattern — "
-            "NOT a smooth ogee, NOT a stepped profile, NOT a plain square edge. "
-            "The rope molding sits ON TOP of the frame edge — the panel behind it is LOWER/RECESSED. "
-            "Use the reference image to match the exact design details: "
-            "the rope twist pattern, panel depth, frame width, rail/stile proportions, and wood grain direction. "
-            "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
-            "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
-            "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
-            "The entire door must be fully visible and centered with clear white space surrounding it."
-        ),
-        "variation_hint": (
-            "CRITICAL: This is a RECESSED/INSET panel door with ROPE TWIST MOLDING. "
-            "The center panel MUST be FLAT and sit BELOW the frame — do NOT make a raised panel. "
-            "The panel must NOT bulge, bevel, or rise above the frame. It is FLAT and RECESSED. "
-            "The ROPE MOLDING (barley twist trim) must be preserved around the inner frame edge — "
-            "this is a twisted rope pattern, NOT a smooth or stepped profile. "
-            "Preserve the exact flat recessed panel, rope twist molding, frame proportions, "
-            "and rail/stile geometry from before."
         ),
     },
     "raised_panel": {
@@ -583,6 +633,15 @@ class DoorGenerator:
                     f" KEY REQUIREMENTS for this wood — follow these strictly: {wood_description}"
                 )
 
+            # Reinforce Graham joint detail in wood description (esp. for complex
+            # material swaps like MDF that can cause Gemini to reinterpret joints)
+            if door_style == "graham":
+                wood_identity += (
+                    " JOINT REMINDER: The inner frame profile uses cope-and-stick BUTT JOINTS, "
+                    "NOT miters. Stile profiles run full length top to bottom; rail profiles "
+                    "butt into them at right angles. NO 45-degree corners on the inner trim."
+                )
+
             if reference_image_path:
                 source_instruction = (
                     "Use the reference door photo for color, grain pattern, and texture guidance. "
@@ -603,11 +662,11 @@ class DoorGenerator:
                 )
 
             prompt = (
+                f"CRITICAL STYLE PRESERVATION: {variation_hint} "
+                f"Keep identical: door shape, frame proportions, edge profiles, and joint types. "
+                f"Change ONLY the wood material — everything else must stay exactly the same. "
                 f"{wood_identity} "
                 f"{source_instruction}"
-                f"Using the EXACT same door style from before, change ONLY the wood material. "
-                f"CRITICAL: {variation_hint} "
-                f"Keep identical: door shape, frame proportions, edge profiles. "
                 f"{drawer_instruction}"
                 f"Output: front-facing orthographic view, clean white background, "
                 f"no shadows, professional lighting."
@@ -633,7 +692,7 @@ class DoorGenerator:
                     contents=contents,
                     config=types.GenerateContentConfig(
                         response_modalities=["image", "text"],
-                        temperature=0.0,  # Deterministic for consistency
+                        temperature=0.3,  # Slight randomness so retries produce different results
                         image_config=types.ImageConfig(
                             aspect_ratio=aspect_ratio,
                         ),

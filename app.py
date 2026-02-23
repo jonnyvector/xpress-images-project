@@ -5,7 +5,7 @@ import json
 import os
 import uuid
 import zipfile
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import streamlit as st
@@ -149,6 +149,138 @@ def create_zip(results: list[tuple[str, bytes]], door_name: str) -> bytes:
 
 
 # ---------------------------------------------------------------------------
+# Session persistence (survives full page reload)
+# ---------------------------------------------------------------------------
+
+PERSIST_DIR = OUTPUT_DIR / ".session"
+
+
+def _save_session() -> None:
+    """Persist tab state to disk so it survives page reloads."""
+    if "tab_ids" not in st.session_state:
+        return
+    PERSIST_DIR.mkdir(parents=True, exist_ok=True)
+
+    manifest: dict = {
+        "tab_ids": st.session_state.tab_ids,
+        "tab_labels": dict(st.session_state.tab_labels),
+        "next_tab_number": st.session_state.next_tab_number,
+        "tabs": {},
+    }
+
+    for tab_id in st.session_state.tab_ids:
+        ts = st.session_state.tabs[tab_id]
+
+        # Write binary blobs to individual files
+        for blob_key, suffix in [
+            ("uploaded_file_bytes", "upload"),
+            ("learned_signature", "signature"),
+            ("base_door_image", "base_door"),
+        ]:
+            data = ts.get(blob_key)
+            path = PERSIST_DIR / f"{tab_id}_{suffix}.bin"
+            if data is not None:
+                path.write_bytes(data)
+            elif path.exists():
+                path.unlink()
+
+        # Write generation result images
+        results = ts.get("generation_results", [])
+        result_names = []
+        for idx, (wood_name, image_data) in enumerate(results):
+            (PERSIST_DIR / f"{tab_id}_result_{idx}.bin").write_bytes(image_data)
+            result_names.append(wood_name)
+        # Clean up stale result files
+        stale_idx = len(results)
+        while (PERSIST_DIR / f"{tab_id}_result_{stale_idx}.bin").exists():
+            (PERSIST_DIR / f"{tab_id}_result_{stale_idx}.bin").unlink()
+            stale_idx += 1
+
+        manifest["tabs"][tab_id] = {
+            "uploaded_file_name": ts.get("uploaded_file_name"),
+            "door_name": ts.get("door_name"),
+            "door_style": ts.get("door_style"),
+            "product_type": ts.get("product_type", "Cabinet Door"),
+            "selected_swatches": ts.get("selected_swatches", []),
+            "style_notes": ts.get("style_notes", ""),
+            "aspect_ratio": ts.get("aspect_ratio"),
+            "result_names": result_names,
+            "generation_errors": ts.get("generation_errors", []),
+        }
+
+    (PERSIST_DIR / "manifest.json").write_text(json.dumps(manifest))
+
+
+def _load_session() -> bool:
+    """Restore tab state from disk. Returns True if state was restored."""
+    manifest_path = PERSIST_DIR / "manifest.json"
+    if not manifest_path.exists():
+        return False
+    try:
+        manifest = json.loads(manifest_path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return False
+
+    tab_ids = manifest.get("tab_ids", [])
+    if not tab_ids:
+        return False
+
+    st.session_state.tab_ids = tab_ids
+    st.session_state.tab_labels = manifest.get("tab_labels", {})
+    st.session_state.next_tab_number = manifest.get("next_tab_number", 1)
+    st.session_state.tabs = {}
+
+    for tab_id in tab_ids:
+        saved = manifest.get("tabs", {}).get(tab_id, {})
+        ts = _default_tab_state()
+
+        # Restore scalar fields
+        for key in (
+            "uploaded_file_name",
+            "door_name",
+            "door_style",
+            "product_type",
+            "selected_swatches",
+            "style_notes",
+            "aspect_ratio",
+            "generation_errors",
+        ):
+            if saved.get(key) is not None:
+                ts[key] = saved[key]
+
+        # Restore binary blobs
+        for blob_key, suffix in [
+            ("uploaded_file_bytes", "upload"),
+            ("learned_signature", "signature"),
+            ("base_door_image", "base_door"),
+        ]:
+            path = PERSIST_DIR / f"{tab_id}_{suffix}.bin"
+            if path.exists():
+                ts[blob_key] = path.read_bytes()
+
+        # Restore generation results
+        result_names = saved.get("result_names", [])
+        results = []
+        for idx, wood_name in enumerate(result_names):
+            path = PERSIST_DIR / f"{tab_id}_result_{idx}.bin"
+            if path.exists():
+                results.append((wood_name, path.read_bytes()))
+        ts["generation_results"] = results
+
+        st.session_state.tabs[tab_id] = ts
+
+    return True
+
+
+def _clear_persisted_session() -> None:
+    """Remove all persisted session files."""
+    if PERSIST_DIR.exists():
+        for f in PERSIST_DIR.iterdir():
+            f.unlink(missing_ok=True)
+        PERSIST_DIR.rmdir()
+
+
+# ---------------------------------------------------------------------------
 # Tab state management
 # ---------------------------------------------------------------------------
 
@@ -164,9 +296,15 @@ def _default_tab_state() -> dict:
         "door_style": None,
         "product_type": "Cabinet Door",
         "selected_swatches": [],
+        # Cached upload (survives st.rerun widget-tree rebuild)
+        "uploaded_file_bytes": None,
+        "uploaded_file_name": None,
         # Background generation
         "generation_running": False,
         "generation_future": None,
+        # Background learn
+        "learn_running": False,
+        "learn_future": None,
     }
 
 
@@ -182,14 +320,19 @@ def add_tab() -> str:
 
 
 def remove_tab(tab_id: str) -> None:
-    """Remove a tab by ID (cancel any running future)."""
+    """Remove a tab by ID (cancel any running futures)."""
     ts = st.session_state.tabs.get(tab_id, {})
-    future = ts.get("generation_future")
-    if future and not future.done():
-        future.cancel()
+    for key in ("generation_future", "learn_future"):
+        future = ts.get(key)
+        if future and not future.done():
+            future.cancel()
     st.session_state.tab_ids.remove(tab_id)
     st.session_state.tab_labels.pop(tab_id, None)
     st.session_state.tabs.pop(tab_id, None)
+    # Clean up persisted files for this tab
+    if PERSIST_DIR.exists():
+        for f in PERSIST_DIR.glob(f"{tab_id}_*"):
+            f.unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------------------
@@ -203,6 +346,7 @@ def _run_generation_worker(
     door_style: str,
     selections: list[dict],
     aspect_ratio: str = "9:16",
+    style_notes: str = "",
 ) -> tuple[list[tuple[str, bytes]], list[tuple[str, str]]]:
     """Generate variations in a background thread.
 
@@ -212,7 +356,7 @@ def _run_generation_worker(
     successful: list[tuple[str, bytes]] = []
     failed: list[tuple[str, str]] = []
 
-    for sel in selections:
+    def _generate_one(sel: dict) -> tuple[str, object]:
         wood_name = sel["wood_name"]
         result = generator.generate_variation(
             swatch_image_path=sel["swatch_path"],
@@ -222,13 +366,53 @@ def _run_generation_worker(
             reference_image_path=sel["reference_image"],
             door_style=door_style,
             aspect_ratio=aspect_ratio,
+            style_notes=style_notes,
         )
-        if result.image_data:
-            successful.append((wood_name, result.image_data))
-        else:
-            failed.append((wood_name, result.error or "Unknown error"))
+        return wood_name, result
+
+    max_parallel = min(len(selections), 4)
+    with ThreadPoolExecutor(max_workers=max_parallel) as pool:
+        futures = {pool.submit(_generate_one, sel): sel for sel in selections}
+        for future in as_completed(futures):
+            wood_name, result = future.result()
+            if result.image_data:
+                successful.append((wood_name, result.image_data))
+            else:
+                failed.append((wood_name, result.error or "Unknown error"))
 
     return successful, failed
+
+
+def _run_learn_worker(
+    api_key: str,
+    file_bytes: bytes,
+    file_name: str,
+    door_style_name: str,
+    door_style: str,
+    aspect_ratio: str,
+) -> object:
+    """Learn a door style in a background thread.
+
+    Manages its own temp file lifecycle. Returns a GenerationResult.
+    """
+    import tempfile
+
+    tmp_path = None
+    try:
+        suffix = Path(file_name).suffix or ".png"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(file_bytes)
+            tmp_path = Path(tmp.name)
+        generator = DoorGenerator(api_key=api_key)
+        return generator.learn_door_style(
+            tmp_path,
+            door_style_name=door_style_name,
+            door_style=door_style,
+            aspect_ratio=aspect_ratio,
+        )
+    finally:
+        if tmp_path:
+            tmp_path.unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------------------
@@ -257,13 +441,28 @@ def _build_selections(selected_swatches: list[str]) -> list[dict]:
             )
         else:
             swatch_path = Path(p)
+            # If the stored path doesn't exist, try resolving it as a key
+            if not swatch_path.exists():
+                # Try the raw value as a key (e.g. "alder-natural")
+                key = p.lower().replace("_", "-")
+                resolved = resolve_swatch_path(key, all_swatch_files)
+                if not resolved:
+                    # Also try the stem in case it has a directory prefix
+                    resolved = resolve_swatch_path(
+                        swatch_path.stem.lower().replace("_", "-"),
+                        all_swatch_files,
+                    )
+                if resolved:
+                    swatch_path = resolved
+                else:
+                    continue  # skip missing swatches
             selections.append(
                 {
                     "wood_name": swatch_name_from_path(swatch_path),
                     "swatch_path": swatch_path,
                     "text_prompt": None,
                     "wood_description": get_wood_description(swatch_path, wood_types),
-                    "reference_image": get_reference_image(swatch_path),
+                    "reference_image": None,
                 }
             )
     return selections
@@ -282,7 +481,7 @@ def render_tab(tab_id: str, api_key: str) -> None:
     if len(st.session_state.tab_ids) > 1:
         hdr_cols = st.columns([4, 1])
         with hdr_cols[1]:
-            if st.button("Close Tab", key=f"{tab_id}_close", use_container_width=True):
+            if st.button("Close Tab", key=f"{tab_id}_close", width="stretch"):
                 remove_tab(tab_id)
                 st.rerun()
 
@@ -324,11 +523,62 @@ def _render_upload_and_learn(tab_id: str, ts: dict, api_key: str) -> None:
         key=f"{tab_id}_door_upload",
     )
 
-    if uploaded_door:
-        st.image(uploaded_door, caption=f"Your {upload_label.title()}", use_container_width=True)
+    # Cache uploaded bytes so they survive st.rerun() widget-tree rebuilds
+    if uploaded_door is not None:
+        ts["uploaded_file_bytes"] = uploaded_door.getvalue()
+        ts["uploaded_file_name"] = uploaded_door.name
+    file_bytes = ts["uploaded_file_bytes"]
+    file_name = ts["uploaded_file_name"]
+
+    if file_bytes:
+        # --- Harvest completed background learn ---
+        learn_future: Future | None = ts.get("learn_future")
+        if learn_future is not None and learn_future.done():
+            try:
+                result = learn_future.result()
+            except Exception as exc:
+                result = None
+                st.error(f"Learn failed: {exc}")
+            ts["learn_future"] = None
+            ts["learn_running"] = False
+            if result is not None:
+                if result.error:
+                    st.error(f"Failed: {result.error}")
+                elif result.thought_signature:
+                    ts["learned_signature"] = result.thought_signature
+                    ts["base_door_image"] = result.image_data
+                    # Restore form values from pending snapshots
+                    ts["door_name"] = ts.pop("_pending_door_name", ts.get("door_name"))
+                    ts["door_style"] = ts.pop("_pending_door_style", ts.get("door_style"))
+                    ts["style_notes"] = ts.pop("_pending_style_notes", ts.get("style_notes", ""))
+                    ts["aspect_ratio"] = ts.pop(
+                        "_pending_aspect_ratio", ts.get("aspect_ratio")
+                    )
+                    ts["generation_results"] = []
+                    ts["generation_errors"] = []
+                    st.session_state.tab_labels[tab_id] = ts["door_name"] or "Door"
+                    st.success("Style learned!")
+                    st.rerun()
+
+        is_learning = ts.get("learn_running", False)
+
+        # --- Show polling fragment while learn is in progress ---
+        if is_learning:
+
+            @st.fragment(run_every=3.0)
+            def _poll_learn():
+                f: Future | None = ts.get("learn_future")
+                if f is not None and f.done():
+                    st.rerun()
+                else:
+                    st.info(f"Learning {upload_label} style in the background...")
+
+            _poll_learn()
+
+        st.image(file_bytes, caption=f"Your {upload_label.title()}", width="stretch")
         door_name = st.text_input(
             "Style name",
-            value=Path(uploaded_door.name).stem,
+            value=Path(file_name).stem,
             help="Used for output filenames",
             key=f"{tab_id}_door_name",
         )
@@ -346,47 +596,48 @@ def _render_upload_and_learn(tab_id: str, ts: dict, api_key: str) -> None:
         )
         selected_door_style = style_keys[selected_style_idx]
 
+        style_notes = st.text_area(
+            "Style notes (optional)",
+            value=ts.get("style_notes", ""),
+            help="Describe distinctive structural features to preserve across variations, "
+            'e.g. "center stile dividing two recessed panels side by side"',
+            key=f"{tab_id}_style_notes",
+            height=68,
+        )
+
         # Learn button
-        can_learn = bool(api_key and uploaded_door)
+        can_learn = bool(api_key and file_bytes) and not is_learning
         learn_btn = st.button(
             f"Learn {upload_label.title()} Style",
             type="primary" if not ts.get("learned_signature") else "secondary",
             disabled=not can_learn,
-            use_container_width=True,
+            width="stretch",
             key=f"{tab_id}_learn_btn",
         )
 
         if learn_btn and can_learn:
-            door_temp_path = OUTPUT_DIR / f"temp_door_{tab_id}_{uploaded_door.name}"
-            door_temp_path.write_bytes(uploaded_door.getvalue())
-
-            generator = DoorGenerator(api_key=api_key)
-
             aspect_ratio = "16:9" if is_drawer else "9:16"
-            with st.spinner(f"Learning {upload_label} style..."):
-                result = generator.learn_door_style(
-                    door_temp_path,
-                    door_style_name=door_name,
-                    door_style=selected_door_style,
-                    aspect_ratio=aspect_ratio,
-                )
 
-            door_temp_path.unlink(missing_ok=True)
+            # Snapshot form values so they survive the rerun
+            ts["_pending_door_name"] = door_name
+            ts["_pending_door_style"] = selected_door_style
+            ts["_pending_style_notes"] = style_notes.strip()
+            ts["_pending_aspect_ratio"] = aspect_ratio
 
-            if result.error:
-                st.error(f"Failed: {result.error}")
-            elif result.thought_signature:
-                ts["learned_signature"] = result.thought_signature
-                ts["base_door_image"] = result.image_data
-                ts["door_name"] = door_name
-                ts["door_style"] = selected_door_style
-                ts["aspect_ratio"] = aspect_ratio
-                ts["generation_results"] = []
-                ts["generation_errors"] = []
-                # Update the tab label to use the door name
-                st.session_state.tab_labels[tab_id] = door_name or "Door"
-                st.success("Style learned!")
-                st.rerun()
+            # Submit to shared executor (non-blocking)
+            executor: ThreadPoolExecutor = st.session_state.executor
+            future = executor.submit(
+                _run_learn_worker,
+                api_key,
+                file_bytes,
+                file_name,
+                door_name,
+                selected_door_style,
+                aspect_ratio,
+            )
+            ts["learn_future"] = future
+            ts["learn_running"] = True
+            st.rerun()
 
         if ts.get("learned_signature"):
             st.success(f"{upload_label.title()} style ready for variations")
@@ -412,12 +663,32 @@ def _render_swatch_selection(tab_id: str, ts: dict) -> None:
     # Select all / clear buttons
     btn_col1, btn_col2 = st.columns(2)
     all_keys = [str(f) for f in swatch_files] + [f"virtual:{k}" for k, _ in virtual_types]
-    if btn_col1.button("Select All", use_container_width=True, key=f"{tab_id}_select_all"):
+    if btn_col1.button("Select All", width="stretch", key=f"{tab_id}_select_all"):
         ts["selected_swatches"] = list(all_keys)
-    if btn_col2.button("Clear", use_container_width=True, key=f"{tab_id}_clear_swatches"):
+        for idx in range(len(swatch_files)):
+            st.session_state[f"{tab_id}_swatch_{idx}"] = True
+        for key, _ in virtual_types:
+            st.session_state[f"{tab_id}_swatch_virtual_{key}"] = True
+        st.rerun()
+    if btn_col2.button("Clear", width="stretch", key=f"{tab_id}_clear_swatches"):
         ts["selected_swatches"] = []
+        for idx in range(len(swatch_files)):
+            st.session_state[f"{tab_id}_swatch_{idx}"] = False
+        for key, _ in virtual_types:
+            st.session_state[f"{tab_id}_swatch_virtual_{key}"] = False
+        st.rerun()
 
     selected_swatches: list[str] = ts.get("selected_swatches", [])
+
+    # Initialize checkbox session state keys on first render
+    for idx, swatch in enumerate(swatch_files):
+        cb_key = f"{tab_id}_swatch_{idx}"
+        if cb_key not in st.session_state:
+            st.session_state[cb_key] = str(swatch) in selected_swatches
+    for key, _ in virtual_types:
+        cb_key = f"{tab_id}_swatch_virtual_{key}"
+        if cb_key not in st.session_state:
+            st.session_state[cb_key] = f"virtual:{key}" in selected_swatches
 
     # Display swatches in a grid
     st.markdown("**Available Wood Types:**")
@@ -431,10 +702,9 @@ def _render_swatch_selection(tab_id: str, ts: dict) -> None:
                 swatch_key = str(swatch)
                 with col:
                     img = Image.open(swatch)
-                    st.image(img, use_container_width=True)
+                    st.image(img, width="stretch")
                     selected = st.checkbox(
                         swatch_name_from_path(swatch),
-                        value=swatch_key in selected_swatches,
                         key=f"{tab_id}_swatch_{idx}",
                     )
                     if selected and swatch_key not in selected_swatches:
@@ -455,7 +725,6 @@ def _render_swatch_selection(tab_id: str, ts: dict) -> None:
             with t_cols[0]:
                 selected = st.checkbox(
                     data["name"],
-                    value=virtual_key in selected_swatches,
                     key=f"{tab_id}_swatch_virtual_{key}",
                 )
                 if selected and virtual_key not in selected_swatches:
@@ -467,7 +736,7 @@ def _render_swatch_selection(tab_id: str, ts: dict) -> None:
                     st.image(
                         Image.open(preview_img),
                         caption="Reference",
-                        use_container_width=True,
+                        width="stretch",
                     )
 
     ts["selected_swatches"] = selected_swatches
@@ -527,7 +796,7 @@ def _render_generation(tab_id: str, ts: dict, api_key: str) -> None:
         "Generate Variations",
         type="primary",
         disabled=not can_generate,
-        use_container_width=True,
+        width="stretch",
         key=f"{tab_id}_generate_btn",
     )
 
@@ -535,6 +804,7 @@ def _render_generation(tab_id: str, ts: dict, api_key: str) -> None:
         # Snapshot immutable inputs
         base_signature = ts["learned_signature"]
         door_style = ts.get("door_style", "recessed_panel")
+        style_notes = ts.get("style_notes", "")
         selections = _build_selections(ts["selected_swatches"])
 
         if not selections:
@@ -551,6 +821,7 @@ def _render_generation(tab_id: str, ts: dict, api_key: str) -> None:
             door_style,
             selections,
             aspect_ratio,
+            style_notes,
         )
         ts["generation_future"] = future
         ts["generation_running"] = True
@@ -573,7 +844,7 @@ def _render_results(tab_id: str, ts: dict) -> None:
             st.image(
                 add_watermark(ts["base_door_image"]),
                 caption="Gemini's interpretation - all variations use this",
-                use_container_width=True,
+                width="stretch",
             )
         st.divider()
 
@@ -583,16 +854,15 @@ def _render_results(tab_id: str, ts: dict) -> None:
     if results:
         st.subheader(f"Wood Variations ({len(results)})")
 
-        if len(results) > 1:
-            zip_data = create_zip(results, door_name)
-            st.download_button(
-                "Download All as ZIP",
-                data=zip_data,
-                file_name=f"{door_name}_variations.zip",
-                mime="application/zip",
-                use_container_width=True,
-                key=f"{tab_id}_download_zip",
-            )
+        zip_data = create_zip(results, door_name)
+        st.download_button(
+            "Download All as ZIP" if len(results) > 1 else "Download as ZIP",
+            data=zip_data,
+            file_name=f"{door_name}_variations.zip",
+            mime="application/zip",
+            width="stretch",
+            key=f"{tab_id}_download_zip",
+        )
 
         cols_per_row = 3
         for i in range(0, len(results), cols_per_row):
@@ -603,7 +873,7 @@ def _render_results(tab_id: str, ts: dict) -> None:
                     wood_name, image_data = results[idx]
                     watermarked = add_watermark(image_data, wood_name)
                     with col:
-                        st.image(watermarked, caption=wood_name, use_container_width=True)
+                        st.image(watermarked, caption=wood_name, width="stretch")
                         filename = f"{door_name}_{wood_name.lower().replace(' ', '_')}.png"
                         btn_col1, btn_col2 = st.columns(2)
                         with btn_col1:
@@ -613,13 +883,13 @@ def _render_results(tab_id: str, ts: dict) -> None:
                                 file_name=filename,
                                 mime="image/png",
                                 key=f"{tab_id}_download_{idx}",
-                                use_container_width=True,
+                                width="stretch",
                             )
                         with btn_col2:
                             if st.button(
                                 "Discard",
                                 key=f"{tab_id}_discard_{idx}",
-                                use_container_width=True,
+                                width="stretch",
                             ):
                                 ts["generation_results"].pop(idx)
                                 st.rerun()
@@ -643,12 +913,13 @@ def main() -> None:
 
     # --- Initialize multi-tab session state ---
     if "tab_ids" not in st.session_state:
-        st.session_state.tab_ids = []
-        st.session_state.tab_labels = {}
-        st.session_state.tabs = {}
-        st.session_state.next_tab_number = 1
         st.session_state.executor = ThreadPoolExecutor(max_workers=4)
-        add_tab()  # start with one default tab
+        if not _load_session():
+            st.session_state.tab_ids = []
+            st.session_state.tab_labels = {}
+            st.session_state.tabs = {}
+            st.session_state.next_tab_number = 1
+            add_tab()  # start with one default tab
 
     # --- Sidebar ---
     with st.sidebar:
@@ -668,13 +939,15 @@ def main() -> None:
 
         st.divider()
 
-        if st.button("Reset All", use_container_width=True):
+        if st.button("Reset All", width="stretch"):
             # Cancel any running futures
             for tid in list(st.session_state.tab_ids):
-                future = st.session_state.tabs[tid].get("generation_future")
-                if future and not future.done():
-                    future.cancel()
-            # Re-initialize
+                for key in ("generation_future", "learn_future"):
+                    future = st.session_state.tabs[tid].get(key)
+                    if future and not future.done():
+                        future.cancel()
+            # Clear persisted session and re-initialize
+            _clear_persisted_session()
             st.session_state.tab_ids = []
             st.session_state.tab_labels = {}
             st.session_state.tabs = {}
@@ -696,6 +969,9 @@ def main() -> None:
     for i, tab_id in enumerate(tab_ids):
         with ui_tabs[i]:
             render_tab(tab_id, api_key)
+
+    # Persist state to disk so it survives page reloads
+    _save_session()
 
 
 if __name__ == "__main__":

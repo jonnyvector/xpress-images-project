@@ -1,0 +1,312 @@
+import { useState, useEffect, useCallback, useRef, memo } from 'react';
+import type { Project, Style } from '../types';
+import { useDispatch } from '../context/ProjectsContext';
+import * as api from '../api';
+
+interface Props {
+  project: Project;
+  apiKey: string;
+}
+
+export default memo(function UploadStep({ project, apiKey }: Props) {
+  const dispatch = useDispatch();
+  const [styles, setStyles] = useState<Style[]>([]);
+  const [productType, setProductType] = useState(project.product_type || 'Cabinet Door');
+  const [styleName, setStyleName] = useState(project.name);
+  const [doorStyle, setDoorStyle] = useState(project.door_style ?? '');
+  const [styleNotes, setStyleNotes] = useState(project.style_notes ?? '');
+  const [learning, setLearning] = useState(project.learning_status === 'running');
+  const [error, setError] = useState<string | null>(project.learning_error);
+  const [retrying, setRetrying] = useState(false);
+  const pollErrorCount = useRef(0);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const projectIdRef = useRef(project.id);
+  projectIdRef.current = project.id;
+
+  useEffect(() => {
+    api.listStyles().then(setStyles).catch(console.error);
+  }, []);
+
+  const category = productType === 'Drawer Front' ? 'drawer' : 'door';
+  const filteredStyles = styles.filter((s) => s.category === category);
+  const uploadLabel = productType === 'Drawer Front' ? 'drawer front' : 'door';
+
+  // Set default door style when styles load
+  useEffect(() => {
+    if (!doorStyle && filteredStyles.length > 0) {
+      setDoorStyle(filteredStyles[0].key);
+    }
+  }, [filteredStyles, doorStyle]);
+
+  const handleProductTypeChange = useCallback(async (type: string) => {
+    setProductType(type);
+    try {
+      const updated = await api.updateProject(project.id, { product_type: type });
+      dispatch({ type: 'UPDATE_PROJECT', project: updated });
+    } catch (err) {
+      console.error('Failed to update product type:', err);
+    }
+  }, [dispatch, project.id]);
+
+  const uploadFile = useCallback(async (file: File) => {
+    setError(null);
+    try {
+      const updated = await api.uploadDoorImage(project.id, file);
+      dispatch({ type: 'UPDATE_PROJECT', project: updated });
+      setStyleName(file.name.replace(/\.[^.]+$/, ''));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    }
+  }, [dispatch, project.id]);
+
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadFile(file);
+  }, [uploadFile]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file && /\.(jpe?g|png|webp)$/i.test(file.name)) {
+      uploadFile(file);
+    }
+  }, [uploadFile]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+  }, []);
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => () => stopPolling(), [stopPolling]);
+
+  // Poll function stored in ref so interval always calls latest
+  const pollFnRef = useRef<() => Promise<void>>();
+  pollFnRef.current = async () => {
+    try {
+      const updated = await api.getProject(projectIdRef.current);
+      pollErrorCount.current = 0;
+      setRetrying(false);
+      if (updated.learning_status !== 'running') {
+        stopPolling();
+        setLearning(false);
+        if (updated.learning_status === 'error') {
+          setError(updated.learning_error || 'Learn failed');
+        } else {
+          setError(null);
+        }
+        dispatch({ type: 'UPDATE_PROJECT', project: updated });
+      }
+    } catch {
+      pollErrorCount.current += 1;
+      if (pollErrorCount.current >= 5) {
+        stopPolling();
+        setLearning(false);
+        setRetrying(false);
+        setError('Lost connection to server. Click Learn to retry.');
+      } else {
+        setRetrying(true);
+      }
+    }
+  };
+
+  const startPolling = useCallback(() => {
+    if (pollRef.current) return;
+    pollRef.current = setInterval(() => pollFnRef.current?.(), 2000);
+  }, []);
+
+  // Resume polling if learning is already running (e.g. after page refresh)
+  useEffect(() => {
+    if (project.learning_status === 'running' && !pollRef.current) {
+      setLearning(true);
+      startPolling();
+    }
+  }, [project.learning_status, startPolling]);
+
+  const handleLearnStyle = useCallback(async () => {
+    setLearning(true);
+    setError(null);
+    setRetrying(false);
+    pollErrorCount.current = 0;
+    try {
+      await api.updateProject(project.id, {
+        name: styleName,
+        door_style: doorStyle,
+        style_notes: styleNotes,
+      });
+      await api.learnStyle(project.id);
+      startPolling();
+    } catch (err) {
+      setLearning(false);
+      setError(err instanceof Error ? err.message : 'Learn failed');
+    }
+  }, [project.id, styleName, doorStyle, styleNotes, startPolling]);
+
+  const canLearn = Boolean(apiKey && project.upload_filename);
+
+  return (
+    <section>
+      <h3>1. Upload & Learn Style</h3>
+
+      <div className="product-type-toggle">
+        {['Cabinet Door', 'Drawer Front'].map((type) => (
+          <button
+            key={type}
+            className={`toggle-btn ${productType === type ? 'active' : ''}`}
+            onClick={() => handleProductTypeChange(type)}
+            type="button"
+          >
+            {type}
+          </button>
+        ))}
+      </div>
+
+      {!project.upload_filename ? (
+        <div
+          className={`drop-zone ${dragOver ? 'drag-over' : ''}`}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".jpg,.jpeg,.png,.webp"
+            onChange={handleFileUpload}
+            hidden
+          />
+          <div className="drop-zone-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          </div>
+          <p className="drop-zone-text">
+            Drag & drop your {uploadLabel} image here
+          </p>
+          <p className="drop-zone-hint">
+            or click to browse &middot; JPG, PNG, WEBP
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="uploaded-preview">
+            <img
+              src={`/api/projects/${project.id}/upload`}
+              alt={`Your ${uploadLabel}`}
+            />
+            <button
+              className="change-image-btn"
+              onClick={() => fileInputRef.current?.click()}
+              type="button"
+            >
+              Change image
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp"
+              onChange={handleFileUpload}
+              hidden
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor={`style-name-${project.id}`}>Style name</label>
+            <input
+              id={`style-name-${project.id}`}
+              type="text"
+              value={styleName}
+              onChange={(e) => setStyleName(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor={`style-type-${project.id}`}>Style type</label>
+            <select
+              id={`style-type-${project.id}`}
+              value={doorStyle}
+              onChange={(e) => setDoorStyle(e.target.value)}
+            >
+              {filteredStyles.map((s) => (
+                <option key={s.key} value={s.key}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor={`style-notes-${project.id}`}>Style notes (optional)</label>
+            <textarea
+              id={`style-notes-${project.id}`}
+              value={styleNotes}
+              onChange={(e) => setStyleNotes(e.target.value)}
+              rows={3}
+              placeholder="Describe distinctive structural features..."
+            />
+          </div>
+
+          <button
+            className="primary"
+            onClick={handleLearnStyle}
+            disabled={!canLearn || learning}
+            style={{ width: '100%' }}
+          >
+            {learning ? (
+              <>
+                <span className="spinner" /> Learning style...
+              </>
+            ) : project.has_signature ? (
+              `Re-learn ${uploadLabel} Style`
+            ) : (
+              `Learn ${uploadLabel} Style`
+            )}
+          </button>
+        </>
+      )}
+
+      {learning && retrying && (
+        <div style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: '#b59f3b' }}>
+          Connection issue, retrying...
+        </div>
+      )}
+
+      {project.has_signature && (
+        <div className="status-success" style={{ marginTop: '0.75rem' }}>
+          Style ready for variations
+        </div>
+      )}
+
+      {error && (
+        <div className="status-error" style={{ marginTop: '0.75rem' }}>
+          {error}
+          {error.includes('overloaded') || error.includes('503') || error.includes('high demand') ? (
+            <button
+              onClick={handleLearnStyle}
+              disabled={learning}
+              style={{ marginLeft: '0.5rem', fontSize: '0.8125rem', padding: '0.25rem 0.5rem' }}
+            >
+              Retry
+            </button>
+          ) : null}
+        </div>
+      )}
+    </section>
+  );
+});
