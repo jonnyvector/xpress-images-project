@@ -109,6 +109,65 @@ label {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  transition: width 0.2s ease;
+}
+
+.sidebar--collapsed {
+  width: 48px;
+  padding: 1rem 0.5rem;
+  align-items: center;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sidebar--collapsed .sidebar-header {
+  justify-content: center;
+}
+
+.sidebar-toggle {
+  all: unset;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sidebar-toggle:hover {
+  background: var(--color-border);
+  color: var(--color-text);
+}
+
+.sidebar-collapsed-icons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.sidebar-icon {
+  font-size: 1.125rem;
+  opacity: 0.7;
+}
+
+.sidebar-icon--ok {
+  opacity: 1;
+}
+
+.sidebar-icon--warn {
+  opacity: 0.5;
 }
 
 .sidebar h2 {
@@ -401,14 +460,12 @@ label {
 .uploaded-preview {
   position: relative;
   margin-bottom: 1rem;
-  border-radius: var(--radius);
   overflow: hidden;
 }
 
 .uploaded-preview img {
   width: 100%;
   display: block;
-  border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
 
@@ -504,6 +561,19 @@ label {
   color: var(--color-text);
 }
 
+.library-card-name-input {
+  font-size: inherit;
+  font-weight: inherit;
+  font-family: inherit;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--color-primary);
+  border-radius: 2px;
+  outline: none;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
 .library-card-style {
   font-size: 0.75rem;
   color: var(--color-text-muted);
@@ -516,6 +586,113 @@ label {
   margin-top: 0.25rem;
 }
 
+/* Library toolbar & filters */
+.library-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.library-search {
+  width: auto;
+  min-width: 180px;
+  flex: 1;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  font-family: inherit;
+  background: var(--color-surface);
+}
+
+.library-search:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.library-sort {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 0.8125rem;
+  font-family: inherit;
+  background: var(--color-surface);
+}
+
+.library-sort:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.filter-group {
+  display: flex;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 2px;
+}
+
+.filter-btn {
+  padding: 0.35rem 0.65rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.filter-btn:hover {
+  color: var(--color-text);
+  background: transparent;
+}
+
+.filter-btn.active {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.library-result-count {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.library-card-badges {
+  display: flex;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 0.125rem 0.4rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badge-product {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.badge-material {
+  background: #d1fae5;
+  color: #065f46;
+}
+
 /* Responsive sidebar */
 @media (max-width: 768px) {
   .app-layout {
@@ -525,5 +702,14 @@ label {
     width: 100%;
     border-right: none;
     border-bottom: 1px solid var(--color-border);
+  }
+  .sidebar--collapsed {
+    width: 100%;
+    flex-direction: row;
+    padding: 0.5rem 1rem;
+  }
+  .sidebar-collapsed-icons {
+    flex-direction: row;
+    margin-top: 0;
   }
 }

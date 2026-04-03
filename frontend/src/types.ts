@@ -2,8 +2,11 @@ export interface Project {
   id: string;
   name: string;
   product_type: string;
+  material_type: string;
   door_style: string | null;
+  corner_style: string;
   style_notes: string;
+  gemini_model: string;
   selected_swatches: string[];
   upload_filename: string | null;
   has_signature: boolean;
@@ -23,7 +26,9 @@ export interface Project {
 export interface SignatureVersion {
   version: number;
   created_at: string;
+  material_type: string;
   door_style: string | null;
+  corner_style: string;
   style_notes: string;
   result_count: number;
 }

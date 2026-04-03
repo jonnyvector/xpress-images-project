@@ -2,10 +2,10 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, Header, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response
 
-from backend.generator import DoorGenerator
+from backend.generator import STYLES, DoorGenerator
 from backend.models import (
     ErrorItem,
     GenerationStatusResponse,
@@ -24,6 +24,13 @@ router = APIRouter()
 OUTPUT_DIR = Path("output")
 
 
+def _is_drawer_style(door_style: str | None) -> bool:
+    """Return True if the given style key belongs to the drawer category."""
+    if not door_style:
+        return False
+    return STYLES.get(door_style, {}).get("category") == "drawer"
+
+
 def _get_store(request: Request) -> ProjectStore:
     return request.app.state.project_store
 
@@ -33,8 +40,11 @@ def _project_response(p) -> ProjectResponse:  # noqa: ANN001
         id=p.id,
         name=p.name,
         product_type=p.product_type,
+        material_type=p.material_type,
         door_style=p.door_style,
+        corner_style=p.corner_style,
         style_notes=p.style_notes,
+        gemini_model=p.gemini_model,
         selected_swatches=p.selected_swatches,
         upload_filename=p.upload_filename,
         has_signature=p.has_signature,
@@ -72,7 +82,11 @@ def get_project(project_id: str, request: Request) -> ProjectResponse:
 @router.post("/projects", response_model=ProjectResponse, status_code=201)
 def create_project(body: ProjectCreate, request: Request) -> ProjectResponse:
     store = _get_store(request)
-    project = store.create(name=body.name, product_type=body.product_type)
+    project = store.create(
+        name=body.name,
+        product_type=body.product_type,
+        material_type=body.material_type,
+    )
     return _project_response(project)
 
 
@@ -199,7 +213,11 @@ def restore_version(
 
 @router.get("/projects/{project_id}/results/{idx}/image")
 def get_result_image(
-    project_id: str, idx: int, request: Request, watermark: bool = True
+    project_id: str,
+    idx: int,
+    request: Request,
+    watermark: bool = True,
+    watermark_offset: int = Query(0, ge=-600, le=600),
 ) -> Response:
     store = _get_store(request)
     project = store.get(project_id)
@@ -212,7 +230,10 @@ def get_result_image(
     if watermark:
         from backend.generator import add_watermark
 
-        image_data = add_watermark(image_data, wood_name)
+        image_data = add_watermark(
+            image_data, wood_name, watermark_offset,
+            force_dark_text=_is_drawer_style(project.door_style),
+        )
     return Response(
         content=image_data,
         media_type="image/png",
@@ -374,7 +395,10 @@ def retry_result(
     )
 
 
-SAVE_DIR = Path.home() / "Desktop/xpress-images/AI Images/Inset Panel Doors"
+SAVE_DIR_DOORS = Path.home() / "Desktop/xpress-images/AI Images/Inset Panel Doors"
+SAVE_DIR_DRAWERS = Path.home() / "Desktop/xpress-images/AI Images/Drawer Fronts"
+SAVE_DIR_RTF_DOORS = Path.home() / "Desktop/xpress-images/AI Images/RTF Doors"
+SAVE_DIR_RTF_DRAWERS = Path.home() / "Desktop/xpress-images/AI Images/RTF Drawer Fronts"
 
 
 @router.post(
@@ -382,7 +406,10 @@ SAVE_DIR = Path.home() / "Desktop/xpress-images/AI Images/Inset Panel Doors"
     response_model=SaveToFolderResponse,
 )
 def save_results_to_folder(
-    project_id: str, request: Request, watermark: bool = True
+    project_id: str,
+    request: Request,
+    watermark: bool = True,
+    watermark_offset: int = Query(0, ge=-600, le=600),
 ) -> SaveToFolderResponse:
     """Save all result images directly to the configured folder on disk."""
     from backend.generator import add_watermark
@@ -394,8 +421,17 @@ def save_results_to_folder(
     if not project.results:
         raise HTTPException(status_code=404, detail="No results to save")
 
+    # Route to the correct folder based on material type and category
+    style_info = STYLES.get(project.door_style or "") if project.door_style else None
+    is_drawer = style_info is not None and style_info.get("category") == "drawer"
+    is_rtf = project.material_type == "rtf"
+    if is_rtf:
+        save_dir = SAVE_DIR_RTF_DRAWERS if is_drawer else SAVE_DIR_RTF_DOORS
+    else:
+        save_dir = SAVE_DIR_DRAWERS if is_drawer else SAVE_DIR_DOORS
+
     suffix = "Watermarked" if watermark else "Plain"
-    folder = SAVE_DIR / project.name / suffix
+    folder = save_dir / project.name / suffix
     folder.mkdir(parents=True, exist_ok=True)
     saved_files: list[str] = []
 
@@ -407,7 +443,11 @@ def save_results_to_folder(
         while dest.exists():
             dest = folder / f"{base} ({n}).png"
             n += 1
-        out_data = add_watermark(image_data, wood_name) if watermark else image_data
+        out_data = (
+            add_watermark(image_data, wood_name, watermark_offset, force_dark_text=is_drawer)
+            if watermark
+            else image_data
+        )
         dest.write_bytes(out_data)
         saved_files.append(dest.name)
 
@@ -428,7 +468,10 @@ def discard_result(project_id: str, idx: int, request: Request) -> None:
 
 @router.get("/projects/{project_id}/results/zip")
 def download_results_zip(
-    project_id: str, request: Request, watermark: bool = True
+    project_id: str,
+    request: Request,
+    watermark: bool = True,
+    watermark_offset: int = Query(0, ge=-600, le=600),
 ):  # noqa: ANN201
     import io
     import zipfile
@@ -447,11 +490,14 @@ def download_results_zip(
     suffix = "watermarked" if watermark else "plain"
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        is_drawer = _is_drawer_style(project.door_style)
         for wood_name, image_data in project.results:
             filename = f"{project.name}_{wood_name.lower().replace(' ', '_')}.png"
             zf.writestr(
                 filename,
-                add_watermark(image_data, wood_name) if watermark else image_data,
+                add_watermark(image_data, wood_name, watermark_offset, force_dark_text=is_drawer)
+                if watermark
+                else image_data,
             )
     buf.seek(0)
 

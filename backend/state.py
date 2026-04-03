@@ -14,8 +14,11 @@ class ProjectState:
     id: str
     name: str
     product_type: str  # "Cabinet Door" | "Drawer Front"
+    material_type: str = "wood"  # "wood" | "rtf"
     door_style: str | None = None
+    corner_style: str = "sharp"  # "sharp" | "bullnose"
     style_notes: str = ""
+    gemini_model: str = "gemini-3-pro-image-preview"
     selected_swatches: list[str] = field(default_factory=list)
     upload_filename: str | None = None
     has_signature: bool = False
@@ -61,8 +64,11 @@ class ProjectStore:
                     id=data["id"],
                     name=data["name"],
                     product_type=data.get("product_type", "Cabinet Door"),
+                    material_type=data.get("material_type", "wood"),
                     door_style=data.get("door_style"),
+                    corner_style=data.get("corner_style", "sharp"),
                     style_notes=data.get("style_notes", ""),
+                    gemini_model=data.get("gemini_model", "gemini-3-pro-image-preview"),
                     selected_swatches=data.get("selected_swatches", []),
                     upload_filename=data.get("upload_filename"),
                     signature_version=data.get("signature_version", 0),
@@ -141,8 +147,11 @@ class ProjectStore:
             "id": project.id,
             "name": project.name,
             "product_type": project.product_type,
+            "material_type": project.material_type,
             "door_style": project.door_style,
+            "corner_style": project.corner_style,
             "style_notes": project.style_notes,
+            "gemini_model": project.gemini_model,
             "selected_swatches": project.selected_swatches,
             "upload_filename": project.upload_filename,
             "result_names": result_names,
@@ -162,11 +171,14 @@ class ProjectStore:
         with self._lock:
             return self._projects.get(project_id)
 
-    def create(self, name: str, product_type: str) -> ProjectState:
+    def create(
+        self, name: str, product_type: str, material_type: str = "wood"
+    ) -> ProjectState:
         project = ProjectState(
             id=uuid.uuid4().hex[:8],
             name=name,
             product_type=product_type,
+            material_type=material_type,
         )
         with self._lock:
             self._projects[project.id] = project
@@ -232,7 +244,9 @@ class ProjectStore:
             meta = {
                 "version": version,
                 "created_at": datetime.now(UTC).isoformat(),
+                "material_type": project.material_type,
                 "door_style": project.door_style,
+                "corner_style": project.corner_style,
                 "style_notes": project.style_notes,
             }
             (vdir / "meta.json").write_text(json.dumps(meta))
@@ -332,7 +346,9 @@ class ProjectStore:
             meta_path = vdir / "meta.json"
             if meta_path.exists():
                 meta = json.loads(meta_path.read_text())
+                project.material_type = meta.get("material_type", project.material_type)
                 project.door_style = meta.get("door_style", project.door_style)
+                project.corner_style = meta.get("corner_style", project.corner_style)
                 project.style_notes = meta.get("style_notes", project.style_notes)
 
             self._save_project(project)

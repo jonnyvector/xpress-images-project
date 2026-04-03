@@ -12,10 +12,13 @@ interface Props {
 export default memo(function UploadStep({ project, apiKey }: Props) {
   const dispatch = useDispatch();
   const [styles, setStyles] = useState<Style[]>([]);
+  const [materialType, setMaterialType] = useState(project.material_type || 'wood');
   const [productType, setProductType] = useState(project.product_type || 'Cabinet Door');
   const [styleName, setStyleName] = useState(project.name);
   const [doorStyle, setDoorStyle] = useState(project.door_style ?? '');
+  const [cornerStyle, setCornerStyle] = useState(project.corner_style ?? 'sharp');
   const [styleNotes, setStyleNotes] = useState(project.style_notes ?? '');
+  const [geminiModel, setGeminiModel] = useState(project.gemini_model || 'gemini-3-pro-image-preview');
   const [learning, setLearning] = useState(project.learning_status === 'running');
   const [error, setError] = useState<string | null>(project.learning_error);
   const [retrying, setRetrying] = useState(false);
@@ -27,22 +30,38 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
   projectIdRef.current = project.id;
 
   useEffect(() => {
-    api.listStyles().then(setStyles).catch(console.error);
-  }, []);
+    api.listStyles(materialType).then(setStyles).catch(console.error);
+  }, [materialType]);
 
   const category = productType === 'Drawer Front' ? 'drawer' : 'door';
   const filteredStyles = styles.filter((s) => s.category === category);
   const uploadLabel = productType === 'Drawer Front' ? 'drawer front' : 'door';
 
-  // Set default door style when styles load
+  // Set default door style when styles load, or when current style isn't valid for the current filter
   useEffect(() => {
-    if (!doorStyle && filteredStyles.length > 0) {
+    const isValid = filteredStyles.some((s) => s.key === doorStyle);
+    if (!isValid && filteredStyles.length > 0) {
       setDoorStyle(filteredStyles[0].key);
     }
   }, [filteredStyles, doorStyle]);
 
+  const handleMaterialTypeChange = useCallback(async (material: string) => {
+    setMaterialType(material);
+    setDoorStyle(''); // Reset door style when material changes
+    try {
+      const updated = await api.updateProject(project.id, {
+        material_type: material,
+        selected_swatches: [], // Clear wood/RTF swatches — they're different sets
+      });
+      dispatch({ type: 'UPDATE_PROJECT', project: updated });
+    } catch (err) {
+      console.error('Failed to update material type:', err);
+    }
+  }, [dispatch, project.id]);
+
   const handleProductTypeChange = useCallback(async (type: string) => {
     setProductType(type);
+    setDoorStyle(''); // Reset door style when product type changes
     try {
       const updated = await api.updateProject(project.id, { product_type: type });
       dispatch({ type: 'UPDATE_PROJECT', project: updated });
@@ -147,8 +166,11 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
     try {
       await api.updateProject(project.id, {
         name: styleName,
+        material_type: materialType,
         door_style: doorStyle,
+        corner_style: cornerStyle,
         style_notes: styleNotes,
+        gemini_model: geminiModel,
       });
       await api.learnStyle(project.id);
       startPolling();
@@ -156,13 +178,29 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
       setLearning(false);
       setError(err instanceof Error ? err.message : 'Learn failed');
     }
-  }, [project.id, styleName, doorStyle, styleNotes, startPolling]);
+  }, [project.id, styleName, materialType, doorStyle, cornerStyle, styleNotes, geminiModel, startPolling]);
 
   const canLearn = Boolean(apiKey && project.upload_filename);
 
   return (
     <section>
       <h3>1. Upload & Learn Style</h3>
+
+      <div className="form-group">
+        <label>Material</label>
+        <div className="product-type-toggle">
+          {([['wood', 'Wood'], ['rtf', 'RTF (Thermofoil)']] as const).map(([value, label]) => (
+            <button
+              key={value}
+              className={`toggle-btn ${materialType === value ? 'active' : ''}`}
+              onClick={() => handleMaterialTypeChange(value)}
+              type="button"
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="product-type-toggle">
         {['Cabinet Door', 'Drawer Front'].map((type) => (
@@ -236,6 +274,13 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
               type="text"
               value={styleName}
               onChange={(e) => setStyleName(e.target.value)}
+              onBlur={async () => {
+                const trimmed = styleName.trim();
+                if (trimmed && trimmed !== project.name) {
+                  const updated = await api.updateProject(project.id, { name: trimmed });
+                  dispatch({ type: 'UPDATE_PROJECT', project: updated });
+                }
+              }}
             />
           </div>
 
@@ -253,6 +298,27 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
           </div>
 
           <div className="form-group">
+            <label htmlFor={`corner-style-${project.id}`}>Outer corners</label>
+            <div className="product-type-toggle">
+              {([['sharp', 'Sharp'], ['bullnose', 'Bullnose']] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  className={`toggle-btn ${cornerStyle === value ? 'active' : ''}`}
+                  onClick={() => {
+                    setCornerStyle(value);
+                    api.updateProject(project.id, { corner_style: value })
+                      .then((updated) => dispatch({ type: 'UPDATE_PROJECT', project: updated }))
+                      .catch(console.error);
+                  }}
+                  type="button"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-group">
             <label htmlFor={`style-notes-${project.id}`}>Style notes (optional)</label>
             <textarea
               id={`style-notes-${project.id}`}
@@ -263,9 +329,33 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
             />
           </div>
 
+          <div className="form-group">
+            <label htmlFor={`gemini-model-${project.id}`}>Gemini model</label>
+            <select
+              id={`gemini-model-${project.id}`}
+              value={geminiModel}
+              onChange={(e) => {
+                setGeminiModel(e.target.value);
+                api.updateProject(project.id, { gemini_model: e.target.value })
+                  .then((updated) => dispatch({ type: 'UPDATE_PROJECT', project: updated }))
+                  .catch(console.error);
+              }}
+            >
+              <option value="gemini-3-pro-image-preview">Gemini 3.0 Pro Image</option>
+              <option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash</option>
+            </select>
+          </div>
+
           <button
             className="primary"
-            onClick={handleLearnStyle}
+            onClick={() => {
+              if (project.has_signature) {
+                if (!window.confirm(
+                  'Re-learning will erase all previous variations. Are you sure?'
+                )) return;
+              }
+              handleLearnStyle();
+            }}
             disabled={!canLearn || learning}
             style={{ width: '100%' }}
           >

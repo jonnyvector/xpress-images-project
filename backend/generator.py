@@ -15,7 +15,7 @@ from PIL import Image, ImageDraw, ImageFont
 CANVAS_SIZE = 1000
 
 
-def add_watermark(image_bytes: bytes, wood_name: str = "") -> bytes:
+def add_watermark(image_bytes: bytes, wood_name: str = "", y_offset: int = 0, force_dark_text: bool = False) -> bytes:
     """Place image on a 1000x1000 white canvas and add watermark text."""
     img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
 
@@ -45,10 +45,30 @@ def add_watermark(image_bytes: bytes, wood_name: str = "") -> bytes:
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]
     text_x = (CANVAS_SIZE - text_w) // 2
-    margin = int(CANVAS_SIZE * 0.05)
-    text_y = CANVAS_SIZE - margin // 2 - text_h // 2 - 38
+    # Base position: vertically centered; y_offset moves up (negative) or down (positive)
+    text_y = (CANVAS_SIZE - text_h) // 2 + y_offset
 
-    if "walnut" in wood_name.lower():
+    # Dark colors that need white/light watermark text
+    LIGHT_TEXT_NAMES = {
+        "moonlight",
+        "chocolate pear",
+        "cherry blossom",
+        "cherry blossom rtf",
+        "gibraltar taction oak",
+        "gibraltar taction rtf",
+        "dark italian rtf",
+        "gauntlet grey supermatte",
+        "grenada",
+        "mysterious supermatte",
+        "siena supermatte",
+    }
+    name_lower = wood_name.lower()
+    use_light_text = not force_dark_text and (
+        "walnut" in name_lower
+        or "black" in name_lower
+        or name_lower in LIGHT_TEXT_NAMES
+    )
+    if use_light_text:
         outline_color = (220, 220, 220, 180)
         text_color = (240, 240, 240, 210)
     else:
@@ -75,6 +95,153 @@ class GenerationResult:
 
 
 STYLES: dict[str, dict[str, str]] = {
+    "davenport": {
+        "name": "Davenport",
+        "category": "door",
+        "learn_prompt": (
+            "Generate an exact replica of this door. "
+            "This door has TWO defining features you must get exactly right: "
+            "1) The outer perimeter of the door has a BEADED EDGE — a small rounded bead/raised profile runs along the entire outside edge of the frame. "
+            "2) The center panel is RECESSED and consists of FOUR vertical tongue-and-groove planks with V-groove lines between them — NOT a single flat panel. The planks sit BELOW the frame surface. "
+            "All stiles and rails must be the same width."
+        ),
+        "variation_hint": (
+            "Preserve the exact door structure. Change only the wood material. "
+            "CRITICAL: The outer perimeter must have the BEADED EDGE profile. "
+            "The center panel is RECESSED — THREE vertical tongue-and-groove/beadboard planks with V-groove lines sitting BELOW the frame surface — NOT a single flat panel. "
+            "All stiles and rails must remain the same width."
+        ),
+    },
+    "rtf_minimal": {
+        "name": "Minimal RTF (Test)",
+        "category": "door",
+        "learn_prompt": (
+            "Generate an exact replica of this door."
+        ),
+        "variation_hint": (
+            "Preserve the exact door structure. Change only the surface color/finish."
+        ),
+    },
+    "rtf_drawer_minimal": {
+        "name": "Minimal RTF (Drawer)",
+        "category": "drawer",
+        "learn_prompt": (
+            "Generate an exact replica of this drawer front."
+        ),
+        "variation_hint": (
+            "Preserve the exact drawer front structure. Change only the surface color/finish."
+        ),
+    },
+    "rtf_drawer_shaker_shallow": {
+        "name": "Shaker Shallow RTF (Drawer)",
+        "category": "drawer",
+        "learn_prompt": (
+            "Generate an exact replica of the reference image. "
+            "STUDY THE REFERENCE IMAGE CAREFULLY before generating — every dimension must come from the image, not from standard cabinetry conventions. "
+            "This is a SHALLOW SHAKER style RTF drawer front — flat recessed center panel, clean square-edge framing. "
+            "PANEL DEPTH: The center panel steps down only 1/8\" below the frame surface — this is an extremely shallow recess. "
+            "Because of this minimal depth, the shadow cast along the panel edges is very subtle and faint — NOT a deep or dramatic shadow. "
+            "CRITICAL PROPORTIONS from the reference image: "
+            "The vertical stiles (left and right frame members) are 1.75x wider than the horizontal rails (top and bottom frame members). "
+            "The rails are intentionally NARROW — do NOT widen them to match standard 2-inch cabinet proportions. "
+            "Measure the stile and rail widths directly from the reference image and replicate them exactly. "
+            "The center panel occupies most of the visual width — the slim rails leave a large open panel area. "
+            "GRAIN DIRECTION: The wood grain must run HORIZONTALLY (left to right) across the drawer front. Do NOT use vertical grain. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting."
+        ),
+        "variation_hint": (
+            "CRITICAL: This is a SHALLOW SHAKER drawer front — flat recessed panel with only a 1/8\" step down from frame. "
+            "The panel shadow is very faint due to the minimal recess depth — do NOT deepen it. "
+            "PROPORTIONS MUST BE PRESERVED EXACTLY: stiles are 1.75x wider than rails. "
+            "The rails are NARROW — do NOT use standard 2-inch rail width. "
+            "The large open panel area is a defining visual characteristic. "
+            "Wood grain runs HORIZONTALLY. "
+            "Preserve the exact stile width, rail width, 1/8\" panel depth, and square-edge framing from before."
+        ),
+    },
+    "rtf_drawer_shaker": {
+        "name": "Shaker RTF (Drawer)",
+        "category": "drawer",
+        "learn_prompt": (
+            "Generate an exact replica of the reference image. "
+            "This is a SHAKER style RTF drawer front — it has a FLAT, RECESSED center panel "
+            "with clean square-edge framing. "
+            "The center panel is FLAT and sits BELOW the frame — it is NOT raised and has NO bevel. "
+            "The frame has SQUARE, CLEAN inner edges — NO decorative routing, NO ogee, NO chamfer. "
+            "The inner edge where frame meets panel is a simple sharp 90-degree step down. "
+            "CRITICAL PROPORTIONS: The vertical stiles (left and right frame members) are TWICE as wide "
+            "as the horizontal rails (top and bottom frame members). "
+            "If the rails are 1 unit wide, the stiles must be 2 units wide. "
+            "This wide-stile proportion is a defining feature — do NOT make stiles and rails the same width. "
+            "Use the reference image to match the exact design details: "
+            "the panel depth, edge profile, and this exact 2:1 stile-to-rail proportion. "
+            "GRAIN DIRECTION: The wood grain must run HORIZONTALLY (left to right) across the drawer front. Do NOT use vertical grain. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting."
+        ),
+        "variation_hint": (
+            "CRITICAL: This is a SHAKER style drawer front — the center panel must be FLAT and RECESSED "
+            "below the frame. Do NOT make a raised panel. The frame inner edges are SQUARE and CLEAN — "
+            "no decorative routing. "
+            "CRITICAL PROPORTIONS: The vertical stiles must be TWICE as wide as the horizontal rails — "
+            "do NOT make them equal width. This 2:1 stile-to-rail ratio must be preserved exactly. "
+            "Wood grain runs HORIZONTALLY. "
+            "Preserve the exact stile width, rail width, panel depth, and square-edge framing from before."
+        ),
+    },
+    "rtf_drawer_bevel": {
+        "name": "Bevel RTF (Drawer)",
+        "category": "drawer",
+        "learn_prompt": (
+            "Generate an exact replica of the reference image. "
+            "This is a BEVEL style RTF drawer front. Study the construction carefully — it is a SINGLE SOLID SLAB. "
+            "THERE IS NO FRAME. THERE ARE NO RAILS. THERE ARE NO STILES. THERE IS NO RAISED OR RECESSED PANEL. "
+            "Do NOT construct a frame-and-panel door. Do NOT add rails or stiles around a center panel. "
+            "The face is ONE continuous surface — a single flat slab of RTF thermofoil material. "
+            "THE DEFINING FEATURE — THE BEVEL: A wide angled bevel wraps ALL FOUR SIDES of the face (top, bottom, left, right). "
+            "The bevel is an angled surface — it slopes from the outer perimeter edge INWARD and DOWNWARD "
+            "to meet the flat center field. The outer rim of the slab is the HIGHEST point; "
+            "the bevel surface descends at an angle toward the center. "
+            "The bevel width is substantial — roughly 15–20% of the total face width on each edge. "
+            "The bevel angle is approximately 45 degrees. "
+            "The four bevel planes meet at the four corners — they do NOT leave a square outer rim. "
+            "CENTER FIELD: The center of the face is completely FLAT, SMOOTH, and UNIFORM — "
+            "it is NOT raised, NOT recessed (relative to the bevel's lower edge), NOT textured. "
+            "The flat center field sits at the lowest point of the face, below the outer rim. "
+            "MATERIAL: RTF thermofoil — solid uniform color, smooth finish, NO wood grain, "
+            "no texture variation across the surface. "
+            "The lighting should show the bevel clearly: the top and left bevel faces catch light "
+            "(brighter), the bottom and right bevel faces are in shadow (darker). "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). "
+            "Absolutely no shadows, no gradients, no grey tones — the background must be perfectly "
+            "uniform bright white. Professional lighting."
+        ),
+        "variation_hint": (
+            "CRITICAL: This is a BEVEL style RTF drawer front — a SINGLE SOLID SLAB with NO frame, "
+            "NO rails, NO stiles, NO raised or recessed panel construction of any kind. "
+            "DO NOT add a frame. DO NOT add a panel inside a frame. "
+            "THE BEVEL IS THE ONLY FEATURE: A wide angled bevel (approximately 45 degrees, ~15–20% of face width) "
+            "wraps ALL FOUR sides of the face, sloping from the outer rim DOWNWARD to the flat center field. "
+            "The four bevel planes meet at the corners. The center is completely FLAT and SMOOTH. "
+            "Change ONLY the RTF surface color/finish. Preserve the exact bevel angle, bevel width, "
+            "flat center field, and single-slab construction from before."
+        ),
+    },
+    # Test style - minimal prompting
+    "minimal": {
+        "name": "Minimal (Test)",
+        "category": "door",
+        "learn_prompt": (
+            "Generate an exact replica of this door. "
+            "All stiles and rails must be the same width — do not make any frame member wider than the others."
+        ),
+        "variation_hint": (
+            "Preserve the exact door structure. Change only the wood material. "
+            "All stiles and rails must remain the same width."
+        ),
+    },
     # Door styles
     "recessed_panel": {
         "name": "Recessed Panel",
@@ -86,7 +253,7 @@ STYLES: dict[str, dict[str, str]] = {
             "Use the reference image to match the exact design details: "
             "the panel depth, edge profile, rail/stile proportions, molding profile, and wood grain direction. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
             "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
             "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
             "The entire door must be fully visible and centered with clear white space surrounding it."
@@ -95,6 +262,81 @@ STYLES: dict[str, dict[str, str]] = {
             "CRITICAL: This is a RECESSED/INSET panel door — the center panel must be FLAT and sit BELOW "
             "the surrounding frame. Do NOT make a raised panel door. The panel must NOT have a raised bevel "
             "or convex surface. Preserve the exact flat recessed panel design, frame molding profile, "
+            "and rail/stile proportions from before."
+        ),
+    },
+    "vienna": {
+        "name": "Vienna",
+        "category": "door",
+        "learn_prompt": (
+            "Generate an exact replica of the reference image. "
+            "This is a VIENNA style cabinet door — a SLAB VENEER door with APPLIED BEAD MOLDING on the outside edge. "
+            "CRITICAL CONSTRUCTION: This is a SLAB door — the panel is ONE continuous flat surface of veneer. "
+            "There is NO separate frame and panel construction. There are NO rails or stiles. "
+            "The entire face is a single flat veneered surface. "
+            "BEAD MOLDING DETAIL: A small beaded molding strip (approximately 3/8\" wide) is applied around "
+            "the OUTSIDE perimeter edge of the door face. This solid wood molding sits slightly RAISED above "
+            "the flat veneer surface, creating a subtle frame-like border. The molding raises the outside edge "
+            "to approximately 15/16\" total thickness while the center panel is 3/4\" thick. "
+            "The bead detail is a small rounded/semi-circular profile — subtle and refined, NOT a large "
+            "decorative molding. It creates a very thin raised border around the flat slab. "
+            "IMPORTANT: Do NOT interpret this as a traditional frame-and-panel door. There are NO cope-and-stick "
+            "joints, NO separate rails and stiles, NO recessed or raised panel. It is a flat slab with a thin "
+            "beaded molding applied to the perimeter. "
+            "Use the reference image to match the exact design details: "
+            "the flat slab construction, bead molding width and profile, and wood grain direction. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
+            "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
+            "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
+            "The entire door must be fully visible and centered with clear white space surrounding it."
+        ),
+        "variation_hint": (
+            "CRITICAL: This is a VIENNA style SLAB VENEER door — NOT a frame-and-panel door. "
+            "The entire face is ONE continuous flat veneered surface. There are NO rails, NO stiles, "
+            "NO separate frame-and-panel construction. Do NOT add frame-and-panel details. "
+            "A small BEAD MOLDING (3/8\" wide, rounded profile) is applied around the OUTSIDE perimeter, "
+            "sitting slightly raised above the flat surface. This is the ONLY raised detail on the door. "
+            "Preserve the exact flat slab construction, thin bead molding border, and overall simplicity. "
+            "Do NOT convert this into a shaker, recessed panel, or raised panel door."
+        ),
+    },
+    "terracina": {
+        "name": "Terracina",
+        "category": "door",
+        "learn_prompt": (
+            "Generate an exact replica of the reference image. "
+            "This is a TERRACINA style cabinet door — a RECESSED FLAT PANEL door with a distinctive "
+            "OGEE/STEPPED inner edge profile. "
+            "CRITICAL PANEL TYPE: The center panel is completely FLAT and RECESSED — it sits BELOW the "
+            "frame surface. This is NOT a raised panel door. The panel does NOT have a raised bevel, "
+            "convex surface, or any elevation above the frame. The panel is flat and inset. "
+            "INNER EDGE PROFILE: The transition from the frame to the recessed panel features a decorative "
+            "ogee or stepped profile — a curved/stepped molding detail cut into the inner edge of the frame. "
+            "This creates visual depth and elegance but the panel itself remains completely flat and recessed. "
+            "Do NOT confuse this decorative edge profile with a raised panel — the ogee is on the FRAME edge, "
+            "not on the panel surface. "
+            "JOINERY: The frame uses COPE-AND-STICK joints — stiles run full length top to bottom, "
+            "rails butt into them at right angles. NOT mitered corners. "
+            "FRAME: Wide stiles and rails with generous proportions. "
+            "Use the reference image to match the exact design details: "
+            "the ogee/stepped inner edge profile, flat recessed panel, cope-and-stick joints, "
+            "frame width, rail/stile proportions, and wood grain direction. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
+            "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
+            "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
+            "The entire door must be fully visible and centered with clear white space surrounding it."
+        ),
+        "variation_hint": (
+            "CRITICAL: This is a TERRACINA style door — a RECESSED FLAT PANEL door with an OGEE/STEPPED "
+            "inner edge profile on the frame. "
+            "The center panel is FLAT and RECESSED — it sits BELOW the frame. Do NOT make a raised panel. "
+            "The panel must NOT have a raised bevel, convex surface, or any elevation. It is completely flat. "
+            "The decorative ogee/stepped profile is on the FRAME'S inner edge, NOT on the panel surface. "
+            "Do NOT interpret the edge detail as a raised panel — the panel stays flat and inset. "
+            "COPE-AND-STICK joints — stiles run full length, rails butt in at right angles, NOT mitered. "
+            "Preserve the exact ogee/stepped edge profile, flat recessed panel, frame width, "
             "and rail/stile proportions from before."
         ),
     },
@@ -116,7 +358,7 @@ STYLES: dict[str, dict[str, str]] = {
             "the square inner edge, cope-and-stick joint seams, frame width, rail/stile proportions, "
             "and wood grain direction. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
             "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
             "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
             "The entire door must be fully visible and centered with clear white space surrounding it."
@@ -152,7 +394,7 @@ STYLES: dict[str, dict[str, str]] = {
             "the flat step profile, mitered inner trim, butt-joint frame, frame width, "
             "rail/stile proportions, and wood grain direction. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
             "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
             "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
             "The entire door must be fully visible and centered with clear white space surrounding it."
@@ -177,10 +419,13 @@ STYLES: dict[str, dict[str, str]] = {
             "This door has a VERTICAL CENTER STILE that divides the door into TWO side-by-side recessed panels. "
             "The center stile is a critical structural element — it runs vertically through the middle of the door, "
             "creating two tall narrow recessed panels instead of one wide panel. "
+            "CRITICAL FRAME MEMBER WIDTHS: ALL frame members (left stile, right stile, center stile, top rail, bottom rail) "
+            "must be EXACTLY THE SAME WIDTH. Do NOT make the bottom rail wider than the stiles. Do NOT make any rail "
+            "wider or narrower than the stiles. ALL frame members must have uniform, matching widths. "
             "Use the reference image to match the exact design details: "
-            "the center stile width and position, panel depth, edge profile, rail/stile proportions, and wood grain direction. "
+            "the center stile width and position, panel depth, edge profile, and wood grain direction. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
             "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
             "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
             "The entire door must be fully visible and centered with clear white space surrounding it."
@@ -190,7 +435,11 @@ STYLES: dict[str, dict[str, str]] = {
             "TWO side-by-side recessed panels. The center stile MUST be present — it is the defining feature "
             "of this door. Do NOT simplify to a single panel. Preserve the exact double-panel layout: "
             "outer frame (top rail, bottom rail, left stile, right stile) plus the vertical center stile "
-            "creating two tall narrow recessed panels."
+            "creating two tall narrow recessed panels. "
+            "CRITICAL FRAME MEMBER WIDTHS: ALL frame members (left stile, right stile, center stile, top rail, bottom rail) "
+            "must be EXACTLY THE SAME WIDTH. Do NOT make the bottom rail wider than the stiles. Do NOT make any rail "
+            "wider or narrower than the stiles. ALL frame members must have uniform, matching widths. "
+            "Maintain uniform width across all stiles and rails from before."
         ),
     },
     "recessed_panel_applied_molding": {
@@ -207,7 +456,7 @@ STYLES: dict[str, dict[str, str]] = {
             "Use the reference image to match the exact design details: "
             "the applied molding profile, the step-down depth, rail/stile proportions, and wood grain direction. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
             "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
             "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
             "The entire door must be fully visible and centered with clear white space surrounding it."
@@ -240,7 +489,7 @@ STYLES: dict[str, dict[str, str]] = {
             "Use the reference image to match the exact design details: "
             "the routed step profile, frame width, rail/stile proportions, and wood grain direction. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
             "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
             "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
             "The entire door must be fully visible and centered with clear white space surrounding it."
@@ -277,7 +526,7 @@ STYLES: dict[str, dict[str, str]] = {
             "the square outer edge, applied molding profile, miter joints on molding, "
             "cope-and-stick joints on frame, frame width, rail/stile proportions, and wood grain direction. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
             "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
             "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
             "The entire door must be fully visible and centered with clear white space surrounding it."
@@ -309,7 +558,7 @@ STYLES: dict[str, dict[str, str]] = {
             "the miter joint angles, applied molding profile, step-down depth, rail/stile proportions, "
             "and wood grain direction. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
             "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
             "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
             "The entire door must be fully visible and centered with clear white space surrounding it."
@@ -339,7 +588,7 @@ STYLES: dict[str, dict[str, str]] = {
             "Use the reference image to match the exact design details: "
             "the very narrow frame width, miter joint angles, panel depth, and wood grain direction. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
             "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
             "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
             "The entire door must be fully visible and centered with clear white space surrounding it."
@@ -365,7 +614,7 @@ STYLES: dict[str, dict[str, str]] = {
             "Use the reference image to match the exact design details: "
             "the panel depth, edge profile, rail/stile proportions, and wood grain direction. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
             "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
             "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
             "The entire door must be fully visible and centered with clear white space surrounding it."
@@ -403,7 +652,7 @@ STYLES: dict[str, dict[str, str]] = {
             "Use the reference image to match the exact arch curve, frame molding profile, "
             "rail/stile proportions, and wood grain direction. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
             "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
             "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
             "The entire door must be fully visible and centered with clear white space surrounding it."
@@ -428,27 +677,66 @@ STYLES: dict[str, dict[str, str]] = {
             "Use the reference image to match the exact design details: "
             "the panel raise height, bevel profile, rail/stile proportions, and wood grain direction. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
             "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
             "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
             "The entire door must be fully visible and centered with clear white space surrounding it."
         ),
         "variation_hint": ("Preserve the exact raised-panel cabinet door design from before."),
     },
-    "solid_plank": {
-        "name": "Solid / Plank",
+    "raised_panel_radius": {
+        "name": "Raised Panel Radius",
         "category": "door",
         "learn_prompt": (
-            "Generate a photorealistic product image of a solid plank cabinet door. "
+            "Generate a photorealistic product image of a raised-panel cabinet door with RADIUS INNER CORNERS. "
+            "CRITICAL PROFILE DETAIL: The center panel is RAISED — it sits ABOVE the surrounding routed "
+            "channel/groove. The frame (rails and stiles) surrounds a routed channel that steps DOWN from "
+            "the frame, then the center panel RISES back up above the channel. "
+            "INNER CORNER RADIUS: The four inner corners where the routed channel changes direction have "
+            "a visible ROUNDED RADIUS — a smooth curved arc, NOT a sharp 90-degree turn. This radius is "
+            "approximately 3/8 to 1/2 inch. The inner corners must be clearly rounded and soft. "
+            "Do NOT make the inner profile corners sharp or square. "
             "Use the reference image to match the exact design details: "
-            "the overall proportions, edge profile, and wood grain direction. "
+            "the panel raise height, bevel profile, rail/stile proportions, inner corner radius, "
+            "and wood grain direction. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
             "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
             "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
             "The entire door must be fully visible and centered with clear white space surrounding it."
         ),
-        "variation_hint": ("Preserve the exact solid plank door design from before."),
+        "variation_hint": (
+            "CRITICAL: This is a RAISED PANEL door with RADIUS INNER CORNERS. "
+            "The center panel is RAISED above the surrounding routed channel. "
+            "The four inner corners where the routed channel turns must have a visible ROUNDED RADIUS "
+            "— a smooth curved arc approximately 3/8 to 1/2 inch, NOT a sharp 90-degree corner. "
+            "Preserve the exact raised panel height, bevel profile, frame proportions, "
+            "and rounded inner corner radius from before."
+        ),
+    },
+    "solid_plank": {
+        "name": "Solid / Plank",
+        "category": "door",
+        "learn_prompt": (
+            "Generate a photorealistic product image of a SOLID SLAB cabinet door — "
+            "this is a single flat piece of material with NO frame, NO panel, NO rails, NO stiles, "
+            "NO raised or recessed sections, NO routed channels, NO profiles, NO inset details. "
+            "It is simply a plain, flat rectangle. "
+            "Use the reference image to match the exact proportions, edge profile, and wood grain direction. "
+            "CRITICAL: Do NOT add any frame-and-panel construction. There are NO separate components — "
+            "just one solid flat slab. If you see rails, stiles, or any panel detail, you have it WRONG. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
+            "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
+            "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
+            "The entire door must be fully visible and centered with clear white space surrounding it."
+        ),
+        "variation_hint": (
+            "CRITICAL: This is a SOLID SLAB door — a single flat rectangle with NO frame, "
+            "NO panel, NO rails, NO stiles, NO routed profiles, NO raised or recessed areas. "
+            "Do NOT add any frame-and-panel details. Keep it as a plain flat slab. "
+            "Preserve the exact proportions and edge profile from before."
+        ),
     },
     "louver": {
         "name": "Louver",
@@ -458,7 +746,7 @@ STYLES: dict[str, dict[str, str]] = {
             "Use the reference image to match the exact design details: "
             "the slat spacing, angle, frame proportions, and edge profile. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
             "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
             "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
             "The entire door must be fully visible and centered with clear white space surrounding it."
@@ -474,17 +762,15 @@ STYLES: dict[str, dict[str, str]] = {
             "This is a RECESSED (INSET) panel drawer front — the center panel sits BELOW the frame, NOT raised above it. "
             "The center panel is FLAT and RECESSED — it does NOT have a raised bevel or convex surface. "
             "Use the reference image to match the exact design details: "
-            "Match the wood type, panel depth, edge profile, rail/stile proportions, and wood grain direction exactly. "
+            "Match the wood type, panel depth, edge profile, and rail/stile proportions exactly. "
+            "GRAIN DIRECTION: The wood grain must run HORIZONTALLY (left to right) across the drawer front. Do NOT use vertical grain. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
-            "CRITICAL: The drawer front must NOT touch or bleed to the edges of the image. "
-            "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
-            "The entire drawer front must be fully visible and centered with clear white space surrounding it."
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting."
         ),
         "variation_hint": (
             "CRITICAL: This is a RECESSED/INSET panel drawer front — the center panel must be FLAT and sit "
             "BELOW the surrounding frame. Do NOT make a raised panel. The panel must NOT have a raised bevel "
-            "or convex surface. Preserve the exact flat recessed panel design from before."
+            "or convex surface. Wood grain runs HORIZONTALLY. Preserve the exact flat recessed panel design from before."
         ),
     },
     "drawer_raised_panel": {
@@ -493,29 +779,206 @@ STYLES: dict[str, dict[str, str]] = {
         "learn_prompt": (
             "Generate a photorealistic product image of a raised-panel cabinet drawer front. "
             "Use the reference image to match the exact design details: "
-            "the panel raise height, bevel profile, rail/stile proportions, and wood grain direction. "
+            "the panel raise height, bevel profile, and rail/stile proportions. "
+            "GRAIN DIRECTION: The wood grain must run HORIZONTALLY (left to right) across the drawer front. Do NOT use vertical grain. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
-            "CRITICAL: The drawer front must NOT touch or bleed to the edges of the image. "
-            "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
-            "The entire drawer front must be fully visible and centered with clear white space surrounding it."
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting."
         ),
-        "variation_hint": ("Preserve the exact raised-panel drawer front design from before."),
+        "variation_hint": ("Preserve the exact raised-panel drawer front design from before. Wood grain runs HORIZONTALLY."),
+    },
+    "drawer_raised_panel_radius": {
+        "name": "Raised Panel Radius (Drawer)",
+        "category": "drawer",
+        "learn_prompt": (
+            "Generate a photorealistic product image of a raised-panel cabinet drawer front with RADIUS INNER CORNERS. "
+            "CRITICAL PROFILE DETAIL: The center panel is RAISED — it sits ABOVE the surrounding routed "
+            "channel/groove. The frame surrounds a routed channel that steps DOWN from the frame, then "
+            "the center panel RISES back up above the channel. "
+            "INNER CORNER RADIUS: The four inner corners where the routed channel changes direction have "
+            "a visible ROUNDED RADIUS — a smooth curved arc, NOT a sharp 90-degree turn. This radius is "
+            "approximately 3/8 to 1/2 inch. The inner corners must be clearly rounded and soft. "
+            "Do NOT make the inner profile corners sharp or square. "
+            "Use the reference image to match the exact design details: "
+            "the panel raise height, bevel profile, rail/stile proportions, and inner corner radius. "
+            "GRAIN DIRECTION: The wood grain must run HORIZONTALLY (left to right) across the drawer front. Do NOT use vertical grain. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting."
+        ),
+        "variation_hint": (
+            "CRITICAL: This is a RAISED PANEL drawer front with RADIUS INNER CORNERS. "
+            "The center panel is RAISED above the surrounding routed channel. "
+            "The four inner corners where the routed channel turns must have a visible ROUNDED RADIUS "
+            "— a smooth curved arc approximately 3/8 to 1/2 inch, NOT a sharp 90-degree corner. "
+            "Preserve the exact raised panel height, bevel profile, frame proportions, "
+            "and rounded inner corner radius from before. Wood grain runs HORIZONTALLY."
+        ),
     },
     "drawer_solid_plank": {
         "name": "Solid / Slab (Drawer)",
         "category": "drawer",
         "learn_prompt": (
-            "Generate a photorealistic product image of a solid slab cabinet drawer front. "
-            "Use the reference image to match the exact design details: "
-            "the overall proportions, edge profile, and wood grain direction. "
+            "Generate a photorealistic product image of a SOLID SLAB cabinet drawer front — "
+            "this is a single flat piece of material with NO frame, NO panel, NO rails, NO stiles, "
+            "NO raised or recessed sections, NO routed channels, NO inset details. "
+            "The face is a single flat surface. "
+            "EDGE PROFILE: Study the reference image carefully and replicate the exact outer edge profile — "
+            "this may be a simple square edge, a subtle bevel, an ogee, a cove, or another decorative profile. "
+            "The edge detail is a defining characteristic of this drawer front and must be preserved exactly. "
+            "Use the reference image to match the exact proportions and edge profile. "
+            "CRITICAL: Do NOT add any frame-and-panel construction. There are NO separate components — "
+            "just one solid flat slab with its specific edge treatment. "
+            "If you see rails, stiles, or any panel detail on the face, you have it WRONG. "
+            "GRAIN DIRECTION: The wood grain must run HORIZONTALLY (left to right) across the drawer front. Do NOT use vertical grain. "
             "Create a brand new render - do NOT return the reference image. "
-            "Output: clean studio product photo, clean white background, no shadows, professional lighting. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting."
+        ),
+        "variation_hint": (
+            "CRITICAL: This is a SOLID SLAB drawer front — a single flat face with NO frame, "
+            "NO panel, NO rails, NO stiles, NO routed profiles, NO raised or recessed areas on the face. "
+            "Do NOT add any frame-and-panel details. "
+            "Preserve the exact flat face, outer edge profile (bevel, ogee, square, or other detail), "
+            "and proportions from before. "
+            "Wood grain runs HORIZONTALLY."
+        ),
+    },
+    "drawer_alpine": {
+        "name": "Alpine (Drawer)",
+        "category": "drawer",
+        "learn_prompt": (
+            "Generate an exact replica of the reference image. "
+            "This is an ALPINE style drawer front with a FLAT RECTANGULAR TRIM STRIP framing a recessed panel. "
+            "CRITICAL INNER TRIM PROFILE: The inner trim is a FLAT, RECTANGULAR cross-section strip of wood — "
+            "like a thin, flat picture-frame molding. The trim surface is completely FLAT and LEVEL — it has "
+            "NO bevel, NO angle, NO chamfer, NO slope, NO rounded edge. The cross-section of the trim is a "
+            "simple RECTANGLE — flat on top, square edges on both sides, like a small flat board laid on its side. "
+            "If you imagine cutting through the trim, you would see a plain rectangle, NOT a triangle, NOT a "
+            "trapezoid, NOT a parallelogram. The top face of the trim is PARALLEL to the door face. "
+            "Do NOT make the trim look beveled, angled, sloped, or chamfered in ANY way. "
+            "TRIM CORNERS: The trim strips meet at 45-DEGREE MITER JOINTS at all four corners — "
+            "the trim forms a picture-frame pattern with clean diagonal miter cuts where each strip meets. "
+            "CONSTRUCTION: The outer frame uses standard rail-and-stile construction. The flat rectangular "
+            "trim strip is applied INSIDE the frame, sitting slightly RAISED above the recessed panel surface "
+            "but BELOW the outer frame surface. The trim creates a distinct border between the frame and panel. "
+            "The center panel is FLAT and RECESSED — it sits BELOW the trim, NOT raised. "
+            "Use the reference image to match the exact design details: "
+            "the flat rectangular trim profile, mitered corners, trim width and height, "
+            "frame proportions, and panel depth. "
+            "GRAIN DIRECTION: The wood grain must run HORIZONTALLY (left to right) across the drawer front. Do NOT use vertical grain. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
             "CRITICAL: The drawer front must NOT touch or bleed to the edges of the image. "
             "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
             "The entire drawer front must be fully visible and centered with clear white space surrounding it."
         ),
-        "variation_hint": ("Preserve the exact solid slab drawer front design from before."),
+        "variation_hint": (
+            "CRITICAL: This is an ALPINE style drawer front. The defining feature is the FLAT RECTANGULAR "
+            "TRIM STRIP framing the recessed panel. "
+            "The trim has a FLAT, RECTANGULAR cross-section — the top surface is completely FLAT and LEVEL, "
+            "PARALLEL to the door face. There is NO bevel, NO angle, NO chamfer, NO slope on the trim. "
+            "If you cut through the trim, the cross-section is a plain RECTANGLE — NOT a triangle, "
+            "NOT a trapezoid. Do NOT make the trim look beveled, angled, or sloped in any way. "
+            "The trim corners are MITERED at 45 degrees — a clean picture-frame pattern. "
+            "The center panel is FLAT and RECESSED — do NOT make a raised panel. "
+            "Wood grain runs HORIZONTALLY. "
+            "Preserve the exact flat rectangular trim profile, mitered corners, trim dimensions, "
+            "frame proportions, and panel depth from before."
+        ),
+    },
+    "drawer_shaker": {
+        "name": "Shaker (Drawer)",
+        "category": "drawer",
+        "learn_prompt": (
+            "Generate an exact replica of the reference image. "
+            "This is a SHAKER style drawer front — it has a FLAT, RECESSED center panel "
+            "with clean square-edge framing. "
+            "The center panel is FLAT and sits BELOW the frame — it is NOT raised and has NO bevel. "
+            "The frame has SQUARE, CLEAN inner edges — NO decorative routing, NO ogee, NO chamfer. "
+            "The inner edge where frame meets panel is a simple sharp 90-degree step down. "
+            "Use the reference image to match the exact design details: "
+            "the panel depth, edge profile, and rail/stile proportions. "
+            "GRAIN DIRECTION: The wood grain must run HORIZONTALLY (left to right) across the drawer front. Do NOT use vertical grain. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
+            "CRITICAL: The drawer front must NOT touch or bleed to the edges of the image. "
+            "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
+            "The entire drawer front must be fully visible and centered with clear white space surrounding it."
+        ),
+        "variation_hint": (
+            "CRITICAL: This is a SHAKER style drawer front — the center panel must be FLAT and RECESSED "
+            "below the frame. Do NOT make a raised panel. The panel must NOT have a raised bevel or "
+            "convex surface. The frame inner edges are SQUARE and CLEAN — no decorative routing. "
+            "Wood grain runs HORIZONTALLY. "
+            "Preserve the exact Shaker flat recessed panel design and square-edge framing from before."
+        ),
+    },
+    "drawer_harmony": {
+        "name": "Harmony (Drawer)",
+        "category": "drawer",
+        "learn_prompt": (
+            "Generate an exact replica of the reference image. "
+            "Match every detail precisely — do NOT simplify the construction. "
+            "CRITICAL OUTER EDGE: The outer frame edge is RAISED and ROUNDED — it curves UP, "
+            "not down. Do NOT make it a flat step-down or a square edge. The outer edge has a "
+            "smooth convex profile that rises above the surrounding surface. "
+            "GRAIN DIRECTION: The wood grain must run HORIZONTALLY (left to right) across the drawer front. Do NOT use vertical grain. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
+            "CRITICAL: The drawer front must NOT touch or bleed to the edges of the image. "
+            "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
+            "The entire drawer front must be fully visible and centered with clear white space surrounding it."
+        ),
+        "variation_hint": (
+            "Preserve the exact drawer front construction from before. "
+            "CRITICAL: The outer frame edge is RAISED and ROUNDED — it curves UP, not down. "
+            "Do NOT flatten it into a step-down or square edge. "
+            "Wood grain runs HORIZONTALLY. Change ONLY the wood material."
+        ),
+    },
+    "drawer_journey": {
+        "name": "Journey (Drawer)",
+        "category": "drawer",
+        "learn_prompt": (
+            "Generate an exact replica of the reference image. "
+            "This is a JOURNEY style drawer front — a SHALLOW, SKINNY SHAKER drawer front with MITERED CORNERS. "
+            "CRITICAL FRAME WIDTH: The rails and stiles are VERY NARROW — approximately 1 INCH wide. "
+            "This is roughly HALF the width of a standard shaker frame. The narrow frame makes the flat "
+            "center panel appear proportionally much larger than a normal shaker. Do NOT widen the frame — "
+            "if the frame looks like a standard shaker width, it is WRONG. The frame must look noticeably "
+            "skinny and slim. The 1-inch face detail is the defining proportion of this style. "
+            "MITERED CORNERS: The frame corners are joined at 45-DEGREE MITER JOINTS — the grain runs "
+            "at 45 degrees at each corner where rails meet stiles. Do NOT use cope-and-stick or square "
+            "butt joints. Every corner must show a clean diagonal miter seam. "
+            "INNER EDGE PROFILE: The inner edge where frame meets panel is a simple, clean SQUARE profile — "
+            "a sharp 90-degree step down from the frame to the recessed panel. There is NO decorative "
+            "routing, NO ogee, NO chamfer, NO applied molding. Just a clean square shaker edge. "
+            "CENTER PANEL: The center panel is completely FLAT and RECESSED — it sits BELOW the frame "
+            "surface. It is NOT raised, has NO bevel, NO convex surface. "
+            "SHALLOW PROPORTIONS: This is a drawer front, NOT a door — it has a shallow/short height "
+            "relative to its width, creating a wide landscape orientation typical of drawer fronts. "
+            "Use the reference image to match the exact design details: "
+            "the very narrow ~1-inch frame width, mitered corner joints, square inner edge, "
+            "flat recessed panel, shallow drawer proportions, and wood grain direction. "
+            "GRAIN DIRECTION: The wood grain must run HORIZONTALLY (left to right) across the drawer front. Do NOT use vertical grain. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
+            "CRITICAL: The drawer front must NOT touch or bleed to the edges of the image. "
+            "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
+            "The entire drawer front must be fully visible and centered with clear white space surrounding it."
+        ),
+        "variation_hint": (
+            "CRITICAL: This is a JOURNEY style drawer front — a SKINNY SHAKER with MITERED CORNERS. "
+            "The frame (rails and stiles) must be VERY NARROW — approximately 1 INCH wide, roughly HALF "
+            "the width of a standard shaker. Do NOT widen the frame to standard shaker proportions — "
+            "the skinny 1-inch frame is the defining feature. If the frame looks like a normal shaker "
+            "width, it is WRONG. "
+            "The frame corners are 45-degree MITER JOINTS — NOT cope-and-stick, NOT butt joints. "
+            "Every corner must show a clean diagonal miter seam where the grain meets at 45 degrees. "
+            "Simple SQUARE inner edge — a clean 90-degree step down, NO routed profile, NO applied molding. "
+            "The center panel is FLAT and RECESSED — do NOT make a raised panel. "
+            "Wood grain runs HORIZONTALLY. "
+            "Preserve the exact skinny ~1-inch frame width, miter geometry, square inner edge, "
+            "flat recessed panel, and shallow drawer proportions from before."
+        ),
     },
 }
 
@@ -523,16 +986,27 @@ STYLES: dict[str, dict[str, str]] = {
 class DoorGenerator:
     """Generate door style variations using Gemini 3 with thought signatures."""
 
-    MODEL = "gemini-3-pro-image-preview"
+    DEFAULT_MODEL = "gemini-3-pro-image-preview"
     MAX_RETRIES = 5
     RETRY_DELAY = 15  # seconds (exponential backoff: 15, 30, 60, 120, 240)
 
-    def __init__(self, api_key: str) -> None:
-        """Initialize the generator with API key."""
+    def __init__(self, api_key: str, model: str | None = None) -> None:
+        """Initialize the generator with API key and optional model override."""
         self.client = genai.Client(api_key=api_key)
+        self.model = model or self.DEFAULT_MODEL
 
-    def _load_image_as_part(self, image_path: Path) -> types.Part:
-        """Load an image file as a Gemini Part."""
+    def _load_image_as_part(
+        self, image_path: Path, rotate_90: bool = False
+    ) -> types.Part:
+        """Load an image file as a Gemini Part.
+
+        Args:
+            image_path: Path to the image file.
+            rotate_90: If True, rotate the image 90° counter-clockwise before
+                sending.  Used for RTF woodgrain swatches on drawer fronts so
+                the grain direction in the reference image matches the desired
+                horizontal output.
+        """
         image_bytes = image_path.read_bytes()
 
         # Determine mime type from extension
@@ -544,6 +1018,14 @@ class DoorGenerator:
             ".webp": "image/webp",
         }
         mime_type = mime_types.get(suffix, "image/jpeg")
+
+        if rotate_90:
+            img = Image.open(io.BytesIO(image_bytes))
+            img = img.rotate(90, expand=True)
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            image_bytes = buf.getvalue()
+            mime_type = "image/png"
 
         return types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
 
@@ -582,6 +1064,8 @@ class DoorGenerator:
         door_style_name: str = "cabinet door",
         door_style: str = "recessed_panel",
         aspect_ratio: str = "9:16",
+        corner_style: str = "sharp",
+        material_type: str = "wood",
     ) -> GenerationResult:
         """
         Have Gemini generate its own version of the door to capture its understanding.
@@ -593,6 +1077,7 @@ class DoorGenerator:
             door_image_path: Path to the door style reference image
             door_style_name: Name of the door style (e.g., "Adobe Cabinet Door")
             door_style: Key from STYLES dict
+            corner_style: "sharp" or "bullnose"
 
         Returns:
             GenerationResult with Gemini's door image and thought signature
@@ -600,9 +1085,54 @@ class DoorGenerator:
         style = STYLES.get(door_style, STYLES["recessed_panel"])
         prompt = style["learn_prompt"]
 
+        # Inject corner style instruction
+        if corner_style == "bullnose":
+            prompt += (
+                " OUTER CORNERS: The four outer corners of the door must be "
+                "ROUNDED / BULLNOSE — smooth, convex radius corners, NOT sharp "
+                "90-degree edges. The bullnose radius should be clearly visible."
+            )
+        else:
+            prompt += (
+                " OUTER CORNERS: The four outer corners of the door must be "
+                "SHARP 90-degree square corners — NO rounding, NO radius, "
+                "NO bullnose. Crisp, clean square edges."
+            )
+
+        # Inject material type instruction
+        if material_type == "rtf":
+            prompt += (
+                " MATERIAL: This is an RTF (Rigid Thermofoil) door — the surface "
+                "is a smooth, uniform vinyl/thermofoil wrap over MDF substrate. "
+                "The finish is NOT natural wood. It has a consistent, uniform color "
+                "with no natural wood grain variation. The surface may be matte, "
+                "satin, or have a subtle embossed texture pattern."
+            )
+
+        # Inject dimension preservation instruction
+        prompt += (
+            " CRITICAL DIMENSIONS: Match the exact aspect ratio, height-to-width proportions, "
+            "and overall dimensions of the reference image precisely. Do NOT stretch or compress "
+            "the door. Each stile and rail must match its own width exactly as shown in the reference — "
+            "stiles and rails may differ from each other, reproduce whatever ratio the reference shows."
+        )
+
+        # Load the reference image with HIGH media resolution so Gemini uses
+        # ~1120 tokens to analyze it (vs default 256) — critical for reading
+        # fine details like exact stile/rail widths from the input image.
+        ref_image_bytes = door_image_path.read_bytes()
+        suffix = door_image_path.suffix.lower()
+        mime_map = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
+        ref_mime = mime_map.get(suffix, "image/jpeg")
+        ref_part = types.Part.from_bytes(
+            data=ref_image_bytes,
+            mime_type=ref_mime,
+            media_resolution=types.PartMediaResolutionLevel.MEDIA_RESOLUTION_HIGH,
+        )
+
         parts: list[types.Part] = [
             types.Part.from_text(text=prompt),
-            self._load_image_as_part(door_image_path),
+            ref_part,
         ]
 
         contents = [types.Content(role="user", parts=parts)]
@@ -610,7 +1140,7 @@ class DoorGenerator:
         for attempt in range(self.MAX_RETRIES):
             try:
                 response = self.client.models.generate_content(
-                    model=self.MODEL,
+                    model=self.model,
                     contents=contents,
                     config=types.GenerateContentConfig(
                         response_modalities=["image", "text"],
@@ -628,6 +1158,19 @@ class DoorGenerator:
                         image_data=None,
                         thought_signature=signature,
                         error="No image returned from API",
+                    )
+
+                if not signature:
+                    print(
+                        "[learn_door_style] WARNING: Image returned but no thought signature. "
+                        "Variations will not maintain style consistency.",
+                        file=sys.stderr,
+                    )
+                    return GenerationResult(
+                        image_data=image_data,
+                        thought_signature=None,
+                        error="No thought signature returned — cannot generate consistent variations. "
+                        "Please retry learning.",
                     )
 
                 return GenerationResult(
@@ -677,6 +1220,10 @@ class DoorGenerator:
         text_prompt: str | None = None,
         aspect_ratio: str = "9:16",
         style_notes: str = "",
+        corner_style: str = "sharp",
+        material_type: str = "wood",
+        hex_color: str | None = None,
+        rtf_finish: str | None = None,
     ) -> GenerationResult:
         """
         Generate a door variation with a specific wood type.
@@ -695,6 +1242,15 @@ class DoorGenerator:
         Returns:
             GenerationResult with image data, new signature, or error
         """
+        # Validate thought signature before proceeding
+        if not base_signature:
+            return GenerationResult(
+                image_data=None,
+                thought_signature=None,
+                error="No thought signature provided — cannot generate variation without a "
+                "learned style signature. Please re-learn the door style first.",
+            )
+
         style = STYLES.get(door_style, STYLES["recessed_panel"])
         variation_hint = style["variation_hint"]
 
@@ -705,8 +1261,85 @@ class DoorGenerator:
         if text_prompt:
             # Text-only variation — inject variation hint to preserve geometry
             prompt = f"CRITICAL: {variation_hint} {text_prompt}"
+        elif material_type == "rtf":
+            # RTF (Rigid Thermofoil) variation
+            rtf_identity = f"The target RTF color/finish is {wood_name}."
+            if hex_color:
+                rtf_identity += f" The EXACT target color is #{hex_color}."
+            if wood_description:
+                rtf_identity += (
+                    f" KEY REQUIREMENTS for this finish — follow these strictly: {wood_description}"
+                )
+
+            if rtf_finish == "woodgrain":
+                source_instruction = (
+                    "Use the swatch image as the definitive color and grain pattern reference. "
+                    "Match the swatch EXACTLY: same color tones and printed/embossed wood grain texture. "
+                )
+            else:
+                # Solid color RTF
+                hex_clause = ""
+                if hex_color:
+                    hex_clause = (
+                        f"The EXACT color is #{hex_color} — match this hex value precisely. "
+                    )
+                source_instruction = (
+                    "Use the swatch image as the definitive color reference. "
+                    f"{hex_clause}"
+                    "Match the swatch EXACTLY: same color, sheen, and finish. "
+                    "This is a SOLID, UNIFORM color — there is NO wood grain, NO texture variation, "
+                    "NO streaks, NO mottling. The surface must be perfectly smooth and consistent "
+                    "with a single flat color across the entire door face. "
+                )
+
+            # Corner style instruction
+            if corner_style == "bullnose":
+                corner_instruction = (
+                    "OUTER CORNERS: The four outer corners must be ROUNDED / BULLNOSE "
+                    "— smooth, convex radius corners, NOT sharp 90-degree edges. "
+                )
+            else:
+                corner_instruction = (
+                    "OUTER CORNERS: Sharp 90-degree square corners — NO rounding. "
+                )
+
+            is_rtf_drawer = style.get("category") == "drawer"
+            if rtf_finish == "woodgrain":
+                if is_rtf_drawer:
+                    grain_override = (
+                        "HORIZONTAL GRAIN ONLY. "
+                        "This door is covered in a single seamless sheet of horizontal woodgrain vinyl. "
+                        "The grain flows continuously from the very left edge to the very right edge "
+                        "without interruption across the entire surface. "
+                        "Monolithic horizontal wood texture — do NOT break the grain direction for any part of the door. "
+                    )
+                else:
+                    grain_override = (
+                        "VERTICAL GRAIN ONLY. "
+                        "This door is covered in a single seamless sheet of vertical woodgrain vinyl. "
+                        "The grain flows continuously from the very top edge to the very bottom edge "
+                        "without interruption across the entire surface. "
+                        "Monolithic vertical wood texture — do NOT break the grain direction for any part of the door. "
+                    )
+            else:
+                grain_override = ""
+
+            prompt = (
+                f"{grain_override}"
+                f"CRITICAL STYLE PRESERVATION: {variation_hint} "
+                f"Keep identical: door shape, frame proportions, edge profiles, and joint types. "
+                f"Change ONLY the surface color/finish — everything else must stay exactly the same. "
+                f"MATERIAL: This is RTF (Rigid Thermofoil) — a smooth vinyl wrap over MDF. "
+                f"There is NO natural wood grain. The surface is uniform and consistent. "
+                f"{corner_instruction}"
+                f"{rtf_identity} "
+                f"{source_instruction}"
+                f"Output: front-facing orthographic view, STARK PURE WHITE background (#FFFFFF), "
+                f"absolutely no shadows, no gradients, no grey tones in the background — "
+                f"the background must be perfectly uniform bright white. Professional lighting."
+            )
         else:
-            # Build wood identity block — this is the primary directive
+            # Wood variation — full grain/material handling
             wood_identity = f"The target wood type is {wood_name}."
             if wood_description:
                 wood_identity += (
@@ -737,28 +1370,49 @@ class DoorGenerator:
             drawer_instruction = ""
             if style.get("category") == "drawer":
                 drawer_instruction = (
-                    "Replace the wood grain pattern entirely — use the grain texture, direction, "
+                    "Replace the wood grain pattern entirely — use the grain texture "
                     "and character from the swatch, NOT from the previous image. "
+                    "GRAIN DIRECTION: The center panel grain must run HORIZONTALLY (left to right). "
+                    "Do NOT use vertical grain on the center panel. "
+                )
+
+            # Corner style instruction
+            if corner_style == "bullnose":
+                corner_instruction = (
+                    "OUTER CORNERS: The four outer corners must be ROUNDED / BULLNOSE "
+                    "— smooth, convex radius corners, NOT sharp 90-degree edges. "
+                )
+            else:
+                corner_instruction = (
+                    "OUTER CORNERS: Sharp 90-degree square corners — NO rounding. "
                 )
 
             prompt = (
                 f"CRITICAL STYLE PRESERVATION: {variation_hint} "
                 f"Keep identical: door shape, frame proportions, edge profiles, and joint types. "
                 f"Change ONLY the wood material — everything else must stay exactly the same. "
+                f"{corner_instruction}"
                 f"{wood_identity} "
                 f"{source_instruction}"
                 f"{drawer_instruction}"
-                f"Output: front-facing orthographic view, clean white background, "
-                f"no shadows, professional lighting."
+                f"Output: front-facing orthographic view, STARK PURE WHITE background (#FFFFFF), "
+                f"absolutely no shadows, no gradients, no grey tones in the background — "
+                f"the background must be perfectly uniform bright white. Professional lighting."
             )
 
         # Build content parts - signature first to reference the learned door
+        sig_size = len(base_signature) if base_signature else 0
+        print(
+            f"[generate_variation] Using thought signature ({sig_size} bytes) for {wood_name}",
+            file=sys.stderr,
+        )
         parts: list[types.Part] = [
             types.Part(thought_signature=base_signature),
             types.Part.from_text(text=prompt),
         ]
         if swatch_image_path:
-            parts.append(self._load_image_as_part(swatch_image_path))
+            rotate_swatch = rtf_finish == "woodgrain" and is_rtf_drawer
+            parts.append(self._load_image_as_part(swatch_image_path, rotate_90=rotate_swatch))
         if reference_image_path:
             parts.append(self._load_image_as_part(reference_image_path))
 
@@ -768,7 +1422,7 @@ class DoorGenerator:
         for attempt in range(self.MAX_RETRIES):
             try:
                 response = self.client.models.generate_content(
-                    model=self.MODEL,
+                    model=self.model,
                     contents=contents,
                     config=types.GenerateContentConfig(
                         response_modalities=["image", "text"],

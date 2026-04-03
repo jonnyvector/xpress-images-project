@@ -11,6 +11,17 @@ export default function Layout() {
   const dispatch = useDispatch();
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_api_key') ?? '');
   const [activeView, setActiveView] = useState<'library' | 'project'>('project');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem('sidebar_collapsed') === 'true'
+  );
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('sidebar_collapsed', String(next));
+      return next;
+    });
+  }, []);
 
   const handleApiKeyChange = useCallback((value: string) => {
     setApiKey(value);
@@ -64,26 +75,50 @@ export default function Layout() {
 
   return (
     <div className="app-layout">
-      <aside className="sidebar">
-        <h2>Settings</h2>
-        <div className="form-group">
-          <label htmlFor="api-key">Gemini API Key</label>
-          <input
-            id="api-key"
-            type="password"
-            value={apiKey}
-            onChange={(e) => handleApiKeyChange(e.target.value)}
-            placeholder="Enter your API key"
-          />
-        </div>
-        {!apiKey && (
-          <div className="status-info">Enter your API key to enable generation</div>
-        )}
-        <div style={{ marginTop: 'auto' }}>
-          <button className="danger" onClick={handleResetAll} style={{ width: '100%' }}>
-            Reset All
+      <aside className={`sidebar ${sidebarCollapsed ? 'sidebar--collapsed' : ''}`}>
+        <div className="sidebar-header">
+          {!sidebarCollapsed && <h2>Settings</h2>}
+          <button
+            className="sidebar-toggle"
+            onClick={toggleSidebar}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {sidebarCollapsed ? '⟩' : '⟨'}
           </button>
         </div>
+        {!sidebarCollapsed && (
+          <>
+            <div className="form-group">
+              <label htmlFor="api-key">Gemini API Key</label>
+              <input
+                id="api-key"
+                type="password"
+                value={apiKey}
+                onChange={(e) => handleApiKeyChange(e.target.value)}
+                placeholder="Enter your API key"
+              />
+            </div>
+            {!apiKey && (
+              <div className="status-info">Enter your API key to enable generation</div>
+            )}
+            <div style={{ marginTop: 'auto' }}>
+              <button className="danger" onClick={handleResetAll} style={{ width: '100%' }}>
+                Reset All
+              </button>
+            </div>
+          </>
+        )}
+        {sidebarCollapsed && (
+          <div className="sidebar-collapsed-icons">
+            <div
+              className={`sidebar-icon ${apiKey ? 'sidebar-icon--ok' : 'sidebar-icon--warn'}`}
+              title={apiKey ? 'API key set' : 'API key missing'}
+            >
+              🔑
+            </div>
+          </div>
+        )}
       </aside>
       <div className="main-content">
         <div className="top-bar">
@@ -107,6 +142,10 @@ export default function Layout() {
               onSelectProject={(id) => {
                 dispatch({ type: 'OPEN_TAB', id });
                 setActiveView('project');
+              }}
+              onRenameProject={async (id, newName) => {
+                const updated = await api.updateProject(id, { name: newName });
+                dispatch({ type: 'UPDATE_PROJECT', project: updated });
               }}
             />
           ) : openProjects.length === 0 ? (

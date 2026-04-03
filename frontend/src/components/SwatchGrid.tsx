@@ -12,9 +12,11 @@ export default function SwatchGrid({ project }: Props) {
   const [swatches, setSwatches] = useState<Swatch[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set(project.selected_swatches));
 
+  const materialType = project.material_type || 'wood';
+
   useEffect(() => {
-    api.listSwatches().then(setSwatches).catch(console.error);
-  }, []);
+    api.listSwatches(materialType).then(setSwatches).catch(console.error);
+  }, [materialType]);
 
   // Sync selected from project prop
   useEffect(() => {
@@ -59,7 +61,7 @@ export default function SwatchGrid({ project }: Props) {
 
   return (
     <section style={{ marginTop: '1rem' }}>
-      <h3>2. Select Wood Types</h3>
+      <h3>2. Select {materialType === 'rtf' ? 'Colors' : 'Wood Types'}</h3>
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
         <button onClick={selectAll} style={{ flex: 1 }}>Select All</button>
@@ -68,7 +70,9 @@ export default function SwatchGrid({ project }: Props) {
 
       {realSwatches.length > 0 && (
         <>
-          <strong style={{ fontSize: '0.8125rem' }}>Available Wood Types:</strong>
+          <strong style={{ fontSize: '0.8125rem' }}>
+            {materialType === 'rtf' ? 'Available Colors:' : 'Available Wood Types:'}
+          </strong>
           <div className="swatch-grid" style={{ marginTop: '0.5rem' }}>
             {realSwatches.map((swatch) => (
               <div

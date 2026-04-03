@@ -15,7 +15,7 @@ from PIL import Image, ImageDraw, ImageFont
 CANVAS_SIZE = 1000
 
 
-def add_watermark(image_bytes: bytes, wood_name: str = "") -> bytes:
+def add_watermark(image_bytes: bytes, wood_name: str = "", y_offset: int = 0) -> bytes:
     """Place image on a 1000x1000 white canvas and add watermark text."""
     img = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
 
@@ -46,7 +46,8 @@ def add_watermark(image_bytes: bytes, wood_name: str = "") -> bytes:
     text_h = bbox[3] - bbox[1]
     text_x = (CANVAS_SIZE - text_w) // 2
     margin = int(CANVAS_SIZE * 0.05)
-    text_y = CANVAS_SIZE - margin // 2 - text_h // 2 - 8
+    text_y = CANVAS_SIZE - margin // 2 - text_h // 2 - 8 + y_offset
+    text_y = max(margin, min(text_y, CANVAS_SIZE - margin - text_h))
 
     if "walnut" in wood_name.lower():
         outline_color = (220, 220, 220, 180)

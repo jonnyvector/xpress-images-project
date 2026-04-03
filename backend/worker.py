@@ -13,7 +13,9 @@ from backend.generator import DoorGenerator
 if TYPE_CHECKING:
     from backend.state import ProjectState, ProjectStore
 
-SWATCHES_DIR = Path("swatches")
+SWATCHES_BASE = Path("swatches")
+WOOD_SWATCHES_DIR = Path("swatches/wood")
+RTF_SWATCHES_DIR = Path("swatches/rtf")
 EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 _executor = ThreadPoolExecutor(max_workers=4)
@@ -23,14 +25,18 @@ _executor = ThreadPoolExecutor(max_workers=4)
 _api_semaphore = threading.Semaphore(4)
 
 
-def _get_swatch_files() -> list[Path]:
-    if not SWATCHES_DIR.exists():
+def _get_swatch_files(material_type: str = "wood") -> list[Path]:
+    d = RTF_SWATCHES_DIR if material_type == "rtf" else WOOD_SWATCHES_DIR
+    if not d.exists():
         return []
-    return sorted([f for f in SWATCHES_DIR.iterdir() if f.suffix.lower() in EXTENSIONS])
+    return sorted([f for f in d.iterdir() if f.suffix.lower() in EXTENSIONS])
 
 
-def _load_wood_types() -> dict[str, dict]:
-    json_path = SWATCHES_DIR / "wood_types.json"
+def _load_material_types(material_type: str = "wood") -> dict[str, dict]:
+    if material_type == "rtf":
+        json_path = SWATCHES_BASE / "rtf_types.json"
+    else:
+        json_path = SWATCHES_BASE / "wood_types.json"
     if json_path.exists():
         with open(json_path) as f:
             return json.load(f)
@@ -48,11 +54,26 @@ def _swatch_name_from_path(path: Path) -> str:
     return path.stem.replace("_", " ").replace("-", " ").title()
 
 
-def _get_wood_description(swatch_path: Path, wood_types: dict[str, dict]) -> str | None:
+# Styles where the product is a single flat surface (no separate frame and panel).
+# These use flat_panel_description from wood_types.json when available.
+FLAT_PANEL_STYLES = {"vienna", "solid_plank", "drawer_solid_plank", "rtf_drawer_bevel"}
+
+RTF_WOODGRAIN_DOOR_REFERENCE = Path("swatches/references/rtf-woodgrain-reference.jpg")
+
+
+def _get_material_description(
+    swatch_path: Path,
+    material_types: dict[str, dict],
+    door_style: str | None = None,
+) -> str | None:
     key = swatch_path.stem.lower().replace("_", "-")
-    if key in wood_types:
-        return wood_types[key].get("description") or None
-    return None
+    wt = material_types.get(key)
+    if not wt:
+        return None
+    # Use flat-panel-specific description when the style has no frame+panel
+    if door_style in FLAT_PANEL_STYLES and wt.get("flat_panel_description"):
+        return wt["flat_panel_description"]
+    return wt.get("description") or None
 
 
 def _get_reference_image_by_key(key: str) -> Path | None:
@@ -69,21 +90,28 @@ def _get_reference_image_by_key(key: str) -> Path | None:
     return None
 
 
-def _build_selections(selected_swatches: list[str]) -> list[dict]:
+def _build_selections(
+    selected_swatches: list[str],
+    door_style: str | None = None,
+    material_type: str = "wood",
+) -> list[dict]:
     """Build the selections list from selected swatch keys (ported from app.py)."""
-    wood_types = _load_wood_types()
-    all_swatch_files = _get_swatch_files()
+    wood_types = _load_material_types(material_type)
+    all_swatch_files = _get_swatch_files(material_type)
     selections: list[dict] = []
     for p in selected_swatches:
         if p.startswith("virtual:"):
             key = p[8:]
             wt = wood_types.get(key, {})
             borrowed = _resolve_swatch_path(wt.get("swatch_key", ""), all_swatch_files)
+            desc = wt.get("description")
+            if door_style in FLAT_PANEL_STYLES and wt.get("flat_panel_description"):
+                desc = wt["flat_panel_description"]
             selections.append(
                 {
                     "wood_name": wt.get("name", key),
                     "swatch_path": borrowed,
-                    "wood_description": wt.get("description"),
+                    "wood_description": desc,
                     "reference_image": None,
                 }
             )
@@ -97,11 +125,14 @@ def _build_selections(selected_swatches: list[str]) -> list[dict]:
                 if wt.get("swatch_key"):
                     borrowed = _resolve_swatch_path(wt["swatch_key"], all_swatch_files)
                     ref_key = wt.get("reference_key", key)
+                    desc = wt.get("description")
+                    if door_style in FLAT_PANEL_STYLES and wt.get("flat_panel_description"):
+                        desc = wt["flat_panel_description"]
                     selections.append(
                         {
                             "wood_name": wt.get("name", key),
                             "swatch_path": borrowed,
-                            "wood_description": wt.get("description"),
+                            "wood_description": desc,
                             "reference_image": None,
                         }
                     )
@@ -116,12 +147,18 @@ def _build_selections(selected_swatches: list[str]) -> list[dict]:
                     swatch_path = resolved
                 else:
                     continue  # skip missing swatches
+            key_lookup = swatch_path.stem.lower().replace("_", "-")
+            wt = wood_types.get(key_lookup, {})
             selections.append(
                 {
-                    "wood_name": _swatch_name_from_path(swatch_path),
+                    "wood_name": wt.get("name", _swatch_name_from_path(swatch_path)),
                     "swatch_path": swatch_path,
-                    "wood_description": _get_wood_description(swatch_path, wood_types),
+                    "wood_description": _get_material_description(
+                        swatch_path, wood_types, door_style,
+                    ),
                     "reference_image": None,
+                    "hex": wt.get("hex"),
+                    "rtf_finish": wt.get("finish"),
                 }
             )
     return selections
@@ -136,10 +173,13 @@ def _run_generation(
     selections: list[dict],
     aspect_ratio: str,
     style_notes: str,
+    corner_style: str = "sharp",
+    material_type: str = "wood",
+    gemini_model: str | None = None,
 ) -> None:
     """Run generation in background thread, updating ProjectState incrementally."""
     try:
-        generator = DoorGenerator(api_key=api_key)
+        generator = DoorGenerator(api_key=api_key, model=gemini_model)
 
         def _generate_one(sel: dict) -> tuple[str, object]:
             wood_name = sel["wood_name"]
@@ -153,6 +193,10 @@ def _run_generation(
                     door_style=door_style,
                     aspect_ratio=aspect_ratio,
                     style_notes=style_notes,
+                    corner_style=corner_style,
+                    material_type=material_type,
+                    hex_color=sel.get("hex"),
+                    rtf_finish=sel.get("rtf_finish"),
                 )
             return wood_name, result
 
@@ -206,6 +250,9 @@ def _run_learn(
     door_style: str,
     door_style_name: str,
     aspect_ratio: str,
+    corner_style: str = "sharp",
+    material_type: str = "wood",
+    gemini_model: str | None = None,
 ) -> None:
     """Run learn_door_style in background thread."""
     temp_path = OUTPUT_DIR / f"temp_learn_{project_id}.png"
@@ -213,13 +260,15 @@ def _run_learn(
         temp_path.parent.mkdir(parents=True, exist_ok=True)
         temp_path.write_bytes(upload_bytes)
 
-        generator = DoorGenerator(api_key=api_key)
+        generator = DoorGenerator(api_key=api_key, model=gemini_model)
         with _api_semaphore:
             result = generator.learn_door_style(
                 door_image_path=temp_path,
                 door_style_name=door_style_name,
                 door_style=door_style,
                 aspect_ratio=aspect_ratio,
+                corner_style=corner_style,
+                material_type=material_type,
             )
 
         project = store.get(project_id)
@@ -283,6 +332,9 @@ def start_learning(
         door_style,
         project.name,
         aspect_ratio,
+        project.corner_style,
+        project.material_type,
+        project.gemini_model,
     )
 
 
@@ -296,10 +348,13 @@ def _run_retry(
     selection: dict,
     aspect_ratio: str,
     style_notes: str,
+    corner_style: str = "sharp",
+    material_type: str = "wood",
+    gemini_model: str | None = None,
 ) -> None:
     """Re-generate a single variation in-place."""
     try:
-        generator = DoorGenerator(api_key=api_key)
+        generator = DoorGenerator(api_key=api_key, model=gemini_model)
         wood_name = selection["wood_name"]
         with _api_semaphore:
             result = generator.generate_variation(
@@ -311,6 +366,10 @@ def _run_retry(
                 door_style=door_style,
                 aspect_ratio=aspect_ratio,
                 style_notes=style_notes,
+                corner_style=corner_style,
+                material_type=material_type,
+                hex_color=selection.get("hex"),
+                rtf_finish=selection.get("rtf_finish"),
             )
         project = store.get(project_id)
         if project is None:
@@ -339,12 +398,26 @@ def start_retry(
     api_key: str,
 ) -> None:
     """Kick off a single-result retry."""
+    # Validate thought signature exists before retrying
+    if not project.learned_signature:
+        project.errors.append(
+            (project.results[idx][0],
+             "No thought signature available — please re-learn the door style.")
+        )
+        store.save(project.id)
+        return
+
     wood_name = project.results[idx][0]
+    is_drawer = project.product_type == "Drawer Front"
+    aspect_ratio = "16:9" if is_drawer else "9:16"
+    door_style = project.door_style or "recessed_panel"
 
     # Try to find the matching swatch in selected_swatches
     selection = None
     for swatch_key in project.selected_swatches:
-        selections = _build_selections([swatch_key])
+        selections = _build_selections(
+            [swatch_key], door_style=door_style, material_type=project.material_type,
+        )
         for sel in selections:
             if sel["wood_name"] == wood_name:
                 selection = sel
@@ -361,10 +434,6 @@ def start_retry(
             "reference_image": None,
         }
 
-    is_drawer = project.product_type == "Drawer Front"
-    aspect_ratio = "16:9" if is_drawer else "9:16"
-    door_style = project.door_style or "recessed_panel"
-
     project.retrying_indices.append(idx)
     store.save(project.id)
 
@@ -379,6 +448,9 @@ def start_retry(
         selection,
         aspect_ratio,
         project.style_notes,
+        project.corner_style,
+        project.material_type,
+        project.gemini_model,
     )
 
 
@@ -388,13 +460,24 @@ def start_generation(
     api_key: str,
 ) -> None:
     """Kick off background generation for a project."""
-    selections = _build_selections(project.selected_swatches)
-    if not selections:
+    # Validate thought signature exists before starting
+    if not project.learned_signature:
+        project.errors = [
+            ("Generation", "No thought signature available — please learn the door style first.")
+        ]
+        project.generation_status = "done"
+        store.save(project.id)
         return
 
     is_drawer = project.product_type == "Drawer Front"
     aspect_ratio = "16:9" if is_drawer else "9:16"
     door_style = project.door_style or "recessed_panel"
+
+    selections = _build_selections(
+        project.selected_swatches, door_style=door_style, material_type=project.material_type,
+    )
+    if not selections:
+        return
 
     # Keep all existing results — new ones append alongside them
     project.errors = []
@@ -413,4 +496,7 @@ def start_generation(
         selections,
         aspect_ratio,
         project.style_notes,
+        project.corner_style,
+        project.material_type,
+        project.gemini_model,
     )

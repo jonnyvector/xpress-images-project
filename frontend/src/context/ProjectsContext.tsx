@@ -16,15 +16,39 @@ type Action =
   | { type: 'OPEN_TAB'; id: string }
   | { type: 'CLOSE_TAB'; id: string };
 
+const OPEN_TABS_KEY = 'openTabIds';
+
+function loadOpenTabIds(): string[] | null {
+  try {
+    const stored = localStorage.getItem(OPEN_TABS_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveOpenTabIds(ids: string[]) {
+  try {
+    localStorage.setItem(OPEN_TABS_KEY, JSON.stringify(ids));
+  } catch { /* ignore quota errors */ }
+}
+
 function reducer(state: ProjectsState, action: Action): ProjectsState {
   switch (action.type) {
     case 'SET_PROJECTS': {
       const ids = new Set(action.projects.map((p) => p.id));
       const activeStillExists = state.activeProjectId && ids.has(state.activeProjectId);
-      // On initial load, open tabs for all projects
-      const openTabIds = state.openTabIds.length > 0
-        ? state.openTabIds.filter((id) => ids.has(id))
-        : action.projects.map((p) => p.id);
+      // On initial load, restore tabs from localStorage; fall back to all projects
+      let openTabIds: string[];
+      if (state.openTabIds.length > 0) {
+        openTabIds = state.openTabIds.filter((id) => ids.has(id));
+      } else {
+        const saved = loadOpenTabIds();
+        openTabIds = saved
+          ? saved.filter((id) => ids.has(id))
+          : action.projects.map((p) => p.id);
+      }
+      saveOpenTabIds(openTabIds);
       return {
         ...state,
         projects: action.projects,
@@ -36,13 +60,16 @@ function reducer(state: ProjectsState, action: Action): ProjectsState {
     }
     case 'SET_ACTIVE':
       return { ...state, activeProjectId: action.id };
-    case 'ADD_PROJECT':
+    case 'ADD_PROJECT': {
+      const newOpen = [...state.openTabIds, action.project.id];
+      saveOpenTabIds(newOpen);
       return {
         ...state,
         projects: [...state.projects, action.project],
-        openTabIds: [...state.openTabIds, action.project.id],
+        openTabIds: newOpen,
         activeProjectId: action.project.id,
       };
+    }
     case 'UPDATE_PROJECT':
       return {
         ...state,
@@ -53,6 +80,7 @@ function reducer(state: ProjectsState, action: Action): ProjectsState {
     case 'REMOVE_PROJECT': {
       const remaining = state.projects.filter((p) => p.id !== action.id);
       const openRemaining = state.openTabIds.filter((tid) => tid !== action.id);
+      saveOpenTabIds(openRemaining);
       return {
         ...state,
         projects: remaining,
@@ -67,14 +95,17 @@ function reducer(state: ProjectsState, action: Action): ProjectsState {
       if (state.openTabIds.includes(action.id)) {
         return { ...state, activeProjectId: action.id };
       }
+      const newOpen = [...state.openTabIds, action.id];
+      saveOpenTabIds(newOpen);
       return {
         ...state,
-        openTabIds: [...state.openTabIds, action.id],
+        openTabIds: newOpen,
         activeProjectId: action.id,
       };
     }
     case 'CLOSE_TAB': {
       const openRemaining = state.openTabIds.filter((tid) => tid !== action.id);
+      saveOpenTabIds(openRemaining);
       return {
         ...state,
         openTabIds: openRemaining,

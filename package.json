@@ -2,7 +2,7 @@
   "name": "xpress-images-project",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:backend": "uv run uvicorn backend.app:app --reload --port 8000",
+    "dev:backend": "uv run uvicorn backend.app:app --reload --reload-exclude .venv --port 8000",
     "dev:frontend": "cd frontend && npm run dev",
     "build": "cd frontend && npm run build",
     "lint": "uv run ruff check backend/",

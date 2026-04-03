@@ -6,13 +6,17 @@ from pydantic import BaseModel
 class ProjectCreate(BaseModel):
     name: str
     product_type: str = "Cabinet Door"
+    material_type: str = "wood"
 
 
 class ProjectUpdate(BaseModel):
     name: str | None = None
     product_type: str | None = None
+    material_type: str | None = None
     door_style: str | None = None
+    corner_style: str | None = None
     style_notes: str | None = None
+    gemini_model: str | None = None
     selected_swatches: list[str] | None = None
 
 
@@ -30,8 +34,11 @@ class ProjectResponse(BaseModel):
     id: str
     name: str
     product_type: str
+    material_type: str
     door_style: str | None
+    corner_style: str
     style_notes: str
+    gemini_model: str
     selected_swatches: list[str]
     upload_filename: str | None
     has_signature: bool
@@ -51,7 +58,9 @@ class ProjectResponse(BaseModel):
 class VersionSummary(BaseModel):
     version: int
     created_at: str
+    material_type: str = "wood"
     door_style: str | None
+    corner_style: str = "sharp"
     style_notes: str
     result_count: int
 

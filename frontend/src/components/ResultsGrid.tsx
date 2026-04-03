@@ -79,12 +79,40 @@ export default function ResultsGrid({ project }: Props) {
     }
   }, [dispatch, project.id]);
 
+  const sortStorageKey = `sort_alpha_${project.id}`;
+  const [sortAlpha, setSortAlpha] = useState(
+    () => localStorage.getItem(`sort_alpha_${project.id}`) === 'true'
+  );
+
+  const toggleSort = useCallback(() => {
+    setSortAlpha((prev) => {
+      const next = !prev;
+      localStorage.setItem(sortStorageKey, String(next));
+      return next;
+    });
+  }, [sortStorageKey]);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [watermarkOffset, setWatermarkOffset] = useState(0);
+  const [watermarkCacheBust, setWatermarkCacheBust] = useState(() => Date.now());
+  const watermarkStorageKey = `watermark_offset_${project.id}`;
+
+  useEffect(() => {
+    const saved = localStorage.getItem(watermarkStorageKey);
+    if (saved !== null) {
+      const parsed = Number(saved);
+      if (!Number.isNaN(parsed)) setWatermarkOffset(parsed);
+    }
+  }, [watermarkStorageKey]);
+
+  useEffect(() => {
+    localStorage.setItem(watermarkStorageKey, String(watermarkOffset));
+    setWatermarkCacheBust(Date.now());
+  }, [watermarkOffset, watermarkStorageKey]);
 
   const handleSaveToFolder = useCallback(async (watermark: boolean) => {
     try {
       setSaveStatus('Saving...');
-      const result = await api.saveResultsToFolder(project.id, watermark);
+      const result = await api.saveResultsToFolder(project.id, watermark, watermarkOffset);
       setSaveStatus(`Saved ${result.files.length} file(s) to ${result.saved_to}`);
       setTimeout(() => setSaveStatus(null), 4000);
     } catch (err) {
@@ -92,7 +120,7 @@ export default function ResultsGrid({ project }: Props) {
       setSaveStatus('Failed to save — check console');
       setTimeout(() => setSaveStatus(null), 4000);
     }
-  }, [project.id]);
+  }, [project.id, watermarkOffset]);
 
   return (
     <section style={{ marginTop: '1rem' }}>
@@ -111,10 +139,47 @@ export default function ResultsGrid({ project }: Props) {
 
       {project.results.length > 0 && (
         <>
-          <h3>Wood Variations ({project.results.length})</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+            <h3 style={{ margin: 0 }}>Wood Variations ({project.results.length})</h3>
+            <button
+              onClick={toggleSort}
+              style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+            >
+              {sortAlpha ? 'Sort: Original' : 'Sort: A–Z'}
+            </button>
+          </div>
 
           {project.results.length > 0 && (
             <>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                marginBottom: '0.75rem',
+                flexWrap: 'wrap',
+              }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                  Watermark position
+                </label>
+                <input
+                  type="range"
+                  min={-600}
+                  max={600}
+                  step={5}
+                  value={watermarkOffset}
+                  onChange={(e) => setWatermarkOffset(Number(e.target.value))}
+                  style={{ flex: 1, minWidth: '180px' }}
+                />
+                <span style={{ fontSize: '0.875rem', minWidth: '56px', textAlign: 'right' }}>
+                  {watermarkOffset}px
+                </span>
+                <button
+                  onClick={() => setWatermarkOffset(0)}
+                  style={{ padding: '0.25rem 0.5rem' }}
+                >
+                  Reset
+                </button>
+              </div>
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                 <button onClick={() => handleSaveToFolder(true)} style={{ flex: 1 }}>
                   Save Watermarked to Folder
@@ -139,7 +204,10 @@ export default function ResultsGrid({ project }: Props) {
           )}
 
           <div className="results-grid">
-            {project.results.map((result) => {
+            {(sortAlpha
+              ? [...project.results].sort((a, b) => a.wood_name.localeCompare(b.wood_name))
+              : project.results
+            ).map((result) => {
               const isRetrying = retryingIndices.has(result.index);
               return (
                 <div key={result.index} className="result-card" style={{ position: 'relative' }}>
@@ -166,7 +234,7 @@ export default function ResultsGrid({ project }: Props) {
                     </div>
                   )}
                   <img
-                    src={`/api/projects/${project.id}/results/${result.index}/image?v=${project.results.length}`}
+                    src={`/api/projects/${project.id}/results/${result.index}/image?v=${project.results.length}&watermark_offset=${watermarkOffset}&wmv=${watermarkCacheBust}`}
                     alt={result.wood_name}
                   />
                   <div className="caption">{result.wood_name}</div>

@@ -32,10 +32,10 @@ export function getProject(id: string): Promise<Project> {
   return request<Project>(`/api/projects/${id}`);
 }
 
-export function createProject(name: string, product_type: string): Promise<Project> {
+export function createProject(name: string, product_type: string, material_type: string = 'wood'): Promise<Project> {
   return request<Project>('/api/projects', {
     method: 'POST',
-    body: JSON.stringify({ name, product_type }),
+    body: JSON.stringify({ name, product_type, material_type }),
   });
 }
 
@@ -49,7 +49,7 @@ export async function deleteProject(id: string): Promise<void> {
   }
 }
 
-export function updateProject(id: string, data: Partial<Pick<Project, 'name' | 'product_type' | 'door_style' | 'style_notes' | 'selected_swatches'>>): Promise<Project> {
+export function updateProject(id: string, data: Partial<Pick<Project, 'name' | 'product_type' | 'material_type' | 'door_style' | 'corner_style' | 'style_notes' | 'gemini_model' | 'selected_swatches'>>): Promise<Project> {
   return request<Project>(`/api/projects/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
@@ -93,11 +93,18 @@ export async function discardResult(id: string, idx: number): Promise<void> {
   if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
 }
 
-export async function getResultsZip(id: string, watermark: boolean = true): Promise<Blob> {
+export async function getResultsZip(
+  id: string,
+  watermark: boolean = true,
+  watermarkOffset: number = 0,
+): Promise<Blob> {
   const apiKey = getApiKey();
   const headers: Record<string, string> = {};
   if (apiKey) headers['X-API-Key'] = apiKey;
-  const res = await fetch(`/api/projects/${id}/results/zip?watermark=${watermark}`, { headers });
+  const res = await fetch(
+    `/api/projects/${id}/results/zip?watermark=${watermark}&watermark_offset=${watermarkOffset}`,
+    { headers },
+  );
   if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
   return res.blob();
 }
@@ -105,9 +112,10 @@ export async function getResultsZip(id: string, watermark: boolean = true): Prom
 export async function saveResultsToFolder(
   id: string,
   watermark: boolean = true,
+  watermarkOffset: number = 0,
 ): Promise<{ saved_to: string; files: string[] }> {
   return request<{ saved_to: string; files: string[] }>(
-    `/api/projects/${id}/results/save?watermark=${watermark}`,
+    `/api/projects/${id}/results/save?watermark=${watermark}&watermark_offset=${watermarkOffset}`,
     { method: 'POST' },
   );
 }
@@ -122,10 +130,10 @@ export function restoreVersion(id: string, version: number): Promise<Project> {
 }
 
 // Swatches & Styles
-export function listSwatches(): Promise<Swatch[]> {
-  return request<Swatch[]>('/api/swatches');
+export function listSwatches(material: string = 'wood'): Promise<Swatch[]> {
+  return request<Swatch[]>(`/api/swatches?material=${material}`);
 }
 
-export function listStyles(): Promise<Style[]> {
-  return request<Style[]>('/api/styles');
+export function listStyles(material: string = 'wood'): Promise<Style[]> {
+  return request<Style[]>(`/api/styles?material=${material}`);
 }
