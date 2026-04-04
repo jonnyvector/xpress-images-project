@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import APIRouter, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response
 
-from backend.generator import STYLES, DoorGenerator
+from backend.generator import STYLES
 from backend.models import (
     ErrorItem,
     GenerationStatusResponse,

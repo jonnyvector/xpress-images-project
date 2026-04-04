@@ -120,6 +120,7 @@ function reducer(state: ProjectsState, action: Action): ProjectsState {
 
 const ProjectsContext = createContext<ProjectsState>({
   projects: [],
+  openTabIds: [],
   activeProjectId: null,
 });
 

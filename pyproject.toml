@@ -18,6 +18,7 @@ dependencies = [
 dev = [
     "ruff>=0.14.14",
     "ty>=0.0.14",
+    "pytest>=8.3.0",
 ]
 
 [tool.ruff]
@@ -33,3 +34,6 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.ty.environment]
 python-version = "3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

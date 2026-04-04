@@ -124,7 +124,6 @@ def _build_selections(
                 wt = wood_types.get(key, {})
                 if wt.get("swatch_key"):
                     borrowed = _resolve_swatch_path(wt["swatch_key"], all_swatch_files)
-                    ref_key = wt.get("reference_key", key)
                     desc = wt.get("description")
                     if door_style in FLAT_PANEL_STYLES and wt.get("flat_panel_description"):
                         desc = wt["flat_panel_description"]

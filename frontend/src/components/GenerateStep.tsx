@@ -33,7 +33,7 @@ export default function GenerateStep({ project, apiKey }: Props) {
   useEffect(() => () => stopPolling(), [stopPolling]);
 
   // The actual poll logic — stored in a ref so setInterval always calls the latest version
-  const pollFnRef = useRef<() => Promise<void>>();
+  const pollFnRef = useRef<(() => Promise<void>) | null>(null);
   pollFnRef.current = async () => {
     try {
       const genStatus = await api.getGenerationStatus(projectIdRef.current);

@@ -116,7 +116,7 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
   useEffect(() => () => stopPolling(), [stopPolling]);
 
   // Poll function stored in ref so interval always calls latest
-  const pollFnRef = useRef<() => Promise<void>>();
+  const pollFnRef = useRef<(() => Promise<void>) | null>(null);
   pollFnRef.current = async () => {
     try {
       const updated = await api.getProject(projectIdRef.current);
