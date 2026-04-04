@@ -2,56 +2,28 @@
 
 from __future__ import annotations
 
-import json
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from backend.generator import DoorGenerator
+from backend.materials import (
+    get_swatch_files,
+    load_material_types,
+    normalize_material_key,
+    resolve_swatch_path,
+    swatch_name_from_path,
+)
 
 if TYPE_CHECKING:
     from backend.state import ProjectState, ProjectStore
-
-SWATCHES_BASE = Path("swatches")
-WOOD_SWATCHES_DIR = Path("swatches/wood")
-RTF_SWATCHES_DIR = Path("swatches/rtf")
-EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 _executor = ThreadPoolExecutor(max_workers=4)
 
 # Global semaphore to limit concurrent Gemini API calls across all projects.
 # Prevents rate-limiting (429s) when multiple tabs generate simultaneously.
 _api_semaphore = threading.Semaphore(4)
-
-
-def _get_swatch_files(material_type: str = "wood") -> list[Path]:
-    d = RTF_SWATCHES_DIR if material_type == "rtf" else WOOD_SWATCHES_DIR
-    if not d.exists():
-        return []
-    return sorted([f for f in d.iterdir() if f.suffix.lower() in EXTENSIONS])
-
-
-def _load_material_types(material_type: str = "wood") -> dict[str, dict]:
-    if material_type == "rtf":
-        json_path = SWATCHES_BASE / "rtf_types.json"
-    else:
-        json_path = SWATCHES_BASE / "wood_types.json"
-    if json_path.exists():
-        with open(json_path) as f:
-            return json.load(f)
-    return {}
-
-
-def _resolve_swatch_path(swatch_key: str, swatch_files: list[Path]) -> Path | None:
-    for f in swatch_files:
-        if f.stem.lower().replace("_", "-") == swatch_key:
-            return f
-    return None
-
-
-def _swatch_name_from_path(path: Path) -> str:
-    return path.stem.replace("_", " ").replace("-", " ").title()
 
 
 # Styles where the product is a single flat surface (no separate frame and panel).
@@ -66,7 +38,7 @@ def _get_material_description(
     material_types: dict[str, dict],
     door_style: str | None = None,
 ) -> str | None:
-    key = swatch_path.stem.lower().replace("_", "-")
+    key = normalize_material_key(swatch_path.stem)
     wt = material_types.get(key)
     if not wt:
         return None
@@ -76,34 +48,20 @@ def _get_material_description(
     return wt.get("description") or None
 
 
-def _get_reference_image_by_key(key: str) -> Path | None:
-    key_underscore = key.replace("-", "_")
-    ref_dir = Path("swatches/references")
-    if not ref_dir.exists():
-        return None
-    for prefix in ("door-", "door_"):
-        for k in (key, key_underscore):
-            for ext in (".jpg", ".jpeg", ".png", ".webp"):
-                ref_path = ref_dir / f"{prefix}{k}{ext}"
-                if ref_path.exists():
-                    return ref_path
-    return None
-
-
 def _build_selections(
     selected_swatches: list[str],
     door_style: str | None = None,
     material_type: str = "wood",
 ) -> list[dict]:
     """Build the selections list from selected swatch keys (ported from app.py)."""
-    wood_types = _load_material_types(material_type)
-    all_swatch_files = _get_swatch_files(material_type)
+    wood_types = load_material_types(material_type)
+    all_swatch_files = get_swatch_files(material_type)
     selections: list[dict] = []
     for p in selected_swatches:
         if p.startswith("virtual:"):
             key = p[8:]
             wt = wood_types.get(key, {})
-            borrowed = _resolve_swatch_path(wt.get("swatch_key", ""), all_swatch_files)
+            borrowed = resolve_swatch_path(wt.get("swatch_key", ""), all_swatch_files)
             desc = wt.get("description")
             if door_style in FLAT_PANEL_STYLES and wt.get("flat_panel_description"):
                 desc = wt["flat_panel_description"]
@@ -119,11 +77,11 @@ def _build_selections(
             swatch_path = Path(p)
             # If the stored value doesn't exist as a file, resolve it as a key
             if not swatch_path.exists():
-                key = p.lower().replace("_", "-")
+                key = normalize_material_key(p)
                 # Check if it's a virtual wood type (has swatch_key in wood_types.json)
                 wt = wood_types.get(key, {})
                 if wt.get("swatch_key"):
-                    borrowed = _resolve_swatch_path(wt["swatch_key"], all_swatch_files)
+                    borrowed = resolve_swatch_path(wt["swatch_key"], all_swatch_files)
                     desc = wt.get("description")
                     if door_style in FLAT_PANEL_STYLES and wt.get("flat_panel_description"):
                         desc = wt["flat_panel_description"]
@@ -136,21 +94,21 @@ def _build_selections(
                         }
                     )
                     continue
-                resolved = _resolve_swatch_path(key, all_swatch_files)
+                resolved = resolve_swatch_path(key, all_swatch_files)
                 if not resolved:
-                    resolved = _resolve_swatch_path(
-                        swatch_path.stem.lower().replace("_", "-"),
+                    resolved = resolve_swatch_path(
+                        normalize_material_key(swatch_path.stem),
                         all_swatch_files,
                     )
                 if resolved:
                     swatch_path = resolved
                 else:
                     continue  # skip missing swatches
-            key_lookup = swatch_path.stem.lower().replace("_", "-")
+            key_lookup = normalize_material_key(swatch_path.stem)
             wt = wood_types.get(key_lookup, {})
             selections.append(
                 {
-                    "wood_name": wt.get("name", _swatch_name_from_path(swatch_path)),
+                    "wood_name": wt.get("name", swatch_name_from_path(swatch_path)),
                     "swatch_path": swatch_path,
                     "wood_description": _get_material_description(
                         swatch_path, wood_types, door_style,
