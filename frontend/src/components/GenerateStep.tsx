@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Project } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
+import { usePollingTask } from '../hooks/usePollingTask';
 
 interface Props {
   project: Project;
@@ -14,83 +15,57 @@ export default function GenerateStep({ project, apiKey }: Props) {
   const [completed, setCompleted] = useState(0);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [retrying, setRetrying] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollErrorCount = useRef(0);
 
-  // Keep a stable ref to project.id so the interval callback never goes stale
   const projectIdRef = useRef(project.id);
   projectIdRef.current = project.id;
 
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }, []);
-
-  // Cleanup on unmount only
-  useEffect(() => () => stopPolling(), [stopPolling]);
-
-  // The actual poll logic — stored in a ref so setInterval always calls the latest version
-  const pollFnRef = useRef<(() => Promise<void>) | null>(null);
-  pollFnRef.current = async () => {
-    try {
+  const { start, stop, retrying, resetErrors } = usePollingTask({
+    enabled: false,
+    onPoll: async () => {
       const genStatus = await api.getGenerationStatus(projectIdRef.current);
-      pollErrorCount.current = 0;
-      setRetrying(false);
       setCompleted(genStatus.completed);
       setTotal(genStatus.total);
+
       if (genStatus.status !== 'running') {
-        stopPolling();
+        stop();
         setGenerating(false);
-        // Refresh only this project
         const updated = await api.getProject(projectIdRef.current);
         dispatch({ type: 'UPDATE_PROJECT', project: updated });
+        return false;
       }
-    } catch {
-      pollErrorCount.current += 1;
-      if (pollErrorCount.current >= 5) {
-        stopPolling();
-        setGenerating(false);
-        setRetrying(false);
-        setError('Lost connection to server. Click Generate to retry.');
-      } else {
-        setRetrying(true);
-      }
-    }
-  };
 
-  // Stable function to start polling — never changes identity
-  const startPolling = useCallback(() => {
-    if (pollRef.current) return;
-    pollRef.current = setInterval(() => pollFnRef.current?.(), 2000);
-  }, []);
+      return true;
+    },
+    onErrorExhausted: () => {
+      setGenerating(false);
+      setError('Lost connection to server. Click Generate to retry.');
+    },
+  });
 
-  // Resume polling if generation is already running (e.g. after page refresh)
   useEffect(() => {
-    if (project.generation_status === 'running' && !pollRef.current) {
+    if (project.generation_status === 'running') {
       setGenerating(true);
       setTotal(project.selected_swatches.length);
-      startPolling();
+      start();
+    } else {
+      stop();
     }
-  }, [project.generation_status, project.selected_swatches.length, startPolling]);
+  }, [project.generation_status, project.selected_swatches.length, start, stop]);
 
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
     setError(null);
-    setRetrying(false);
-    pollErrorCount.current = 0;
+    resetErrors();
     setCompleted(0);
     try {
       await api.startGeneration(project.id);
       setTotal(project.selected_swatches.length);
-      startPolling();
+      start();
     } catch (err) {
       setGenerating(false);
       setError(err instanceof Error ? err.message : 'Generation failed');
     }
-  }, [project.id, project.selected_swatches.length, startPolling]);
+  }, [project.id, project.selected_swatches.length, resetErrors, start]);
 
   const hasSignature = project.has_signature;
   const hasSwatches = project.selected_swatches.length > 0;

@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, type ReactNode, type Dispatch } from 'react';
+import { createContext, useContext, useEffect, useReducer, type ReactNode, type Dispatch } from 'react';
 import type { Project } from '../types';
 
 interface ProjectsState {
@@ -38,31 +38,22 @@ function reducer(state: ProjectsState, action: Action): ProjectsState {
     case 'SET_PROJECTS': {
       const ids = new Set(action.projects.map((p) => p.id));
       const activeStillExists = state.activeProjectId && ids.has(state.activeProjectId);
-      // On initial load, restore tabs from localStorage; fall back to all projects
-      let openTabIds: string[];
-      if (state.openTabIds.length > 0) {
-        openTabIds = state.openTabIds.filter((id) => ids.has(id));
-      } else {
-        const saved = loadOpenTabIds();
-        openTabIds = saved
-          ? saved.filter((id) => ids.has(id))
+      const openTabIds =
+        state.openTabIds.length > 0
+          ? state.openTabIds.filter((id) => ids.has(id))
           : action.projects.map((p) => p.id);
-      }
-      saveOpenTabIds(openTabIds);
+
       return {
         ...state,
         projects: action.projects,
         openTabIds,
-        activeProjectId: activeStillExists
-          ? state.activeProjectId
-          : openTabIds[0] ?? null,
+        activeProjectId: activeStillExists ? state.activeProjectId : openTabIds[0] ?? null,
       };
     }
     case 'SET_ACTIVE':
       return { ...state, activeProjectId: action.id };
     case 'ADD_PROJECT': {
       const newOpen = [...state.openTabIds, action.project.id];
-      saveOpenTabIds(newOpen);
       return {
         ...state,
         projects: [...state.projects, action.project],
@@ -80,7 +71,6 @@ function reducer(state: ProjectsState, action: Action): ProjectsState {
     case 'REMOVE_PROJECT': {
       const remaining = state.projects.filter((p) => p.id !== action.id);
       const openRemaining = state.openTabIds.filter((tid) => tid !== action.id);
-      saveOpenTabIds(openRemaining);
       return {
         ...state,
         projects: remaining,
@@ -96,7 +86,6 @@ function reducer(state: ProjectsState, action: Action): ProjectsState {
         return { ...state, activeProjectId: action.id };
       }
       const newOpen = [...state.openTabIds, action.id];
-      saveOpenTabIds(newOpen);
       return {
         ...state,
         openTabIds: newOpen,
@@ -105,7 +94,6 @@ function reducer(state: ProjectsState, action: Action): ProjectsState {
     }
     case 'CLOSE_TAB': {
       const openRemaining = state.openTabIds.filter((tid) => tid !== action.id);
-      saveOpenTabIds(openRemaining);
       return {
         ...state,
         openTabIds: openRemaining,
@@ -127,11 +115,15 @@ const ProjectsContext = createContext<ProjectsState>({
 const DispatchContext = createContext<Dispatch<Action>>(() => {});
 
 export function ProjectsProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, {
+  const [state, dispatch] = useReducer(reducer, undefined, () => ({
     projects: [],
-    openTabIds: [],
+    openTabIds: loadOpenTabIds() ?? [],
     activeProjectId: null,
-  });
+  }));
+
+  useEffect(() => {
+    saveOpenTabIds(state.openTabIds);
+  }, [state.openTabIds]);
 
   return (
     <ProjectsContext.Provider value={state}>

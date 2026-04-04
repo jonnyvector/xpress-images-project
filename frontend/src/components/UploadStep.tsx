@@ -3,6 +3,7 @@ import type { Project, Style } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 import SignatureHistory from './SignatureHistory';
+import { usePollingTask } from '../hooks/usePollingTask';
 
 interface Props {
   project: Project;
@@ -21,11 +22,8 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
   const [geminiModel, setGeminiModel] = useState(project.gemini_model || 'gemini-3-pro-image-preview');
   const [learning, setLearning] = useState(project.learning_status === 'running');
   const [error, setError] = useState<string | null>(project.learning_error);
-  const [retrying, setRetrying] = useState(false);
-  const pollErrorCount = useRef(0);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const projectIdRef = useRef(project.id);
   projectIdRef.current = project.id;
 
@@ -105,25 +103,12 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
     setDragOver(false);
   }, []);
 
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }, []);
-
-  // Cleanup on unmount
-  useEffect(() => () => stopPolling(), [stopPolling]);
-
-  // Poll function stored in ref so interval always calls latest
-  const pollFnRef = useRef<(() => Promise<void>) | null>(null);
-  pollFnRef.current = async () => {
-    try {
+  const { start, stop, retrying, resetErrors } = usePollingTask({
+    enabled: false,
+    onPoll: async () => {
       const updated = await api.getProject(projectIdRef.current);
-      pollErrorCount.current = 0;
-      setRetrying(false);
       if (updated.learning_status !== 'running') {
-        stopPolling();
+        stop();
         setLearning(false);
         if (updated.learning_status === 'error') {
           setError(updated.learning_error || 'Learn failed');
@@ -131,38 +116,30 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
           setError(null);
         }
         dispatch({ type: 'UPDATE_PROJECT', project: updated });
+        return false;
       }
-    } catch {
-      pollErrorCount.current += 1;
-      if (pollErrorCount.current >= 5) {
-        stopPolling();
-        setLearning(false);
-        setRetrying(false);
-        setError('Lost connection to server. Click Learn to retry.');
-      } else {
-        setRetrying(true);
-      }
-    }
-  };
-
-  const startPolling = useCallback(() => {
-    if (pollRef.current) return;
-    pollRef.current = setInterval(() => pollFnRef.current?.(), 2000);
-  }, []);
+      return true;
+    },
+    onErrorExhausted: () => {
+      setLearning(false);
+      setError('Lost connection to server. Click Learn to retry.');
+    },
+  });
 
   // Resume polling if learning is already running (e.g. after page refresh)
   useEffect(() => {
-    if (project.learning_status === 'running' && !pollRef.current) {
+    if (project.learning_status === 'running') {
       setLearning(true);
-      startPolling();
+      start();
+    } else {
+      stop();
     }
-  }, [project.learning_status, startPolling]);
+  }, [project.learning_status, start, stop]);
 
   const handleLearnStyle = useCallback(async () => {
     setLearning(true);
     setError(null);
-    setRetrying(false);
-    pollErrorCount.current = 0;
+    resetErrors();
     try {
       await api.updateProject(project.id, {
         name: styleName,
@@ -173,12 +150,12 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
         gemini_model: geminiModel,
       });
       await api.learnStyle(project.id);
-      startPolling();
+      start();
     } catch (err) {
       setLearning(false);
       setError(err instanceof Error ? err.message : 'Learn failed');
     }
-  }, [project.id, styleName, materialType, doorStyle, cornerStyle, styleNotes, geminiModel, startPolling]);
+  }, [project.id, styleName, materialType, doorStyle, cornerStyle, styleNotes, geminiModel, resetErrors, start]);
 
   const canLearn = Boolean(apiKey && project.upload_filename);
 
