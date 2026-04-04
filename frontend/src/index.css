@@ -547,7 +547,8 @@ label {
 .library-card-thumb {
   width: 100%;
   aspect-ratio: 1;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   display: block;
 }
 
