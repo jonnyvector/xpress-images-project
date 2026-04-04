@@ -1,126 +1,137 @@
 {
-  "alder-select": {
-    "name": "Alder Select",
-    "description": "Consistent color and grain with minimal natural characteristics. Color varies from pale yellow to reddish brown, soft straight grain, even texture. Great for staining."
-  },
-  "alder-natural": {
-    "name": "Alder Natural",
-    "description": "Allowance for color and grain variation with natural characteristics. May contain small closed knots, pin knots, and mineral streaking."
-  },
-  "alder-premium-knotty": {
-    "name": "Alder Premium Knotty",
-    "description": "Sound knots which may contain star cracks. Some color and grain variation with limited small mineral streaks. Pin knot clusters limited. Premium selection of allowable characteristics."
-  },
-  "alder-rustic-knotty": {
-    "name": "Alder Rustic Knotty",
-    "description": "Open dead knots which may contain cracks. Drastic color and grain variation with mineral streaks. May contain pin knot clusters and large knots with no size limit."
-  },
-  "cherry-select": {
-    "name": "Cherry Select",
-    "description": "Rich red tones with minimized color variation. Reduced allowance for pin knots. May display small amounts of pitch pockets on the face."
-  },
-  "cherry-natural": {
-    "name": "Cherry Natural",
-    "description": "Larger variation in natural characteristics. May contain pitch pockets, closed knots, pin knots, sapwood on face, and more color variation."
-  },
-  "maple-select": {
-    "name": "Maple Select",
-    "description": "Least amount of color and grain variation. Lighter color tone, great for clear or light stain."
-  },
-  "maple-natural": {
-    "name": "Maple Natural",
-    "description": "Light color tone with allowance for mineral streaks, worm tracks, varying heartwood and sapwood on face. May have small closed knots or pin knots."
-  },
-  "maple-paint-grade": {
-    "name": "Maple Paint Grade",
-    "description": "Allows for color and grain variation with natural characteristics and putty on face. Ideal for painted finishes on solid wood doors."
-  },
-  "mdf-panel-maple-paint-grade-frame": {
-    "name": "MDF Panel / Maple Paint Grade Frame",
-    "description": "MDF panel paired with Maple Paint Grade Frame for painting purposes."
-  },
-  "mdf-panel-soft-maple-frame": {
-    "name": "MDF Panel / Soft Maple Frame",
-    "description": "MDF panel paired with Soft Maple Frame for painting purposes."
-  },
-  "red-oak-select": {
-    "name": "Red Oak Select",
-    "description": "Wheat-pink to red color tones with varying grain pattern. May contain limited mineral streaking. Open grain pattern with small linear pores, suited for staining."
-  },
-  "red-oak-natural": {
-    "name": "Red Oak Natural",
-    "description": "Wheat-pink to red color tones with allowance for color variation, mineral streaking, small closed knots, pin knots, and some sapwood."
-  },
-  "red-oak-quarter-sawn": {
-    "name": "Red Oak Quarter Sawn",
-    "description": "Straighter grain pattern with distinctive flake. Wheat-pink to red color. Select grade characteristics with reduced allowance for color variation, mineral streaks, and knots."
-  },
-  "red-oak-rift": {
-    "name": "Red Oak Rift",
-    "description": "Straightest grain pattern among Red Oak grades. Select grade characteristics with reduced allowance for color variation, mineral streaks, knots, and some sapwood. Wheat-pink to red color."
-  },
-  "white-oak-select": {
-    "name": "White Oak Select",
-    "description": "Straight grain pattern with coarse to medium-coarse texture. Small linear pores, ideal for staining. Reduced allowance for small closed knots, pin knots, color and grain variation. Some mineral streaks may be visible."
-  },
-  "white-oak-natural": {
-    "name": "White Oak Natural",
-    "description": "Coarse to medium-coarse texture with small linear pores, ideal for staining. Allowance for color and grain variation, some sap, small closed knots, and pin knots."
-  },
-  "white-oak-rift": {
-    "name": "White Oak Rift",
-    "description": "Straighter grain pattern than other White Oak grades. Minimal allowance for color variation, small closed knots, and pin knots."
-  },
-  "white-oak-quarter-sawn": {
-    "name": "White Oak Quarter Sawn",
-    "description": "Straight grain pattern with small allowance for color variation. Special appearance with ray fleck patterns. Reduced allowance for pin knots, small closed knots, and mineral streaks."
-  },
-  "european-steamed-beech": {
-    "name": "European Steamed Beech",
-    "description": "Relatively straight and even appearance, may contain chevron patterned grain. Consistent tan to reddish brown color from steaming process. Similar to Alder with small flecks in grain."
-  },
-  "walnut-select": {
-    "name": "Walnut Select",
-    "description": "Light gray to purple-brown color tone. No sapwood on face. Grain pattern with straight and wavy sections. Reduced allowance for small knots and pin knots."
-  },
-  "walnut-natural": {
-    "name": "Walnut Natural",
-    "description": "Noticeable mix of heartwood and sapwood on face. Grain pattern with straight, wavy, and additional pattern sections. Allowance for small knots, pin knots, mineral, and other natural characteristics."
-  },
-  "soft-maple": {
-    "name": "Soft Maple",
-    "description": "Similar to standard Maple but more honey-toned than white. May have light pink and/or gray mixed in. Greater mineral streaking and generally has fleck in the grain."
-  },
-  "white-birch-select": {
-    "name": "White Birch Select",
-    "description": "Cut from sapwood, consistent white to light tan color. Minimal color variation with reduced allowance for pin knots and mineral streaks."
-  },
-  "natural-birch": {
-    "name": "Natural Birch",
-    "description": "Cut from heartwood and sapwood with calico mix of Pink and White tones. May contain small closed knots, pin knots, mineral streaks, and color variation."
-  },
-  "knotty-pine": {
-    "name": "Knotty Pine",
-    "description": "Medium-coarse texture with even grain. Allowance for larger closed knots, knots with star cracks, color variation, pitch pockets, and pin knots."
-  },
-  "pecan-hickory-select": {
-    "name": "Pecan-Hickory Select",
-    "description": "Mixture of medium to dark brown heartwood and light to white sapwood. Calico color variation to blended look. Reduced allowance for small closed knots and pin knots. Some mineral streaking allowed."
-  },
-  "pecan-hickory-natural": {
-    "name": "Pecan-Hickory Natural",
-    "description": "Stark variations between medium to dark heartwood and light to white sapwood. Mineral streaking, small closed knots, and pin knots acceptable. Parts may be all heartwood or all sapwood."
-  },
-  "pecan-hickory-rustic-knotty": {
-    "name": "Pecan-Hickory Rustic Knotty",
-    "description": "Allows for mineral streaking, larger open knots, knots with star cracks, clusters of pin knots. Stark color variations between heartwood and sapwood. Parts may be all heartwood or all sapwood."
-  },
-  "sapele-ribbon-grain-mahogany": {
-    "name": "Sapele Ribbon Grain Mahogany",
-    "description": "Quarter Sawn Sapele with ribbon striped appearance. Color varies from golden brown to dark reddish brown. Color tends to darken with age."
-  },
-  "ash-select": {
-    "name": "Ash Select",
-    "description": "Moderately open grain pattern. Colors range from cream to very light brown heartwood with lighter sapwood. Some color variation and mineral allowed. Reduced allowance for small closed knots and pin knots."
-  }
+    "alder-select": {
+        "name": "Alder Select",
+        "description": "Consistent color and grain with minimal natural characteristics. Color is a warm golden-tan — NOT pale or washed out, and NOT strongly reddish. The dominant impression should be a rich warm golden tone with a subtle honey undertone. Soft straight grain, even texture. Great for staining."
+    },
+    "alder-natural": {
+        "name": "Alder Natural",
+        "description": "Features a prominent, fluid cathedral grain with a warm color palette ranging from creamy honey to light amber. Unlike Select grade, this grade celebrates the wood's organic origins with occasional, tight pin knots (pencil-point size) and subtle, feathered grain transitions. While it lacks the large, open knots of a rustic grade, it maintains a distinctly \"wood-forward\" look with light tonal variations between staves that provide depth without being jarring. Mineral streaks are kept to a minimum, appearing as soft, shadowed wisps rather than bold dark lines."
+    },
+    "alder-premium-knotty": {
+        "name": "Alder Premium Knotty",
+        "description": "Sound knots which may contain star cracks. Some color and grain variation with limited small mineral streaks. Pin knot clusters limited. Premium selection of allowable characteristics."
+    },
+    "alder-rustic-knotty": {
+        "name": "Alder Rustic Knotty",
+        "description": "Rustic grade characterized by visible knots scattered throughout — mostly small to medium-sized knots, NOT large open knots or dramatic character marks. Warm medium honey to light amber-tan color with a noticeable REDDISH undertone — this is NOT pale or washed out, it has warmth and depth with a subtle red cast throughout. Consistent color with only MODERATE variation between staves (not drastic). Visible grain and natural character but predominantly warm in tone. Some mineral streaks may be present but should be subtle, not heavy. The knots are the defining feature — they should be clearly visible but modest in size, creating a rustic appearance without being overwhelming. Natural looking with warm reddish undertones, not polished, not excessively discolored."
+    },
+    "cherry-select": {
+        "name": "Cherry Select",
+        "description": "A sophisticated and uniform heartwood surface. The grain is exceptionally fine, straight, and closed, offering a satiny texture that catches light evenly across the panel. This premium grade is free of knots and sapwood, displaying a consistent color profile throughout. Subtle, tiny dark pith flecks—natural mineral deposits unique to the species—are sparse and integrated seamlessly into the tight wood fibers, creating a polished and elegant aesthetic."
+    },
+    "cherry-natural": {
+        "name": "Cherry Natural",
+        "description": "A warm reddish-brown heartwood base with moderate color variation and subtle natural character. This grade may contain small pin knots, closed knots, and occasional slightly lighter warm-tan tonal shifts — there should be NO white streaks, NO stark white or pale patches, and NO high-contrast sapwood lines. Any lighter areas should be warm tan-brown, not white or cream. Mineral streaks and varied grain patterns add subtle depth without overwhelming the wood. The overall appearance remains warm and unified, with noticeable character but a cohesive color story throughout."
+    },
+    "maple-select": {
+        "name": "Maple Select",
+        "description": "Least amount of color and grain variation. Color should be consistent light cream with a subtle golden warmth — think pale straw or light honey-cream. CRITICAL: The entire door must be one uniform color — the frame (rails and stiles) must be the SAME light tone as the center panel. Do NOT darken or add tan to the frame. The frame and panel should look like they came from the same board. Great for clear or light stain.",
+        "flat_panel_description": "Least amount of color and grain variation. Color should be consistent light cream with a subtle golden warmth — think pale straw or light honey-cream. The entire surface must be one uniform color with no tonal shifts across the piece. Great for clear or light stain."
+    },
+    "maple-natural": {
+        "name": "Maple Natural",
+        "description": "Light cream color with subtle golden warmth — pale straw or light honey-cream base. IMPORTANT: The frame (rails and stiles) and center panel must be the same consistent base color — do not make the frame darker or more tan than the panel. Allowance for mineral streaks, worm tracks, and varying amounts of heartwood (darker reddish-brown patches) and sapwood visible on the face. May have small closed knots or pin knots. Should show noticeably more natural character than Maple Select — the mineral streaks and heartwood/sapwood variation should be clearly visible, not subtle.",
+        "flat_panel_description": "Light cream color with subtle golden warmth — pale straw or light honey-cream base. The surface should be a consistent base color throughout. Allowance for mineral streaks, worm tracks, and varying amounts of heartwood (darker reddish-brown patches) and sapwood visible on the face. May have small closed knots or pin knots. Should show noticeably more natural character than Maple Select — the mineral streaks and heartwood/sapwood variation should be clearly visible, not subtle."
+    },
+    "maple-paint-grade": {
+        "name": "Maple Paint Grade",
+        "description": "Lowest visual grade of maple — intentionally unattractive. Base tone is light cream with subtle golden warmth (same light maple base as other grades). Over this light base: a few light mineral streaks (2-3 visible streaks, not covered in them), some green or grey discoloration patches, mismatched staves with color contrast between adjacent pieces. May have putty fills, pin knots, and worm tracks on face. This grade should look like it needs to be painted — if it looks clean or pretty, it's wrong."
+    },
+    "mdf-panel-maple-paint-grade-frame": {
+        "name": "MDF Panel / Maple Paint Grade Frame",
+        "description": "Keep the EXACT same door style, shape, and panel profile from before. Only change the materials: The center panel material is MDF (medium-density fiberboard) — grainless, uniform warm tan-brown color like pressed wood fiber, no wood grain visible on the panel. The frame (rails and stiles) material is Maple Paint Grade — light cream with subtle golden warmth, light grain texture, and one visible mineral streak. The panel and frame should be visually distinct in material but the door geometry, profiles, and proportions must remain identical to the learned style.",
+        "swatch_key": "maple-paint-grade",
+        "reference_key": "mdf-panel-maple-paint-grade"
+    },
+    "mdf-panel-soft-maple-frame": {
+        "name": "MDF Panel / Soft Maple Frame",
+        "description": "MDF panel paired with Soft Maple Frame for painting purposes."
+    },
+    "red-oak-select": {
+        "name": "Red Oak Select",
+        "description": "Wheat-pink to muted pinkish-brown color tones, color-sorted for uniformity — consistent tones across staves without wild swings. The grain pattern VARIES — it may include cathedral arches, straight grain, and mixed patterns across different staves. Do NOT make all grain straight and vertical like Rift Sawn — that is wrong for Select. Open grain pattern with small linear pores, suited to staining. Limited mineral streaking allowed. Reduced allowance for small closed knots and pin knots."
+    },
+    "red-oak-natural": {
+        "name": "Red Oak Natural",
+        "description": "Red Oak Natural features warm wheat-tan to muted pinkish-brown tones — NOT vibrant pink or saturated red. The color should lean more golden-tan with only a subtle pink warmth, not loud or rosy. Noticeable color variation between staves — some pieces lighter wheat-golden, others slightly warmer pinkish-tan. NO white streaks, NO stark white or pale patches — any lighter areas should be warm golden-tan, not white. Must show visible mineral streaking, small closed knots, and pin knots. Should look distinctly more rustic and varied than Red Oak Select — if it looks clean and uniform, it's wrong. The natural character (knots, streaks, color shifts) should be clearly evident, not subtle."
+    },
+    "red-oak-quarter-sawn": {
+        "name": "Red Oak Quarter Sawn",
+        "description": "MANDATORY: prominent, highly visible medullary ray flake (tiger stripe pattern) — this is the defining feature and MUST be present. Flakes should be bold, frequent, and unmistakable across the face of every stave, not subtle or sparse. Without visible flakes it is NOT Quarter Sawn. Straight grain alone is Rift Sawn; arched grain is Plain Sawn. Wheat-golden to warm pinkish-tan color with a subtle red undertone. Well-defined, darker grain specks for contrast. Select grade characteristics with reduced allowance for color variation, mineral streaks, and knots."
+    },
+    "red-oak-rift": {
+        "name": "Red Oak Rift",
+        "description": "Straight, tight, parallel grain lines ONLY — this is non-negotiable. The grain lines must all run in the SAME direction as each other with no deviation. NO medullary ray flake (that is Quarter Sawn) and NO arched cathedral grain (that is Plain Sawn). If you see flake or arches, it's wrong. Tightest, most parallel lines of any Red Oak grade with well-defined, darker grain specks for contrast. Select grade characteristics with reduced allowance for color variation, mineral streaks, and knots. Wheat-golden to warm tan color, leaning more yellow than red."
+    },
+    "white-oak-select": {
+        "name": "White Oak Select",
+        "description": "Warm golden-tan color, like medium honey or light caramel — NOT pale washed-out straw and NOT dark brown. A clear amber warmth should be present. Straight grain pattern with coarse to medium-coarse texture. Small linear pores, ideal for staining. Reduced allowance for small closed knots, pin knots, color and grain variation. Some mineral streaks may be visible."
+    },
+    "white-oak-natural": {
+        "name": "White Oak Natural",
+        "description": "Warm golden-tan base color, like medium honey — same amber warmth as White Oak Select but with more variation between staves. Some pieces may be lighter honey-gold, others deeper tan-brown. Coarse to medium-coarse texture with small linear pores, more ideal for staining than painting. Allowance for more color and grain variation, some sapwood on face, small closed knots, and pin knots."
+    },
+    "white-oak-rift": {
+        "name": "White Oak Rift",
+        "description": "Color should be warm golden-tan, like medium honey or light caramel with clear amber warmth — NOT pale washed-out straw and NOT dark brown. Straight, tight, parallel grain lines ONLY on ALL parts — the frame (rails and stiles) AND the center panel must all show straight, parallel grain with no deviation. All grain lines must be parallel to each other. NO arched cathedral grain anywhere on the door, including the frame. NO medullary ray flake (that is Quarter Sawn). If you see arches or flake on any part of the door, it’s wrong. Tightest, most parallel lines of any White Oak grade. Minimal allowance for color variation, small closed knots, and pin knots.",
+        "flat_panel_description": "Color should be warm golden-tan, like medium honey or light caramel with clear amber warmth — NOT pale washed-out straw and NOT dark brown. Straight, tight, parallel grain lines ONLY across the entire surface — all grain lines must be parallel to each other with no deviation. NO arched cathedral grain anywhere. NO medullary ray flake (that is Quarter Sawn). If you see arches or flake, it’s wrong. Tightest, most parallel lines of any White Oak grade. Minimal allowance for color variation, small closed knots, and pin knots."
+    },
+    "white-oak-quarter-sawn": {
+        "name": "White Oak Quarter Sawn",
+        "description": "Warm golden-tan color with clear amber warmth, like medium honey or light caramel — NOT pale washed-out straw and NOT dark brown. MANDATORY: prominent, highly visible medullary ray flake (tiger stripe pattern) — this is the defining feature and MUST be present. Flakes should be bold, frequent, and unmistakable across the face of every stave, not subtle or sparse. Without visible flakes it is NOT Quarter Sawn. Straight grain alone is Rift Sawn; arched grain is Plain Sawn. Small allowance for color variation. Reduced allowance for pin knots, small closed knots, and mineral streaks."
+    },
+    "european-steamed-beech": {
+        "name": "European Steamed Beech",
+        "description": "Relatively straight and even appearance, may contain chevron patterned grain. Small flecks in grain."
+    },
+    "walnut-select": {
+        "name": "Walnut Select",
+        "description": "Heartwood is LIGHT brown to MEDIUM chocolate brown with occasional purplish casts — do NOT make it too dark. Walnut should feel warm and rich, not near-black or overly dark. Aim for the lighter end of the walnut spectrum. No sapwood on face. Grain pattern with straight and wavy sections. Reduced allowance for small knots and pin knots. Warm, saturated tones."
+    },
+    "walnut-natural": {
+        "name": "Walnut Natural",
+        "description": "Heartwood is LIGHT brown to MEDIUM chocolate brown with occasional purplish casts — do NOT make it too dark. Walnut should feel warm and rich, not near-black or overly dark. Aim for the lighter end of the walnut spectrum. Creamy white sapwood visible on face, noticeable mix of heartwood and sapwood. Grain pattern with straight, wavy, and additional pattern sections. Allowance for small knots, pin knots, mineral, and other natural characteristics."
+    },
+    "soft-maple": {
+        "name": "Soft Maple",
+        "description": "Distinctly YELLOW-CREAM to HONEY-toned — warmer and noticeably more golden than standard Maple. The yellow/honey tone is the key differentiator from regular Maple. May have light pink and/or gray mixed in. Greater mineral streaking and generally has fleck in the grain."
+    },
+    "white-birch-select": {
+        "name": "White Birch Select",
+        "description": "Cut from sapwood, consistent creamy white to light tan color with noticeable warm PINKISH-RED undertones — this warmth is the defining characteristic. NOT pure white or cool-toned. The pink/red warmth should be clearly visible, not subtle. Minimal color variation with reduced allowance for pin knots and mineral streaks."
+    },
+    "natural-birch": {
+        "name": "Natural Birch",
+        "description": "Cut from heartwood and sapwood with calico mix of Pink and White tones. May contain small closed knots, pin knots, mineral streaks, and color variation."
+    },
+    "knotty-pine": {
+        "name": "Knotty Pine",
+        "description": "Yellowish white color. Medium-coarse texture with even grain. Allowance for larger closed knots, knots with star cracks, color variation, pitch pockets, and pin knots."
+    },
+    "pecan-hickory-select": {
+        "name": "Pecan-Hickory Select",
+        "description": "Frame (rails and stiles) is warm tan-brown with a clear pinkish-red undertone — there should be a noticeable reddish-pink warmth throughout — more than just brown, it needs to read as warm reddish-tan, not plain brown. Not purely tan, not purely pink — a warm brown with a clear reddish cast. Center panel is noticeably lighter: pale creamy-tan to light straw with gentle calico color variation and occasional pinkish-warm streaks. Overall the door is primarily warm tan-brown but with enough pinkish-red warmth that you'd never mistake it for plain oak or alder. The contrast between the darker frame and lighter panel is gentle, not stark. Visible but not heavy grain. Reduced allowance for small closed knots and pin knots. Some mineral streaking allowed.",
+        "flat_panel_description": "Warm tan-brown with a clear pinkish-red undertone — there should be a noticeable reddish-pink warmth throughout — more than just brown, it needs to read as warm reddish-tan, not plain brown. Not purely tan, not purely pink — a warm brown with a clear reddish cast. May show gentle calico color variation with areas of slightly lighter creamy-tan and occasional pinkish-warm streaks. Overall primarily warm tan-brown but with enough pinkish-red warmth that you’d never mistake it for plain oak or alder. Visible but not heavy grain. Reduced allowance for small closed knots and pin knots. Some mineral streaking allowed."
+    },
+    "pecan-hickory-natural": {
+        "name": "Pecan-Hickory Natural",
+        "description": "Stark variations between warm tan-brown heartwood with a clear pinkish-red undertone (obvious but secondary to the tan-brown base — not purely tan, not purely pink) and white sapwood tinged with fine brown lines. Overall warm tan-brown with enough pinkish-red warmth that you'd never mistake it for plain oak or alder. Mineral streaking, small closed knots, and pin knots acceptable. Parts may be all heartwood or all sapwood."
+    },
+    "pecan-hickory-rustic-knotty": {
+        "name": "Pecan-Hickory Rustic Knotty",
+        "description": "Allows for mineral streaking, larger open knots, knots with star cracks, clusters of pin knots. Stark variations between warm tan-brown heartwood with a clear pinkish-red undertone (obvious but secondary to the tan-brown base — not purely tan, not purely pink) and white sapwood tinged with fine brown lines. Overall warm tan-brown with enough pinkish-red warmth that you'd never mistake it for plain oak or alder. Parts may be all heartwood or all sapwood."
+    },
+    "sapele-ribbon-grain-mahogany": {
+        "name": "Sapele Ribbon Grain Mahogany",
+        "description": "Quarter Sawn Sapele with ribbon striped appearance. Warm golden-brown base with alternating lighter and slightly darker bands creating the characteristic ribbon effect. Medium saturation — NOT dark or chocolate brown. Match the swatch closely: the overall tone should be a warm, luminous golden-copper brown, not deep or heavy."
+    },
+    "ash-select": {
+        "name": "Ash Select",
+        "description": "Warm straw-yellow to light golden tone — NOT white or pale cream. The color should have a clear warm yellow-golden cast, not washed out or cool. Moderate cathedral/arch grain patterns on the frame stiles — some gentle sweeping or wavy grain figures, NOT straight vertical grain. The cathedral arches should be present but not overly dramatic or exaggerated. Moderately open grain pattern. Some color variation and mineral may be allowed on the face. Reduced allowance for small closed knots and pin knots.",
+        "flat_panel_description": "Warm straw-yellow to light golden tone — NOT white or pale cream. The color should have a clear warm yellow-golden cast, not washed out or cool. Moderate cathedral/arch grain patterns — some gentle sweeping or wavy grain figures, NOT straight vertical grain. The cathedral arches should be present but not overly dramatic or exaggerated. Moderately open grain pattern. Some color variation and mineral may be allowed on the face. Reduced allowance for small closed knots and pin knots."
+    },
+    "fir-vertical-grain": {
+        "name": "Fir Vertical Grain",
+        "description": "Fir Vertical Grain is most known for its distinct, straight grain pattern and warm tones. The most commonly used species is Douglas Fir. Light peachy-tan base color with tight, evenly spaced straight parallel grain lines in a slightly darker warm tone. The grain lines must all run in the SAME direction as each other. The material is known for its softness and is not advised for heavy traffic and use areas."
+    }
 }

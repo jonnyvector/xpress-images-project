@@ -8,3 +8,19 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Environment variables
+.env
+.env.*
+!.env.example
+node_modules/
+frontend/node_modules/
+
+# Generated output
+output/
+
+# macOS
+.DS_Store
+
+# Claude IDE files
+.claude/

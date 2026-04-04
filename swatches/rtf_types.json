@@ -1,0 +1,216 @@
+{
+    "mdf": {
+        "name": "MDF",
+        "finish": "solid",
+        "description": "Plain MDF (medium-density fiberboard) \u2014 a uniform warm beige-tan surface with no wood grain, no texture variation, no streaks. Smooth, consistent, matte appearance throughout."
+    },
+    "949t-white": {
+        "name": "949T White",
+        "hex": "F8F8F6",
+        "finish": "solid"
+    },
+    "949w-white": {
+        "name": "949W White",
+        "hex": "F8F8F6",
+        "finish": "solid"
+    },
+    "alabaster-taction-oak": {
+        "name": "Alabaster Taction RTF",
+        "finish": "woodgrain",
+        "description": "This is an RTF vinyl wrap \u2014 NOT real wood. Despite the name, the grain pattern runs VERTICALLY (top to bottom) across the entire surface including all rails. Do NOT apply natural wood grain direction rules."
+    },
+    "beach-glass-supermatte": {
+        "name": "Beach Glass Supermatte",
+        "hex": "C0CECE",
+        "finish": "solid"
+    },
+    "bisque": {
+        "name": "Bisque",
+        "hex": "F2E8D7",
+        "finish": "solid"
+    },
+    "black-oak": {
+        "name": "Black RTF",
+        "finish": "woodgrain",
+        "description": "This is an RTF vinyl wrap \u2014 NOT real wood. Despite the name, the grain pattern runs VERTICALLY (top to bottom) across the entire surface including all rails. Do NOT apply natural wood grain direction rules."
+    },
+    "black-portuna": {
+        "name": "Black Portuna",
+        "finish": "woodgrain"
+    },
+    "brushed-aluminum": {
+        "name": "Brushed Aluminum",
+        "finish": "solid"
+    },
+    "cherry-blossom": {
+        "name": "Cherry Blossom RTF",
+        "finish": "woodgrain",
+        "description": "This is an RTF vinyl wrap \u2014 NOT real wood. Despite the name, the grain pattern runs VERTICALLY (top to bottom) across the entire surface including all rails. Do NOT apply natural wood grain direction rules."
+    },
+    "chocolate-pear": {
+        "name": "Chocolate Pear",
+        "finish": "woodgrain"
+    },
+    "cool-grey-suedette": {
+        "name": "Cool Grey Suedette",
+        "hex": "D2CFCA",
+        "finish": "solid"
+    },
+    "dark-italian-walnut": {
+        "name": "Dark Italian RTF",
+        "finish": "woodgrain",
+        "description": "This is an RTF vinyl wrap \u2014 NOT real wood. Despite the name, the grain pattern runs VERTICALLY (top to bottom) across the entire surface including all rails. Do NOT apply natural wood grain direction rules."
+    },
+    "fashion-grey": {
+        "name": "Fashion Grey",
+        "hex": "DAD6D3",
+        "finish": "solid"
+    },
+    "feather-white-suedetter": {
+        "name": "Feather White Suedette",
+        "hex": "FEFEF9",
+        "finish": "solid"
+    },
+    "frosty-white": {
+        "name": "Frosty White",
+        "hex": "FAF3ED",
+        "finish": "solid"
+    },
+    "gauntlet-grey-supermatte": {
+        "name": "Gauntlet Grey Supermatte",
+        "finish": "solid",
+        "hex": "665B59"
+    },
+    "gettysburg-supermatte": {
+        "name": "Gettysburg Supermatte",
+        "hex": "9A988B",
+        "finish": "solid"
+    },
+    "gibraltar-taction-oak": {
+        "name": "Gibraltar Taction RTF",
+        "finish": "woodgrain",
+        "description": "This is an RTF vinyl wrap \u2014 NOT real wood. Despite the name, the grain pattern runs VERTICALLY (top to bottom) across the entire surface including all rails. Do NOT apply natural wood grain direction rules."
+    },
+    "green-supermatte": {
+        "name": "Green Supermatte",
+        "hex": "7C8276",
+        "finish": "solid"
+    },
+    "grenada": {
+        "name": "Grenada",
+        "finish": "woodgrain"
+    },
+    "grey-portuna": {
+        "name": "Grey Portuna",
+        "finish": "woodgrain",
+        "description": "This is an RTF vinyl wrap \u2014 NOT real wood. The texture pattern runs VERTICALLY (top to bottom) across the entire surface including all rails. Do NOT apply natural grain direction rules."
+    },
+    "heirloom-white": {
+        "name": "Heirloom White",
+        "hex": "E9E8DC",
+        "finish": "solid"
+    },
+    "light-italian-walnut": {
+        "name": "Light Italian Walnut",
+        "finish": "woodgrain",
+        "description": "This is an RTF vinyl wrap \u2014 NOT real wood. Despite the name, the grain pattern runs VERTICALLY (top to bottom) across the entire surface including all rails. Do NOT apply natural wood grain direction rules."
+    },
+    "mission-white": {
+        "name": "Mission White",
+        "hex": "FAF3E9",
+        "finish": "solid"
+    },
+    "mojave": {
+        "name": "Mojave",
+        "finish": "woodgrain"
+    },
+    "moonlight": {
+        "name": "Moonlight",
+        "hex": "605F64",
+        "finish": "solid"
+    },
+    "morning-dew": {
+        "name": "Morning Dew",
+        "finish": "solid"
+    },
+    "mysterious-supermatte": {
+        "name": "Mysterious Supermatte",
+        "hex": "445464",
+        "finish": "solid"
+    },
+    "natural-maple": {
+        "name": "Natural RTF",
+        "finish": "woodgrain",
+        "description": "This is an RTF vinyl wrap \u2014 NOT real wood. Despite the name, the grain pattern runs VERTICALLY (top to bottom) across the entire surface including all rails. Do NOT apply natural wood grain direction rules."
+    },
+    "niagara": {
+        "name": "Niagara",
+        "finish": "woodgrain"
+    },
+    "rain-cloud": {
+        "name": "Rain Cloud",
+        "hex": "9A9FA2",
+        "finish": "solid"
+    },
+    "satin-antique-white": {
+        "name": "Satin Antique White",
+        "hex": "FBF1E5",
+        "finish": "solid"
+    },
+    "satin-black": {
+        "name": "Satin Black",
+        "hex": "010101",
+        "finish": "solid"
+    },
+    "satin-white": {
+        "name": "Satin White",
+        "hex": "FEFFFA",
+        "finish": "solid"
+    },
+    "siena-supermatte": {
+        "name": "Siena Supermatte",
+        "hex": "55443C",
+        "finish": "solid"
+    },
+    "snow-white": {
+        "name": "Snow White",
+        "hex": "FEFFFA",
+        "finish": "solid"
+    },
+    "stone-grey-suedette": {
+        "name": "Stone Grey Suedette",
+        "hex": "9A9084",
+        "finish": "solid"
+    },
+    "velvet-white": {
+        "name": "Velvet White",
+        "finish": "solid"
+    },
+    "victorian-white": {
+        "name": "Victorian White",
+        "finish": "solid"
+    },
+    "white-high-gloss": {
+        "name": "White High Gloss",
+        "hex": "F8F8F7",
+        "finish": "solid"
+    },
+    "white-portuna": {
+        "name": "White Portuna",
+        "finish": "woodgrain"
+    },
+    "white-supermatte": {
+        "name": "White Supermatte",
+        "hex": "FAF9F5",
+        "finish": "solid"
+    },
+    "white-woodgrain": {
+        "name": "White Woodgrain",
+        "finish": "woodgrain"
+    },
+    "willow-grey-supermatte": {
+        "name": "Willow Grey Supermatte",
+        "hex": "D7D4CF",
+        "finish": "solid"
+    }
+}
