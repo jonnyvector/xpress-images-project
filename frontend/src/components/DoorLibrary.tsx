@@ -5,19 +5,21 @@ interface Props {
   projects: Project[];
   onSelectProject: (id: string) => void;
   onRenameProject: (id: string, newName: string) => void;
+  onDeleteProject: (id: string) => Promise<void>;
 }
 
 type ProductFilter = 'all' | 'Cabinet Door' | 'Drawer Front';
 type MaterialFilter = 'all' | 'wood' | 'rtf';
 type SortOption = 'name-asc' | 'name-desc' | 'variations-desc' | 'variations-asc';
 
-export default function DoorLibrary({ projects, onSelectProject, onRenameProject }: Props) {
+export default function DoorLibrary({ projects, onSelectProject, onRenameProject, onDeleteProject }: Props) {
   const [productFilter, setProductFilter] = useState<ProductFilter>('all');
   const [materialFilter, setMaterialFilter] = useState<MaterialFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   function handleRenameSubmit(p: Project) {
     const trimmed = editName.trim();
@@ -25,6 +27,20 @@ export default function DoorLibrary({ projects, onSelectProject, onRenameProject
       onRenameProject(p.id, trimmed);
     }
     setEditingId(null);
+  }
+
+  async function handleDeleteProject(p: Project) {
+    const ok = window.confirm(`Delete "${p.name}" and all of its generated variations? This cannot be undone.`);
+    if (!ok) return;
+    setDeletingId(p.id);
+    try {
+      await onDeleteProject(p.id);
+    } catch (err) {
+      console.error('Failed to delete project:', err);
+      window.alert('Failed to delete project. Please try again.');
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   const learned = projects.filter((p) => p.has_signature);
@@ -123,10 +139,18 @@ export default function DoorLibrary({ projects, onSelectProject, onRenameProject
       ) : (
         <div className="library-grid">
           {filtered.map((p) => (
-            <button
+            <div
               key={p.id}
               className="library-card"
+              role="button"
+              tabIndex={0}
               onClick={() => onSelectProject(p.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectProject(p.id);
+                }
+              }}
             >
               {p.has_base_image && (
                 <img
@@ -136,32 +160,45 @@ export default function DoorLibrary({ projects, onSelectProject, onRenameProject
                 />
               )}
               <div className="library-card-info">
-                {editingId === p.id ? (
-                  <input
-                    className="library-card-name-input"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    onBlur={() => handleRenameSubmit(p)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleRenameSubmit(p);
-                      if (e.key === 'Escape') setEditingId(null);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    autoFocus
-                  />
-                ) : (
-                  <div
-                    className="library-card-name"
-                    onDoubleClick={(e) => {
+                <div className="library-card-header-row">
+                  {editingId === p.id ? (
+                    <input
+                      className="library-card-name-input"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onBlur={() => handleRenameSubmit(p)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRenameSubmit(p);
+                        if (e.key === 'Escape') setEditingId(null);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      autoFocus
+                    />
+                  ) : (
+                    <div
+                      className="library-card-name"
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setEditingId(p.id);
+                        setEditName(p.name);
+                      }}
+                      title="Double-click to rename"
+                    >
+                      {p.name}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    className="library-delete-btn"
+                    disabled={deletingId === p.id}
+                    onClick={(e) => {
                       e.stopPropagation();
-                      setEditingId(p.id);
-                      setEditName(p.name);
+                      void handleDeleteProject(p);
                     }}
-                    title="Double-click to rename"
                   >
-                    {p.name}
-                  </div>
-                )}
+                    {deletingId === p.id ? 'Deleting…' : 'Delete'}
+                  </button>
+                </div>
                 {p.door_style && (
                   <div className="library-card-style">{p.door_style}</div>
                 )}
@@ -175,7 +212,7 @@ export default function DoorLibrary({ projects, onSelectProject, onRenameProject
                   {p.results.length} variation{p.results.length !== 1 ? 's' : ''}
                 </div>
               </div>
-            </button>
+            </div>
           ))}
         </div>
       )}

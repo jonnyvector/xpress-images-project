@@ -147,6 +147,10 @@ export default function Layout() {
                 const updated = await api.updateProject(id, { name: newName });
                 dispatch({ type: 'UPDATE_PROJECT', project: updated });
               }}
+              onDeleteProject={async (id) => {
+                await api.deleteProject(id);
+                dispatch({ type: 'REMOVE_PROJECT', id });
+              }}
             />
           ) : openProjects.length === 0 ? (
             <div className="status-info">No project selected</div>

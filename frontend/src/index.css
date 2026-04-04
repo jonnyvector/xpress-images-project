@@ -536,6 +536,7 @@ label {
   border-radius: var(--radius);
   background: var(--color-surface);
   overflow: hidden;
+  cursor: pointer;
   transition: box-shadow 0.15s, border-color 0.15s;
 }
 
@@ -556,6 +557,13 @@ label {
   padding: 0.75rem;
 }
 
+.library-card-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .library-card-name {
   font-weight: 600;
   font-size: 0.875rem;
@@ -567,12 +575,33 @@ label {
   font-weight: inherit;
   font-family: inherit;
   width: 100%;
+  flex: 1;
   padding: 0;
   border: 1px solid var(--color-primary);
   border-radius: 2px;
   outline: none;
   background: var(--color-surface);
   color: var(--color-text);
+}
+
+.library-delete-btn {
+  background: transparent;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+  padding: 0.125rem 0.4rem;
+  font-size: 0.6875rem;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.library-delete-btn:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.library-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .library-card-style {
