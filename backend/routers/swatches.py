@@ -21,6 +21,7 @@ RTF_STYLE_KEYS = {
     "rtf_drawer_minimal",
     "rtf_drawer_shaker",
     "rtf_drawer_shaker_shallow",
+    "rtf_drawer_shaker_skinny",
     "rtf_drawer_bevel",
     "recessed_panel",
     "raised_panel",
@@ -38,6 +39,7 @@ RTF_ONLY_STYLE_KEYS = {
     "rtf_drawer_minimal",
     "rtf_drawer_shaker",
     "rtf_drawer_shaker_shallow",
+    "rtf_drawer_shaker_skinny",
     "rtf_drawer_bevel",
 }
 

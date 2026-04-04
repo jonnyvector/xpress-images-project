@@ -229,6 +229,36 @@ STYLES: dict[str, dict[str, str]] = {
             "flat center field, and single-slab construction from before."
         ),
     },
+    "rtf_drawer_shaker_skinny": {
+        "name": "Skinny Shaker RTF (Drawer)",
+        "category": "drawer",
+        "learn_prompt": (
+            "Generate an exact replica of the reference image. "
+            "STUDY THE REFERENCE IMAGE CAREFULLY before generating — every dimension must come from the image, not from standard cabinetry conventions. "
+            "This is a SKINNY SHAKER style RTF drawer front — it has a FLAT, RECESSED center panel with clean square-edge framing. "
+            "CRITICAL PROPORTIONS: The vertical stiles (left and right) and horizontal rails (top and bottom) are EXACTLY 7/8 INCH wide (0.875 inches). "
+            "This is less than HALF the width of a standard shaker door frame. "
+            "Do NOT widen the frame to standard 2-inch proportions — the 7/8 inch frame width is the defining feature of this style. "
+            "If the frame looks like a normal shaker width, it is WRONG. "
+            "The center panel is FLAT and RECESSED below the frame — it is NOT raised and has NO bevel. "
+            "The frame has SQUARE, CLEAN inner edges — NO decorative routing, NO ogee, NO chamfer. "
+            "The inner edge where frame meets panel is a simple sharp 90-degree step down. "
+            "The very narrow 7/8 inch frame leaves a LARGE open panel area — the center panel occupies most of the visual width. "
+            "GRAIN DIRECTION: The wood grain must run HORIZONTALLY (left to right) across the drawer front. Do NOT use vertical grain. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting."
+        ),
+        "variation_hint": (
+            "CRITICAL: This is a SKINNY SHAKER style drawer front — the defining feature is the EXTREMELY NARROW 7/8 INCH frame. "
+            "The stiles and rails must be exactly 7/8 inch (0.875 inches) wide — less than half the width of a standard shaker. "
+            "Do NOT widen the frame to normal shaker proportions — the 7/8 inch width is what makes this style unique. "
+            "The center panel must be FLAT and RECESSED below the frame. Do NOT make a raised panel. "
+            "The frame inner edges are SQUARE and CLEAN — no decorative routing. "
+            "The narrow 7/8 inch frame creates a LARGE open panel area that dominates the visual. "
+            "Wood grain runs HORIZONTALLY. "
+            "Preserve the exact 7/8 inch stile/rail width, panel depth, and square-edge framing from before."
+        ),
+    },
     # Test style - minimal prompting
     "minimal": {
         "name": "Minimal (Test)",
