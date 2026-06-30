@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.routers import projects, swatches
+from backend.routers import coverage, projects, swatches
 from backend.state import ProjectStore
 
 PROJECTS_DIR = Path("output/.projects")
@@ -34,6 +34,7 @@ app.add_middleware(
 # API routers
 app.include_router(swatches.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
+app.include_router(coverage.router, prefix="/api")
 
 # Static file mounts
 Path("swatches").mkdir(exist_ok=True)

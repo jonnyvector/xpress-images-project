@@ -98,3 +98,23 @@ class SaveToFolderResponse(BaseModel):
 class ImportResultsResponse(BaseModel):
     imported: int
     wood_names: list[str]
+
+
+class CoverageProduct(BaseModel):
+    title: str
+    net_sales: float
+    quantity: int
+    covered: bool
+    matched_project_ids: list[str]
+
+
+class CoverageCategory(BaseModel):
+    key: str
+    label: str
+    covered: int
+    total: int
+    products: list[CoverageProduct]
+
+
+class CoverageResponse(BaseModel):
+    categories: list[CoverageCategory]

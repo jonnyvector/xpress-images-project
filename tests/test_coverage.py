@@ -1,5 +1,8 @@
 from pathlib import Path
 
+from fastapi.testclient import TestClient
+
+from backend.app import app
 from backend.coverage import (
     CATEGORIES,
     compute_coverage,
@@ -101,3 +104,23 @@ def test_compute_coverage_filters_by_material_and_form(tmp_path: Path):
     tf_cd = next(c for c in cats if c["key"] == "thermofoil_cabinet_doors")
     assert tf_cd["covered"] == 0
     assert tf_cd["products"][0]["matched_project_ids"] == []
+
+
+def test_coverage_endpoint_returns_four_categories():
+    with TestClient(app) as client:
+        resp = client.get("/api/coverage")
+    assert resp.status_code == 200
+    data = resp.json()
+    keys = {c["key"] for c in data["categories"]}
+    assert keys == {
+        "wood_cabinet_doors",
+        "wood_drawer_fronts",
+        "thermofoil_cabinet_doors",
+        "thermofoil_drawer_fronts",
+    }
+    wood_cd = next(c for c in data["categories"] if c["key"] == "wood_cabinet_doors")
+    assert wood_cd["total"] >= 1
+    assert "covered" in wood_cd
+    assert {"title", "net_sales", "quantity", "covered", "matched_project_ids"} <= set(
+        wood_cd["products"][0].keys()
+    )
