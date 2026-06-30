@@ -143,6 +143,51 @@ def _build_selections(
     return selections
 
 
+def _generate_for_selection(
+    generator: DoorGenerator,
+    sel: dict,
+    *,
+    base_signature: bytes | None,
+    door_style: str,
+    variation_hint: str,
+    aspect_ratio: str,
+    style_notes: str,
+    corner_style: str,
+    material_type: str,
+    use_base_door_reference: bool,
+):
+    """Dispatch a single selection to the correct generator call.
+
+    Owns the reference-vs-signature branch shared by batch generation and
+    single-result retry, so the two call sites can't drift apart.
+    """
+    wood_name = sel["wood_name"]
+    if use_base_door_reference and sel.get("reference_image"):
+        return generator.generate_variation_from_reference(
+            reference_image_path=sel["reference_image"],
+            swatch_image_path=sel["swatch_path"],
+            wood_name=wood_name,
+            variation_hint=variation_hint,
+            wood_description=sel["wood_description"],
+            aspect_ratio=aspect_ratio,
+            corner_style=corner_style,
+        )
+    return generator.generate_variation(
+        swatch_image_path=sel["swatch_path"],
+        wood_name=wood_name,
+        base_signature=base_signature,
+        wood_description=sel["wood_description"],
+        reference_image_path=sel["reference_image"],
+        door_style=door_style,
+        aspect_ratio=aspect_ratio,
+        style_notes=style_notes,
+        corner_style=corner_style,
+        material_type=material_type,
+        hex_color=sel.get("hex"),
+        rtf_finish=sel.get("rtf_finish"),
+    )
+
+
 def _run_generation(
     store: ProjectStore,
     project_id: str,
@@ -164,34 +209,20 @@ def _run_generation(
         variation_hint = style.get("variation_hint", "")
 
         def _generate_one(sel: dict) -> tuple[str, object]:
-            wood_name = sel["wood_name"]
             with _api_semaphore:
-                if use_base_door_reference and sel.get("reference_image"):
-                    result = generator.generate_variation_from_reference(
-                        reference_image_path=sel["reference_image"],
-                        swatch_image_path=sel["swatch_path"],
-                        wood_name=wood_name,
-                        variation_hint=variation_hint,
-                        wood_description=sel["wood_description"],
-                        aspect_ratio=aspect_ratio,
-                        corner_style=corner_style,
-                    )
-                else:
-                    result = generator.generate_variation(
-                        swatch_image_path=sel["swatch_path"],
-                        wood_name=wood_name,
-                        base_signature=base_signature,
-                        wood_description=sel["wood_description"],
-                        reference_image_path=sel["reference_image"],
-                        door_style=door_style,
-                        aspect_ratio=aspect_ratio,
-                        style_notes=style_notes,
-                        corner_style=corner_style,
-                        material_type=material_type,
-                        hex_color=sel.get("hex"),
-                        rtf_finish=sel.get("rtf_finish"),
-                    )
-            return wood_name, result
+                result = _generate_for_selection(
+                    generator,
+                    sel,
+                    base_signature=base_signature,
+                    door_style=door_style,
+                    variation_hint=variation_hint,
+                    aspect_ratio=aspect_ratio,
+                    style_notes=style_notes,
+                    corner_style=corner_style,
+                    material_type=material_type,
+                    use_base_door_reference=use_base_door_reference,
+                )
+            return sel["wood_name"], result
 
         max_parallel = min(len(selections), 4)
         with ThreadPoolExecutor(max_workers=max_parallel) as pool:
@@ -346,31 +377,18 @@ def _run_retry(
         style = STYLES.get(door_style, {})
         variation_hint = style.get("variation_hint", "")
         with _api_semaphore:
-            if use_base_door_reference and selection.get("reference_image"):
-                result = generator.generate_variation_from_reference(
-                    reference_image_path=selection["reference_image"],
-                    swatch_image_path=selection["swatch_path"],
-                    wood_name=wood_name,
-                    variation_hint=variation_hint,
-                    wood_description=selection["wood_description"],
-                    aspect_ratio=aspect_ratio,
-                    corner_style=corner_style,
-                )
-            else:
-                result = generator.generate_variation(
-                    swatch_image_path=selection["swatch_path"],
-                    wood_name=wood_name,
-                    base_signature=base_signature,
-                    wood_description=selection["wood_description"],
-                    reference_image_path=selection["reference_image"],
-                    door_style=door_style,
-                    aspect_ratio=aspect_ratio,
-                    style_notes=style_notes,
-                    corner_style=corner_style,
-                    material_type=material_type,
-                    hex_color=selection.get("hex"),
-                    rtf_finish=selection.get("rtf_finish"),
-                )
+            result = _generate_for_selection(
+                generator,
+                selection,
+                base_signature=base_signature,
+                door_style=door_style,
+                variation_hint=variation_hint,
+                aspect_ratio=aspect_ratio,
+                style_notes=style_notes,
+                corner_style=corner_style,
+                material_type=material_type,
+                use_base_door_reference=use_base_door_reference,
+            )
         store.record_retry_result(
             project_id,
             idx,

@@ -333,6 +333,62 @@ class DoorGenerator:
 
         return None, None, -1
 
+    def _call_with_retry(
+        self, contents: list[Any], config: Any, *, label: str
+    ) -> tuple[Any | None, "GenerationResult | None"]:
+        """Call generate_content with retry/backoff for transient errors.
+
+        Returns (response, None) on success, or (None, GenerationResult) when a
+        terminal error occurs. Handles rate-limit backoff (429/quota), invalid
+        signature (400), and generic errors uniformly — callers map the
+        response to their own GenerationResult.
+        """
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=contents,
+                    config=config,
+                )
+                return response, None
+            except Exception as e:
+                error_str = str(e).lower()
+                print(f"[{label}] Attempt {attempt + 1} error: {e}", file=sys.stderr)
+
+                if "429" in str(e) or "rate" in error_str or "quota" in error_str:
+                    if attempt < self.MAX_RETRIES - 1:
+                        wait_time = self.RETRY_DELAY * (2**attempt)
+                        print(
+                            f"[{label}] Rate limited, waiting {wait_time}s...",
+                            file=sys.stderr,
+                        )
+                        time.sleep(wait_time)
+                        continue
+                    return None, GenerationResult(
+                        image_data=None,
+                        thought_signature=None,
+                        error=f"Rate limited after {self.MAX_RETRIES} retries: {e}",
+                    )
+
+                if "400" in str(e) or "signature" in error_str or "expired" in error_str:
+                    return None, GenerationResult(
+                        image_data=None,
+                        thought_signature=None,
+                        error=f"Signature error: {e}",
+                    )
+
+                return None, GenerationResult(
+                    image_data=None,
+                    thought_signature=None,
+                    error=str(e),
+                )
+
+        return None, GenerationResult(
+            image_data=None,
+            thought_signature=None,
+            error="Max retries exceeded",
+        )
+
     def learn_door_style(
         self,
         door_image_path: Path,
@@ -441,76 +497,42 @@ class DoorGenerator:
 
         contents = [types.Content(role="user", parts=parts)]
 
-        for attempt in range(self.MAX_RETRIES):
-            try:
-                response = self.client.models.generate_content(
-                    model=self.model,
-                    contents=contents,
-                    config=types.GenerateContentConfig(
-                        response_modalities=["image", "text"],
-                        temperature=0.0,  # Deterministic for style consistency
-                        image_config=types.ImageConfig(
-                            aspect_ratio=aspect_ratio,
-                        ),
-                    ),
-                )
+        config = types.GenerateContentConfig(
+            response_modalities=["image", "text"],
+            temperature=0.0,  # Deterministic for style consistency
+            image_config=types.ImageConfig(aspect_ratio=aspect_ratio),
+        )
+        response, error_result = self._call_with_retry(
+            contents, config, label="learn_door_style"
+        )
+        if error_result is not None:
+            return error_result
 
-                image_data, signature, candidate_idx = self._extract_image_and_signature(response)
+        image_data, signature, _ = self._extract_image_and_signature(response)
 
-                if image_data is None:
-                    return GenerationResult(
-                        image_data=None,
-                        thought_signature=signature,
-                        error="No image returned from API",
-                    )
+        if image_data is None:
+            return GenerationResult(
+                image_data=None,
+                thought_signature=signature,
+                error="No image returned from API",
+            )
 
-                if not signature:
-                    print(
-                        "[learn_door_style] WARNING: Image returned but no thought signature. "
-                        "Variations will not maintain style consistency.",
-                        file=sys.stderr,
-                    )
-                    return GenerationResult(
-                        image_data=image_data,
-                        thought_signature=None,
-                        error="No thought signature returned — cannot generate consistent variations. "
-                        "Please retry learning.",
-                    )
-
-                return GenerationResult(
-                    image_data=image_data,
-                    thought_signature=signature,
-                )
-
-            except Exception as e:
-                error_str = str(e).lower()
-                print(f"[learn_door_style] Attempt {attempt + 1} error: {e}", file=sys.stderr)
-
-                if "429" in str(e) or "rate" in error_str or "quota" in error_str:
-                    if attempt < self.MAX_RETRIES - 1:
-                        wait_time = self.RETRY_DELAY * (2**attempt)
-                        print(
-                            f"[learn_door_style] Rate limited, waiting {wait_time}s...",
-                            file=sys.stderr,
-                        )
-                        time.sleep(wait_time)
-                        continue
-                    return GenerationResult(
-                        image_data=None,
-                        thought_signature=None,
-                        error=f"Rate limited after {self.MAX_RETRIES} retries: {e}",
-                    )
-
-                return GenerationResult(
-                    image_data=None,
-                    thought_signature=None,
-                    error=str(e),
-                )
+        if not signature:
+            print(
+                "[learn_door_style] WARNING: Image returned but no thought signature. "
+                "Variations will not maintain style consistency.",
+                file=sys.stderr,
+            )
+            return GenerationResult(
+                image_data=image_data,
+                thought_signature=None,
+                error="No thought signature returned — cannot generate consistent variations. "
+                "Please retry learning.",
+            )
 
         return GenerationResult(
-            image_data=None,
-            thought_signature=None,
-            error="Max retries exceeded",
+            image_data=image_data,
+            thought_signature=signature,
         )
 
     def generate_variation(
@@ -594,69 +616,29 @@ class DoorGenerator:
 
         contents = [types.Content(role="user", parts=parts)]
 
-        # Retry loop for rate limiting and transient errors
-        for attempt in range(self.MAX_RETRIES):
-            try:
-                response = self.client.models.generate_content(
-                    model=self.model,
-                    contents=contents,
-                    config=types.GenerateContentConfig(
-                        response_modalities=["image", "text"],
-                        temperature=0.3,
-                        image_config=types.ImageConfig(
-                            aspect_ratio=aspect_ratio,
-                        ),
-                    ),
-                )
+        config = types.GenerateContentConfig(
+            response_modalities=["image", "text"],
+            temperature=0.3,
+            image_config=types.ImageConfig(aspect_ratio=aspect_ratio),
+        )
+        response, error_result = self._call_with_retry(
+            contents, config, label="generate_variation"
+        )
+        if error_result is not None:
+            return error_result
 
-                image_data, new_signature, _ = self._extract_image_and_signature(response)
+        image_data, new_signature, _ = self._extract_image_and_signature(response)
 
-                if image_data is None:
-                    return GenerationResult(
-                        image_data=None,
-                        thought_signature=new_signature,
-                        error="No image returned from API",
-                    )
-
-                return GenerationResult(
-                    image_data=image_data,
-                    thought_signature=new_signature,
-                )
-
-            except Exception as e:
-                error_str = str(e).lower()
-
-                # Handle rate limiting
-                if "429" in str(e) or "rate" in error_str or "quota" in error_str:
-                    if attempt < self.MAX_RETRIES - 1:
-                        wait_time = self.RETRY_DELAY * (2**attempt)
-                        time.sleep(wait_time)
-                        continue
-                    return GenerationResult(
-                        image_data=None,
-                        thought_signature=None,
-                        error=f"Rate limited after {self.MAX_RETRIES} retries",
-                    )
-
-                # Handle expired/invalid signature
-                if "400" in str(e) or "signature" in error_str or "expired" in error_str:
-                    return GenerationResult(
-                        image_data=None,
-                        thought_signature=None,
-                        error=f"Signature error: {e}",
-                    )
-
-                # Other errors
-                return GenerationResult(
-                    image_data=None,
-                    thought_signature=None,
-                    error=str(e),
-                )
+        if image_data is None:
+            return GenerationResult(
+                image_data=None,
+                thought_signature=new_signature,
+                error="No image returned from API",
+            )
 
         return GenerationResult(
-            image_data=None,
-            thought_signature=None,
-            error="Max retries exceeded",
+            image_data=image_data,
+            thought_signature=new_signature,
         )
 
     def generate_variation_from_reference(
@@ -703,60 +685,27 @@ class DoorGenerator:
 
         contents = [types.Content(role="user", parts=parts)]
 
-        for attempt in range(self.MAX_RETRIES):
-            try:
-                response = self.client.models.generate_content(
-                    model=self.model,
-                    contents=contents,
-                    config=types.GenerateContentConfig(
-                        response_modalities=["image", "text"],
-                        temperature=0.0,
-                        image_config=types.ImageConfig(
-                            aspect_ratio=aspect_ratio,
-                        ),
-                    ),
-                )
+        config = types.GenerateContentConfig(
+            response_modalities=["image", "text"],
+            temperature=0.0,
+            image_config=types.ImageConfig(aspect_ratio=aspect_ratio),
+        )
+        response, error_result = self._call_with_retry(
+            contents, config, label="generate_variation_from_reference"
+        )
+        if error_result is not None:
+            return error_result
 
-                image_data, _, _ = self._extract_image_and_signature(response)
+        image_data, _, _ = self._extract_image_and_signature(response)
 
-                if image_data is None:
-                    return GenerationResult(
-                        image_data=None,
-                        thought_signature=None,
-                        error="No image returned from API",
-                    )
-
-                return GenerationResult(
-                    image_data=image_data,
-                    thought_signature=None,
-                )
-
-            except Exception as e:
-                error_str = str(e).lower()
-                print(
-                    f"[generate_variation_from_reference] Attempt {attempt + 1} error: {e}",
-                    file=sys.stderr,
-                )
-
-                if "429" in str(e) or "rate" in error_str or "quota" in error_str:
-                    if attempt < self.MAX_RETRIES - 1:
-                        wait_time = self.RETRY_DELAY * (2**attempt)
-                        time.sleep(wait_time)
-                        continue
-                    return GenerationResult(
-                        image_data=None,
-                        thought_signature=None,
-                        error=f"Rate limited after {self.MAX_RETRIES} retries",
-                    )
-
-                return GenerationResult(
-                    image_data=None,
-                    thought_signature=None,
-                    error=str(e),
-                )
+        if image_data is None:
+            return GenerationResult(
+                image_data=None,
+                thought_signature=None,
+                error="No image returned from API",
+            )
 
         return GenerationResult(
-            image_data=None,
+            image_data=image_data,
             thought_signature=None,
-            error="Max retries exceeded",
         )

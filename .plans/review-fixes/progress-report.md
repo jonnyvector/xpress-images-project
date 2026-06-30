@@ -5,7 +5,7 @@
 > mark a milestone complete until every current-cutoff checkbox under it is
 > checked.
 
-> Current focus: Phase 4 — Backend dedup
+> Current focus: Phase 5 — Frontend correctness & consistency
 
 ## Phase 1: Safety
 
@@ -52,27 +52,27 @@ Source: `worker.py:392`, `:398`, `routers/projects_generation.py:86`
 ### M5: Retry wrapper (F5)
 Source: `generator.py:445`, `:599`, `:707`
 
-- [ ] Mocked-client test: 429-then-success retries and returns the image
-- [ ] `_generate_with_retry(contents, config, *, label)` extracted
-- [ ] `learn_door_style` routes through the wrapper with identical behavior
-- [ ] `generate_variation` routes through the wrapper with identical behavior
-- [ ] `generate_variation_from_reference` routes through the wrapper with identical behavior
-- [ ] Prompt strings + signature extraction unchanged (diffed before/after)
+- [x] Mocked-client test: 429-then-success retries and returns the image
+- [x] `_generate_with_retry(contents, config, *, label)` extracted (as `_call_with_retry`)
+- [x] `learn_door_style` routes through the wrapper with identical behavior
+- [x] `generate_variation` routes through the wrapper with identical behavior
+- [x] `generate_variation_from_reference` routes through the wrapper with identical behavior
+- [x] Prompt strings + signature extraction unchanged (diffed before/after)
 
 ### M6: Generate-one helper (F6)
 Source: `worker.py:166`, `:355`
 
-- [ ] `_generate_for_selection(generator, sel, *, ...)` extracted
-- [ ] `_run_generation._generate_one` calls the helper
-- [ ] `_run_retry` calls the helper
-- [ ] Reference-vs-signature branching identical to pre-refactor
+- [x] `_generate_for_selection(generator, sel, *, ...)` extracted
+- [x] `_run_generation._generate_one` calls the helper
+- [x] `_run_retry` calls the helper
+- [x] Reference-vs-signature branching identical to pre-refactor
 
 ### M7: Move filename parser (F10)
 Source: `routers/projects_media.py:203`–`:255`
 
-- [ ] `tests/test_filename_parsing.py` covers model-code prefixes, `_rtf` suffix, trailing version numbers
-- [ ] `_extract_wood_name`/`_match_color_key`/regexes moved out of the router into a module with a docstring
-- [ ] `projects_media` imports the moved functions; router holds only HTTP concerns
+- [x] `tests/test_filename_parsing.py` covers model-code prefixes, `_rtf` suffix, trailing version numbers
+- [x] `_extract_wood_name`/`_match_color_key`/regexes moved out of the router into a module with a docstring
+- [x] `projects_media` imports the moved functions; router holds only HTTP concerns
 
 ## Phase 5: Frontend correctness & consistency
 
@@ -126,8 +126,8 @@ _(none)_
 
 ## Summary
 - Total features (current cutoff): 50
-- Completed: 18
-- Remaining: 32
-- Current cutoff blockers: 32
+- Completed: 31
+- Remaining: 19
+- Current cutoff blockers: 19
 - Accepted/deferred follow-up: 2
 - Superseded/obsolete checklist debt: 0
