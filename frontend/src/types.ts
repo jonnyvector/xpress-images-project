@@ -87,3 +87,5 @@ export interface CoverageCategory {
 export interface CoverageResponse {
   categories: CoverageCategory[];
 }
+
+export type ActiveView = 'library' | 'project' | 'coverage';

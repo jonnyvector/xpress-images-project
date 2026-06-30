@@ -1,13 +1,12 @@
-import type { Project } from '../types';
+import type { Project, ActiveView } from '../types';
 
 interface Props {
   projects: Project[];
   activeId: string | null;
-  activeView: 'library' | 'project' | 'coverage';
+  activeView: ActiveView;
   onSelect: (id: string) => void;
   onClose: (id: string) => void;
-  onSelectLibrary: () => void;
-  onSelectCoverage: () => void;
+  onSelectView: (view: ActiveView) => void;
 }
 
 export default function TabBar({
@@ -16,20 +15,19 @@ export default function TabBar({
   activeView,
   onSelect,
   onClose,
-  onSelectLibrary,
-  onSelectCoverage,
+  onSelectView,
 }: Props) {
   return (
     <div className="tab-bar">
       <button
         className={`tab-item ${activeView === 'library' ? 'active' : ''}`}
-        onClick={onSelectLibrary}
+        onClick={() => onSelectView('library')}
       >
         Library
       </button>
       <button
         className={`tab-item ${activeView === 'coverage' ? 'active' : ''}`}
-        onClick={onSelectCoverage}
+        onClick={() => onSelectView('coverage')}
       >
         Coverage
       </button>

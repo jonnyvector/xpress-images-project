@@ -1,7 +1,5 @@
-// frontend/src/components/CoveragePage.tsx
 // Top-level Coverage view: fetches /api/coverage once, holds the active
-// sub-tab (one per best-seller category) and the "only uncovered" filter,
-// and renders the selected category via CoverageTable.
+// sub-tab and the "only uncovered" filter, renders the active category.
 import { useState, useEffect } from 'react';
 import type { CoverageResponse } from '../types';
 import * as api from '../api';

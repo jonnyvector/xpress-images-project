@@ -1,4 +1,5 @@
 import { useEffect, useCallback, useState } from 'react';
+import type { ActiveView } from '../types';
 import { useProjects, useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 import TabBar from './TabBar';
@@ -11,7 +12,7 @@ export default function Layout() {
   const openProjects = projects.filter((p) => openTabIds.includes(p.id));
   const dispatch = useDispatch();
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_api_key') ?? '');
-  const [activeView, setActiveView] = useState<'library' | 'project' | 'coverage'>('project');
+  const [activeView, setActiveView] = useState<ActiveView>('project');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem('sidebar_collapsed') === 'true'
   );
@@ -140,8 +141,7 @@ export default function Layout() {
               setActiveView('project');
             }}
             onClose={handleCloseTab}
-            onSelectLibrary={() => setActiveView('library')}
-            onSelectCoverage={() => setActiveView('coverage')}
+            onSelectView={setActiveView}
           />
           <button onClick={handleAddProject}>+ Add New Door</button>
         </div>
