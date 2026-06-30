@@ -3,6 +3,9 @@ import type { Project, Style } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 import SignatureHistory from './SignatureHistory';
+import UploadDropzone from './UploadDropzone';
+import StyleForm from './StyleForm';
+import LearnControls from './LearnControls';
 import { usePollingTask } from '../hooks/usePollingTask';
 
 interface Props {
@@ -174,6 +177,37 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
 
   const canLearn = Boolean(apiKey && project.upload_filename);
 
+  const handleStyleNameBlur = useCallback(async () => {
+    const trimmed = styleName.trim();
+    if (trimmed && trimmed !== project.name) {
+      const updated = await api.updateProject(project.id, { name: trimmed });
+      dispatch({ type: 'UPDATE_PROJECT', project: updated });
+    }
+  }, [styleName, project.id, project.name, dispatch]);
+
+  const handleCornerStyleChange = useCallback((value: string) => {
+    setCornerStyle(value);
+    api.updateProject(project.id, { corner_style: value })
+      .then((updated) => dispatch({ type: 'UPDATE_PROJECT', project: updated }))
+      .catch(console.error);
+  }, [project.id, dispatch]);
+
+  const handleGeminiModelChange = useCallback((value: string) => {
+    setGeminiModel(value);
+    api.updateProject(project.id, { gemini_model: value })
+      .then((updated) => dispatch({ type: 'UPDATE_PROJECT', project: updated }))
+      .catch(console.error);
+  }, [project.id, dispatch]);
+
+  const handleLearnClick = useCallback(() => {
+    if (project.has_signature) {
+      if (!window.confirm('Re-learning will erase all previous variations. Are you sure?')) {
+        return;
+      }
+    }
+    handleLearnStyle();
+  }, [project.has_signature, handleLearnStyle]);
+
   return (
     <section>
       <h3>1. Upload & Learn Style</h3>
@@ -207,188 +241,44 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
         ))}
       </div>
 
-      {!project.upload_filename ? (
-        <div
-          className={`drop-zone ${dragOver ? 'drag-over' : ''}`}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".jpg,.jpeg,.png,.webp"
-            onChange={handleFileUpload}
-            hidden
-          />
-          <div className="drop-zone-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-          </div>
-          <p className="drop-zone-text">
-            Drag & drop your {uploadLabel} image here
-          </p>
-          <p className="drop-zone-hint">
-            or click to browse &middot; JPG, PNG, WEBP
-          </p>
-        </div>
-      ) : (
+      <UploadDropzone
+        project={project}
+        uploadLabel={uploadLabel}
+        dragOver={dragOver}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onFileUpload={handleFileUpload}
+        fileInputRef={fileInputRef}
+      />
+
+      {project.upload_filename && (
         <>
-          <div className="uploaded-preview">
-            <img
-              src={`/api/projects/${project.id}/upload`}
-              alt={`Your ${uploadLabel}`}
-            />
-            <button
-              className="change-image-btn"
-              onClick={() => fileInputRef.current?.click()}
-              type="button"
-            >
-              Change image
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".jpg,.jpeg,.png,.webp"
-              onChange={handleFileUpload}
-              hidden
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor={`style-name-${project.id}`}>Style name</label>
-            <input
-              id={`style-name-${project.id}`}
-              type="text"
-              value={styleName}
-              onChange={(e) => setStyleName(e.target.value)}
-              onBlur={async () => {
-                const trimmed = styleName.trim();
-                if (trimmed && trimmed !== project.name) {
-                  const updated = await api.updateProject(project.id, { name: trimmed });
-                  dispatch({ type: 'UPDATE_PROJECT', project: updated });
-                }
-              }}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor={`style-type-${project.id}`}>Style type</label>
-            <select
-              id={`style-type-${project.id}`}
-              value={doorStyle}
-              onChange={(e) => setDoorStyle(e.target.value)}
-            >
-              {filteredStyles.map((s) => (
-                <option key={s.key} value={s.key}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor={`corner-style-${project.id}`}>Outer corners</label>
-            <div className="product-type-toggle">
-              {([['sharp', 'Sharp'], ['bullnose', 'Bullnose']] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  className={`toggle-btn ${cornerStyle === value ? 'active' : ''}`}
-                  onClick={() => {
-                    setCornerStyle(value);
-                    api.updateProject(project.id, { corner_style: value })
-                      .then((updated) => dispatch({ type: 'UPDATE_PROJECT', project: updated }))
-                      .catch(console.error);
-                  }}
-                  type="button"
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor={`style-notes-${project.id}`}>Style notes (optional)</label>
-            <textarea
-              id={`style-notes-${project.id}`}
-              value={styleNotes}
-              onChange={(e) => setStyleNotes(e.target.value)}
-              rows={3}
-              placeholder="Describe distinctive structural features..."
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor={`gemini-model-${project.id}`}>Gemini model</label>
-            <select
-              id={`gemini-model-${project.id}`}
-              value={geminiModel}
-              onChange={(e) => {
-                setGeminiModel(e.target.value);
-                api.updateProject(project.id, { gemini_model: e.target.value })
-                  .then((updated) => dispatch({ type: 'UPDATE_PROJECT', project: updated }))
-                  .catch(console.error);
-              }}
-            >
-              <option value="gemini-3-pro-image-preview">Gemini 3.0 Pro Image</option>
-              <option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash</option>
-            </select>
-          </div>
-
-          {materialType === 'wood' && (
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                fontSize: '0.8125rem',
-                color: '#aaa',
-                cursor: 'pointer',
-                marginBottom: '0.5rem',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={learnInMaple}
-                onChange={(e) => setLearnInMaple(e.target.checked)}
-                disabled={learning}
-              />
-              Learn in Maple Select
-              <span
-                title="Forces Gemini to generate a new image in maple select instead of replicating the original material. Can produce a stronger thought signature."
-                style={{ cursor: 'help', opacity: 0.6 }}
-              >
-                (?)
-              </span>
-            </label>
-          )}
-
-          <button
-            className="primary"
-            onClick={() => {
-              if (project.has_signature) {
-                if (!window.confirm(
-                  'Re-learning will erase all previous variations. Are you sure?'
-                )) return;
-              }
-              handleLearnStyle();
-            }}
-            disabled={!canLearn || learning}
-            style={{ width: '100%' }}
-          >
-            {learning ? (
-              <>
-                <span className="spinner" /> Learning style...
-              </>
-            ) : project.has_signature ? (
-              `Re-learn ${uploadLabel} Style`
-            ) : (
-              `Learn ${uploadLabel} Style`
-            )}
-          </button>
+          <StyleForm
+            projectId={project.id}
+            styleName={styleName}
+            onStyleNameChange={setStyleName}
+            onStyleNameBlur={handleStyleNameBlur}
+            doorStyle={doorStyle}
+            onDoorStyleChange={setDoorStyle}
+            filteredStyles={filteredStyles}
+            cornerStyle={cornerStyle}
+            onCornerStyleChange={handleCornerStyleChange}
+            styleNotes={styleNotes}
+            onStyleNotesChange={setStyleNotes}
+            geminiModel={geminiModel}
+            onGeminiModelChange={handleGeminiModelChange}
+          />
+          <LearnControls
+            materialType={materialType}
+            learnInMaple={learnInMaple}
+            onLearnInMapleChange={setLearnInMaple}
+            learning={learning}
+            canLearn={canLearn}
+            hasSignature={project.has_signature}
+            uploadLabel={uploadLabel}
+            onLearn={handleLearnClick}
+          />
         </>
       )}
 

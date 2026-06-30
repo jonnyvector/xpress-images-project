@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import type { Project } from '../types';
+import LibraryCard from './LibraryCard';
 
 interface Props {
   projects: Project[];
@@ -77,6 +78,37 @@ export default function DoorLibrary({ projects, onSelectProject, onRenameProject
     return items;
   }, [learned, productFilter, materialFilter, searchQuery, sortBy]);
 
+  const renderCard = (p: Project, thumbUrl: string | null, body: ReactNode) => (
+    <LibraryCard
+      key={p.id}
+      project={p}
+      thumbUrl={thumbUrl}
+      isEditing={editingId === p.id}
+      editName={editName}
+      onEditNameChange={setEditName}
+      onRenameSubmit={() => handleRenameSubmit(p)}
+      onCancelEdit={() => setEditingId(null)}
+      onStartEdit={() => {
+        setEditingId(p.id);
+        setEditName(p.name);
+      }}
+      isDeleting={deletingId === p.id}
+      onDelete={() => handleDeleteProject(p)}
+      onSelect={onSelectProject}
+    >
+      {body}
+    </LibraryCard>
+  );
+
+  const importedDoors = imported.filter((p) => p.product_type !== 'Drawer Front');
+  const importedDrawers = imported.filter((p) => p.product_type === 'Drawer Front');
+  const importedSections: { label: string; items: Project[] }[] = [];
+  if (importedDoors.length > 0) importedSections.push({ label: 'Imported Doors', items: importedDoors });
+  if (importedDrawers.length > 0) importedSections.push({ label: 'Imported Drawer Fronts', items: importedDrawers });
+  if (importedSections.length === 0 && imported.length > 0) {
+    importedSections.push({ label: 'Imported', items: imported });
+  }
+
   if (learned.length === 0 && imported.length === 0) {
     return (
       <div className="status-info">
@@ -139,67 +171,11 @@ export default function DoorLibrary({ projects, onSelectProject, onRenameProject
         </div>
       ) : (
         <div className="library-grid">
-          {filtered.map((p) => (
-            <div
-              key={p.id}
-              className="library-card"
-              role="button"
-              tabIndex={0}
-              onClick={() => onSelectProject(p.id)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onSelectProject(p.id);
-                }
-              }}
-            >
-              {p.has_base_image && (
-                <img
-                  src={`/api/projects/${p.id}/base-image`}
-                  alt={p.name}
-                  className="library-card-thumb"
-                />
-              )}
-              <div className="library-card-info">
-                <div className="library-card-header-row">
-                  {editingId === p.id ? (
-                    <input
-                      className="library-card-name-input"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      onBlur={() => handleRenameSubmit(p)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleRenameSubmit(p);
-                        if (e.key === 'Escape') setEditingId(null);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      autoFocus
-                    />
-                  ) : (
-                    <div
-                      className="library-card-name"
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        setEditingId(p.id);
-                        setEditName(p.name);
-                      }}
-                      title="Double-click to rename"
-                    >
-                      {p.name}
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    className="library-delete-btn"
-                    disabled={deletingId === p.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleDeleteProject(p);
-                    }}
-                  >
-                    {deletingId === p.id ? 'Deleting…' : 'Delete'}
-                  </button>
-                </div>
+          {filtered.map((p) =>
+            renderCard(
+              p,
+              p.has_base_image ? `/api/projects/${p.id}/base-image` : null,
+              <>
                 {p.door_style && (
                   <div className="library-card-style">{p.door_style}</div>
                 )}
@@ -212,98 +188,30 @@ export default function DoorLibrary({ projects, onSelectProject, onRenameProject
                 <div className="library-card-count">
                   {p.results.length} variation{p.results.length !== 1 ? 's' : ''}
                 </div>
-              </div>
-            </div>
-          ))}
+              </>,
+            ),
+          )}
         </div>
       )}
 
-      {imported.length > 0 && (
-        <>
-          {(() => {
-            const importedDoors = imported.filter((p) => p.product_type !== 'Drawer Front');
-            const importedDrawers = imported.filter((p) => p.product_type === 'Drawer Front');
-            const sections: { label: string; items: Project[] }[] = [];
-            if (importedDoors.length > 0) sections.push({ label: 'Imported Doors', items: importedDoors });
-            if (importedDrawers.length > 0) sections.push({ label: 'Imported Drawer Fronts', items: importedDrawers });
-            if (sections.length === 0) sections.push({ label: 'Imported', items: imported });
-            return sections.map((section) => (
-              <div key={section.label}>
-                <h3 style={{ marginTop: '2rem', marginBottom: '0.75rem' }}>{section.label}</h3>
-                <div className="library-grid">
-                  {section.items.map((p) => (
-              <div
-                key={p.id}
-                className="library-card"
-                role="button"
-                tabIndex={0}
-                onClick={() => onSelectProject(p.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onSelectProject(p.id);
-                  }
-                }}
-              >
-                {p.results.length > 0 && (
-                  <img
-                    src={`/api/projects/${p.id}/results/0/image?watermark=false`}
-                    alt={p.name}
-                    className="library-card-thumb"
-                  />
-                )}
-                <div className="library-card-info">
-                  <div className="library-card-header-row">
-                    {editingId === p.id ? (
-                      <input
-                        className="library-card-name-input"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        onBlur={() => handleRenameSubmit(p)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleRenameSubmit(p);
-                          if (e.key === 'Escape') setEditingId(null);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        autoFocus
-                      />
-                    ) : (
-                      <div
-                        className="library-card-name"
-                        onDoubleClick={(e) => {
-                          e.stopPropagation();
-                          setEditingId(p.id);
-                          setEditName(p.name);
-                        }}
-                        title="Double-click to rename"
-                      >
-                        {p.name}
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      className="library-delete-btn"
-                      disabled={deletingId === p.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void handleDeleteProject(p);
-                      }}
-                    >
-                      {deletingId === p.id ? 'Deleting…' : 'Delete'}
-                    </button>
-                  </div>
-                  <div className="library-card-count">
-                    {p.results.length} image{p.results.length !== 1 ? 's' : ''}
-                  </div>
-                </div>
-              </div>
-            ))}
-                </div>
-              </div>
-            ));
-          })()}
-        </>
-      )}
+      {importedSections.map((section) => (
+        <div key={section.label}>
+          <h3 style={{ marginTop: '2rem', marginBottom: '0.75rem' }}>{section.label}</h3>
+          <div className="library-grid">
+            {section.items.map((p) =>
+              renderCard(
+                p,
+                p.results.length > 0
+                  ? `/api/projects/${p.id}/results/0/image?watermark=false`
+                  : null,
+                <div className="library-card-count">
+                  {p.results.length} image{p.results.length !== 1 ? 's' : ''}
+                </div>,
+              ),
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

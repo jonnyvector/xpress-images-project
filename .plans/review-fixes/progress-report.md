@@ -5,7 +5,7 @@
 > mark a milestone complete until every current-cutoff checkbox under it is
 > checked.
 
-> Current focus: Phase 6 — Frontend structure
+> Current focus: Phase 7 — Cosmetic polish
 
 ## Phase 1: Safety
 
@@ -90,19 +90,19 @@ Source: `ResultsGrid.tsx:45`, `:78`, `api.ts:42`/`89`/`97`/`114`, `UploadStep.ts
 ### M9: Extract LibraryCard (F7)
 Source: `DoorLibrary.tsx:142`, `:234`
 
-- [ ] `LibraryCard` component created with shared markup (thumb, inline rename, delete)
-- [ ] Learned grid renders via `LibraryCard`
-- [ ] Imported grid renders via `LibraryCard`
-- [ ] Imported-sections IIFE lifted to a computed value/helper
+- [x] `LibraryCard` component created with shared markup (thumb, inline rename, delete)
+- [x] Learned grid renders via `LibraryCard`
+- [x] Imported grid renders via `LibraryCard`
+- [x] Imported-sections IIFE lifted to a computed value/helper
 
 ### M10: Decompose UploadStep (F8b)
 Source: `UploadStep.tsx` (411 lines)
 
-- [ ] `UploadDropzone` extracted (drag/drop + file input) with module comment
-- [ ] `StyleForm` extracted (style name/type/corner/notes/model fields) with module comment
-- [ ] `LearnControls` extracted (learn button, maple toggle, learn polling) with module comment
-- [ ] `UploadStep` orchestrates the sub-components
-- [ ] Learn flow, drag/drop, polling-resume, and error-retry behave identically
+- [x] `UploadDropzone` extracted (drag/drop + file input) with module comment
+- [x] `StyleForm` extracted (style name/type/corner/notes/model fields) with module comment
+- [x] `LearnControls` extracted (learn button, maple toggle) with module comment
+- [x] `UploadStep` orchestrates the sub-components (state + learn polling stay here)
+- [x] Learn flow, drag/drop, polling-resume, and error-retry behave identically
 
 ## Phase 7: Cosmetic polish
 
@@ -126,8 +126,8 @@ _(none)_
 
 ## Summary
 - Total features (current cutoff): 50
-- Completed: 36
-- Remaining: 14
-- Current cutoff blockers: 14
+- Completed: 45
+- Remaining: 5
+- Current cutoff blockers: 5
 - Accepted/deferred follow-up: 2
 - Superseded/obsolete checklist debt: 0
