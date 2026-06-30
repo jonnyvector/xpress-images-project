@@ -6,16 +6,10 @@ from pathlib import Path
 
 from fastapi import HTTPException, Request
 
+from backend.materials import MIME_MAP as MIME_TYPES
 from backend.models import ErrorItem, GenerationStatusResponse, ProjectResponse, ResultItem
 from backend.state import ProjectState, ProjectStore
 from backend.styles.catalog import STYLES
-
-MIME_TYPES = {
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".png": "image/png",
-    ".webp": "image/webp",
-}
 
 SAVE_DIR_DOORS = Path.home() / "Desktop/xpress-images/AI Images/Inset Panel Doors"
 SAVE_DIR_DRAWERS = Path.home() / "Desktop/xpress-images/AI Images/Drawer Fronts"

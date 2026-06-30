@@ -15,14 +15,16 @@ from backend.materials import (
     resolve_swatch_path,
     swatch_name_from_path,
 )
+from backend.styles.catalog import STYLES
 
 if TYPE_CHECKING:
     from backend.state import ProjectState, ProjectStore
 
 _executor = ThreadPoolExecutor(max_workers=4)
 
-# Global semaphore to limit concurrent Gemini API calls across all projects.
-# Prevents rate-limiting (429s) when multiple tabs generate simultaneously.
+# Semaphore matches executor workers — intentional: this is the per-app
+# concurrency cap for Gemini API calls, independent of the outer executor
+# which could grow if start_generation is called concurrently across projects.
 _api_semaphore = threading.Semaphore(4)
 
 
@@ -31,6 +33,10 @@ _api_semaphore = threading.Semaphore(4)
 FLAT_PANEL_STYLES = {"vienna", "solid_plank", "drawer_solid_plank", "rtf_drawer_bevel"}
 
 RTF_WOODGRAIN_DOOR_REFERENCE = Path("swatches/references/rtf-woodgrain-reference.jpg")
+
+
+def _is_drawer_product(project: ProjectState) -> bool:
+    return project.product_type == "Drawer Front"
 
 
 def _get_material_description(
@@ -62,9 +68,11 @@ def _build_selections(
             key = p[8:]
             wt = wood_types.get(key, {})
             borrowed = resolve_swatch_path(wt.get("swatch_key", ""), all_swatch_files)
-            desc = wt.get("description")
-            if door_style in FLAT_PANEL_STYLES and wt.get("flat_panel_description"):
-                desc = wt["flat_panel_description"]
+            desc = (
+                _get_material_description(borrowed, wood_types, door_style)
+                if borrowed
+                else wt.get("description")
+            )
             selections.append(
                 {
                     "wood_name": wt.get("name", key),
@@ -89,6 +97,20 @@ def _build_selections(
                         {
                             "wood_name": wt.get("name", key),
                             "swatch_path": borrowed,
+                            "wood_description": desc,
+                            "reference_image": None,
+                        }
+                    )
+                    continue
+                # Description-only entry (no swatch_key, no physical file)
+                if wt.get("description") and not resolve_swatch_path(key, all_swatch_files):
+                    desc = wt.get("description")
+                    if door_style in FLAT_PANEL_STYLES and wt.get("flat_panel_description"):
+                        desc = wt["flat_panel_description"]
+                    selections.append(
+                        {
+                            "wood_name": wt.get("name", key),
+                            "swatch_path": None,
                             "wood_description": desc,
                             "reference_image": None,
                         }
@@ -125,7 +147,7 @@ def _run_generation(
     store: ProjectStore,
     project_id: str,
     api_key: str,
-    base_signature: bytes,
+    base_signature: bytes | None,
     door_style: str,
     selections: list[dict],
     aspect_ratio: str,
@@ -133,28 +155,42 @@ def _run_generation(
     corner_style: str = "sharp",
     material_type: str = "wood",
     gemini_model: str | None = None,
+    use_base_door_reference: bool = False,
 ) -> None:
     """Run generation in background thread, updating ProjectState incrementally."""
     try:
         generator = DoorGenerator(api_key=api_key, model=gemini_model)
+        style = STYLES.get(door_style, {})
+        variation_hint = style.get("variation_hint", "")
 
         def _generate_one(sel: dict) -> tuple[str, object]:
             wood_name = sel["wood_name"]
             with _api_semaphore:
-                result = generator.generate_variation(
-                    swatch_image_path=sel["swatch_path"],
-                    wood_name=wood_name,
-                    base_signature=base_signature,
-                    wood_description=sel["wood_description"],
-                    reference_image_path=sel["reference_image"],
-                    door_style=door_style,
-                    aspect_ratio=aspect_ratio,
-                    style_notes=style_notes,
-                    corner_style=corner_style,
-                    material_type=material_type,
-                    hex_color=sel.get("hex"),
-                    rtf_finish=sel.get("rtf_finish"),
-                )
+                if use_base_door_reference and sel.get("reference_image"):
+                    result = generator.generate_variation_from_reference(
+                        reference_image_path=sel["reference_image"],
+                        swatch_image_path=sel["swatch_path"],
+                        wood_name=wood_name,
+                        variation_hint=variation_hint,
+                        wood_description=sel["wood_description"],
+                        aspect_ratio=aspect_ratio,
+                        corner_style=corner_style,
+                    )
+                else:
+                    result = generator.generate_variation(
+                        swatch_image_path=sel["swatch_path"],
+                        wood_name=wood_name,
+                        base_signature=base_signature,
+                        wood_description=sel["wood_description"],
+                        reference_image_path=sel["reference_image"],
+                        door_style=door_style,
+                        aspect_ratio=aspect_ratio,
+                        style_notes=style_notes,
+                        corner_style=corner_style,
+                        material_type=material_type,
+                        hex_color=sel.get("hex"),
+                        rtf_finish=sel.get("rtf_finish"),
+                    )
             return wood_name, result
 
         max_parallel = min(len(selections), 4)
@@ -210,6 +246,7 @@ def _run_learn(
     corner_style: str = "sharp",
     material_type: str = "wood",
     gemini_model: str | None = None,
+    learn_in_maple: bool = False,
 ) -> None:
     """Run learn_door_style in background thread."""
     temp_path = OUTPUT_DIR / f"temp_learn_{project_id}.png"
@@ -226,6 +263,7 @@ def _run_learn(
                 aspect_ratio=aspect_ratio,
                 corner_style=corner_style,
                 material_type=material_type,
+                learn_in_maple=learn_in_maple,
             )
 
         project = store.get(project_id)
@@ -270,9 +308,11 @@ def start_learning(
     project: ProjectState,
     api_key: str,
     upload_bytes: bytes,
+    *,
+    learn_in_maple: bool = False,
 ) -> None:
     """Kick off background learning for a project."""
-    is_drawer = project.product_type == "Drawer Front"
+    is_drawer = _is_drawer_product(project)
     aspect_ratio = "16:9" if is_drawer else "9:16"
     door_style = project.door_style or "recessed_panel"
 
@@ -292,6 +332,7 @@ def start_learning(
         project.corner_style,
         project.material_type,
         project.gemini_model,
+        learn_in_maple,
     )
 
 
@@ -300,7 +341,7 @@ def _run_retry(
     project_id: str,
     api_key: str,
     idx: int,
-    base_signature: bytes,
+    base_signature: bytes | None,
     door_style: str,
     selection: dict,
     aspect_ratio: str,
@@ -308,26 +349,40 @@ def _run_retry(
     corner_style: str = "sharp",
     material_type: str = "wood",
     gemini_model: str | None = None,
+    use_base_door_reference: bool = False,
 ) -> None:
     """Re-generate a single variation in-place."""
     try:
         generator = DoorGenerator(api_key=api_key, model=gemini_model)
         wood_name = selection["wood_name"]
+        style = STYLES.get(door_style, {})
+        variation_hint = style.get("variation_hint", "")
         with _api_semaphore:
-            result = generator.generate_variation(
-                swatch_image_path=selection["swatch_path"],
-                wood_name=wood_name,
-                base_signature=base_signature,
-                wood_description=selection["wood_description"],
-                reference_image_path=selection["reference_image"],
-                door_style=door_style,
-                aspect_ratio=aspect_ratio,
-                style_notes=style_notes,
-                corner_style=corner_style,
-                material_type=material_type,
-                hex_color=selection.get("hex"),
-                rtf_finish=selection.get("rtf_finish"),
-            )
+            if use_base_door_reference and selection.get("reference_image"):
+                result = generator.generate_variation_from_reference(
+                    reference_image_path=selection["reference_image"],
+                    swatch_image_path=selection["swatch_path"],
+                    wood_name=wood_name,
+                    variation_hint=variation_hint,
+                    wood_description=selection["wood_description"],
+                    aspect_ratio=aspect_ratio,
+                    corner_style=corner_style,
+                )
+            else:
+                result = generator.generate_variation(
+                    swatch_image_path=selection["swatch_path"],
+                    wood_name=wood_name,
+                    base_signature=base_signature,
+                    wood_description=selection["wood_description"],
+                    reference_image_path=selection["reference_image"],
+                    door_style=door_style,
+                    aspect_ratio=aspect_ratio,
+                    style_notes=style_notes,
+                    corner_style=corner_style,
+                    material_type=material_type,
+                    hex_color=selection.get("hex"),
+                    rtf_finish=selection.get("rtf_finish"),
+                )
         project = store.get(project_id)
         if project is None:
             return
@@ -355,8 +410,23 @@ def start_retry(
     api_key: str,
 ) -> None:
     """Kick off a single-result retry."""
-    # Validate thought signature exists before retrying
-    if not project.learned_signature:
+    is_drawer = _is_drawer_product(project)
+    aspect_ratio = "16:9" if is_drawer else "9:16"
+    door_style = project.door_style or "recessed_panel"
+
+    style = STYLES.get(door_style, {})
+    use_ref = bool(style.get("use_base_door_reference"))
+    base_door_path = OUTPUT_DIR / ".projects" / project.id / "base_door.bin"
+
+    if use_ref:
+        if not base_door_path.exists():
+            project.errors.append(
+                (project.results[idx][0],
+                 "No base door image available — please re-learn the door style.")
+            )
+            store.save(project.id)
+            return
+    elif not project.learned_signature:
         project.errors.append(
             (project.results[idx][0],
              "No thought signature available — please re-learn the door style.")
@@ -365,9 +435,6 @@ def start_retry(
         return
 
     wood_name = project.results[idx][0]
-    is_drawer = project.product_type == "Drawer Front"
-    aspect_ratio = "16:9" if is_drawer else "9:16"
-    door_style = project.door_style or "recessed_panel"
 
     # Try to find the matching swatch in selected_swatches
     selection = None
@@ -391,6 +458,10 @@ def start_retry(
             "reference_image": None,
         }
 
+    # Inject base door reference for opted-in styles
+    if use_ref:
+        selection["reference_image"] = base_door_path
+
     project.retrying_indices.append(idx)
     store.save(project.id)
 
@@ -408,6 +479,7 @@ def start_retry(
         project.corner_style,
         project.material_type,
         project.gemini_model,
+        use_ref,
     )
 
 
@@ -417,8 +489,24 @@ def start_generation(
     api_key: str,
 ) -> None:
     """Kick off background generation for a project."""
-    # Validate thought signature exists before starting
-    if not project.learned_signature:
+    is_drawer = _is_drawer_product(project)
+    aspect_ratio = "16:9" if is_drawer else "9:16"
+    door_style = project.door_style or "recessed_panel"
+
+    style = STYLES.get(door_style, {})
+    use_ref = bool(style.get("use_base_door_reference"))
+
+    # For reference-based styles, check for base_door.bin instead of signature
+    base_door_path = OUTPUT_DIR / ".projects" / project.id / "base_door.bin"
+    if use_ref:
+        if not base_door_path.exists():
+            project.errors = [
+                ("Generation", "No base door image available — please learn the door style first.")
+            ]
+            project.generation_status = "done"
+            store.save(project.id)
+            return
+    elif not project.learned_signature:
         project.errors = [
             ("Generation", "No thought signature available — please learn the door style first.")
         ]
@@ -426,15 +514,16 @@ def start_generation(
         store.save(project.id)
         return
 
-    is_drawer = project.product_type == "Drawer Front"
-    aspect_ratio = "16:9" if is_drawer else "9:16"
-    door_style = project.door_style or "recessed_panel"
-
     selections = _build_selections(
         project.selected_swatches, door_style=door_style, material_type=project.material_type,
     )
     if not selections:
         return
+
+    # Inject base door image path for reference-based styles
+    if use_ref:
+        for sel in selections:
+            sel["reference_image"] = base_door_path
 
     # Keep all existing results — new ones append alongside them
     project.errors = []
@@ -456,4 +545,5 @@ def start_generation(
         project.corner_style,
         project.material_type,
         project.gemini_model,
+        use_ref,
     )

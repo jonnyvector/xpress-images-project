@@ -9,6 +9,10 @@ interface Props {
 
 export default function ResultsGrid({ project }: Props) {
   const dispatch = useDispatch();
+  const [importFolder, setImportFolder] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+
   // Cache-bust base image URL when re-learning completes
   const [baseImageCacheBust, setBaseImageCacheBust] = useState(() => Date.now());
   useEffect(() => {
@@ -93,8 +97,10 @@ export default function ResultsGrid({ project }: Props) {
   }, [sortStorageKey]);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [watermarkOffset, setWatermarkOffset] = useState(0);
+  const [imageScale, setImageScale] = useState(1.0);
   const [watermarkCacheBust, setWatermarkCacheBust] = useState(() => Date.now());
   const watermarkStorageKey = `watermark_offset_${project.id}`;
+  const imageScaleStorageKey = `image_scale_${project.id}`;
 
   useEffect(() => {
     const saved = localStorage.getItem(watermarkStorageKey);
@@ -105,14 +111,46 @@ export default function ResultsGrid({ project }: Props) {
   }, [watermarkStorageKey]);
 
   useEffect(() => {
+    const saved = localStorage.getItem(imageScaleStorageKey);
+    if (saved !== null) {
+      const parsed = Number(saved);
+      if (!Number.isNaN(parsed)) setImageScale(parsed);
+    }
+  }, [imageScaleStorageKey]);
+
+  useEffect(() => {
     localStorage.setItem(watermarkStorageKey, String(watermarkOffset));
     setWatermarkCacheBust(Date.now());
   }, [watermarkOffset, watermarkStorageKey]);
 
+  useEffect(() => {
+    localStorage.setItem(imageScaleStorageKey, String(imageScale));
+    setWatermarkCacheBust(Date.now());
+  }, [imageScale, imageScaleStorageKey]);
+
+  const handleImport = useCallback(async () => {
+    if (!importFolder.trim()) return;
+    setImporting(true);
+    setImportStatus(null);
+    try {
+      const result = await api.importResultsFromFolder(project.id, importFolder.trim());
+      setImportStatus(`Imported ${result.imported} image(s)`);
+      const updated = await api.getProject(project.id);
+      dispatch({ type: 'UPDATE_PROJECT', project: updated });
+      setImportFolder('');
+      setTimeout(() => setImportStatus(null), 4000);
+    } catch (err) {
+      setImportStatus(err instanceof Error ? err.message : 'Import failed');
+      setTimeout(() => setImportStatus(null), 4000);
+    } finally {
+      setImporting(false);
+    }
+  }, [dispatch, project.id, importFolder]);
+
   const handleSaveToFolder = useCallback(async (watermark: boolean) => {
     try {
       setSaveStatus('Saving...');
-      const result = await api.saveResultsToFolder(project.id, watermark, watermarkOffset);
+      const result = await api.saveResultsToFolder(project.id, watermark, watermarkOffset, imageScale);
       setSaveStatus(`Saved ${result.files.length} file(s) to ${result.saved_to}`);
       setTimeout(() => setSaveStatus(null), 4000);
     } catch (err) {
@@ -120,7 +158,7 @@ export default function ResultsGrid({ project }: Props) {
       setSaveStatus('Failed to save — check console');
       setTimeout(() => setSaveStatus(null), 4000);
     }
-  }, [project.id, watermarkOffset]);
+  }, [project.id, watermarkOffset, imageScale]);
 
   return (
     <section style={{ marginTop: '1rem' }}>
@@ -136,6 +174,37 @@ export default function ResultsGrid({ project }: Props) {
           </div>
         </>
       )}
+
+      <details style={{ marginBottom: '1rem' }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }}>
+          Import images from folder
+        </summary>
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+          <input
+            type="text"
+            placeholder="/path/to/folder"
+            value={importFolder}
+            onChange={(e) => setImportFolder(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleImport(); }}
+            style={{ flex: 1 }}
+          />
+          <button onClick={handleImport} disabled={importing || !importFolder.trim()}>
+            {importing ? 'Importing...' : 'Import'}
+          </button>
+        </div>
+        {importStatus && (
+          <div style={{
+            padding: '0.5rem',
+            marginTop: '0.5rem',
+            borderRadius: 'var(--radius)',
+            background: importStatus.startsWith('Imported') ? '#d4edda' : '#f8d7da',
+            color: importStatus.startsWith('Imported') ? '#155724' : '#721c24',
+            fontSize: '0.875rem',
+          }}>
+            {importStatus}
+          </div>
+        )}
+      </details>
 
       {project.results.length > 0 && (
         <>
@@ -155,7 +224,7 @@ export default function ResultsGrid({ project }: Props) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.75rem',
-                marginBottom: '0.75rem',
+                marginBottom: '0.5rem',
                 flexWrap: 'wrap',
               }}>
                 <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>
@@ -175,6 +244,35 @@ export default function ResultsGrid({ project }: Props) {
                 </span>
                 <button
                   onClick={() => setWatermarkOffset(0)}
+                  style={{ padding: '0.25rem 0.5rem' }}
+                >
+                  Reset
+                </button>
+              </div>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                marginBottom: '0.75rem',
+                flexWrap: 'wrap',
+              }}>
+                <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                  Image size
+                </label>
+                <input
+                  type="range"
+                  min={1.0}
+                  max={1.5}
+                  step={0.01}
+                  value={imageScale}
+                  onChange={(e) => setImageScale(Number(e.target.value))}
+                  style={{ flex: 1, minWidth: '180px' }}
+                />
+                <span style={{ fontSize: '0.875rem', minWidth: '56px', textAlign: 'right' }}>
+                  {Math.round(imageScale * 100)}%
+                </span>
+                <button
+                  onClick={() => setImageScale(1.0)}
                   style={{ padding: '0.25rem 0.5rem' }}
                 >
                   Reset
@@ -234,7 +332,7 @@ export default function ResultsGrid({ project }: Props) {
                     </div>
                   )}
                   <img
-                    src={`/api/projects/${project.id}/results/${result.index}/image?v=${project.results.length}&watermark_offset=${watermarkOffset}&wmv=${watermarkCacheBust}`}
+                    src={`/api/projects/${project.id}/results/${result.index}/image?v=${project.results.length}&watermark_offset=${watermarkOffset}&image_scale=${imageScale}&wmv=${watermarkCacheBust}`}
                     alt={result.wood_name}
                   />
                   <div className="caption">{result.wood_name}</div>

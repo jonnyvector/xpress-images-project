@@ -24,3 +24,6 @@ output/
 
 # Claude IDE files
 .claude/
+
+# CodeGraph local index
+.codegraph/

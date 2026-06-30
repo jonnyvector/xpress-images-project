@@ -9,6 +9,12 @@ SWATCHES_BASE = Path("swatches")
 WOOD_SWATCHES_DIR = Path("swatches/wood")
 RTF_SWATCHES_DIR = Path("swatches/rtf")
 EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+MIME_MAP: dict[str, str] = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+}
 
 
 def normalize_material_key(value: str) -> str:

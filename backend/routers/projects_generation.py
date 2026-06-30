@@ -19,6 +19,7 @@ def learn_style(
     project_id: str,
     request: Request,
     x_api_key: str = Header(..., alias="X-API-Key"),
+    learn_in_maple: bool = False,
 ) -> ProjectResponse:
     from backend.worker import start_learning
 
@@ -31,7 +32,7 @@ def learn_style(
     if upload_bytes is None:
         raise HTTPException(status_code=400, detail="No uploaded image")
 
-    start_learning(store, project, x_api_key, upload_bytes)
+    start_learning(store, project, x_api_key, upload_bytes, learn_in_maple=learn_in_maple)
     return to_project_response(get_project_or_404(store, project_id))
 
 

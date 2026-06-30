@@ -65,8 +65,9 @@ export async function uploadDoorImage(id: string, file: File): Promise<Project> 
   });
 }
 
-export function learnStyle(id: string): Promise<Project> {
-  return request<Project>(`/api/projects/${id}/learn`, { method: 'POST' });
+export function learnStyle(id: string, learnInMaple: boolean = false): Promise<Project> {
+  const params = learnInMaple ? '?learn_in_maple=true' : '';
+  return request<Project>(`/api/projects/${id}/learn${params}`, { method: 'POST' });
 }
 
 export function startGeneration(id: string): Promise<{ status: string }> {
@@ -97,12 +98,13 @@ export async function getResultsZip(
   id: string,
   watermark: boolean = true,
   watermarkOffset: number = 0,
+  imageScale: number = 1.0,
 ): Promise<Blob> {
   const apiKey = getApiKey();
   const headers: Record<string, string> = {};
   if (apiKey) headers['X-API-Key'] = apiKey;
   const res = await fetch(
-    `/api/projects/${id}/results/zip?watermark=${watermark}&watermark_offset=${watermarkOffset}`,
+    `/api/projects/${id}/results/zip?watermark=${watermark}&watermark_offset=${watermarkOffset}&image_scale=${imageScale}`,
     { headers },
   );
   if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
@@ -113,9 +115,17 @@ export async function saveResultsToFolder(
   id: string,
   watermark: boolean = true,
   watermarkOffset: number = 0,
+  imageScale: number = 1.0,
 ): Promise<{ saved_to: string; files: string[] }> {
   return request<{ saved_to: string; files: string[] }>(
-    `/api/projects/${id}/results/save?watermark=${watermark}&watermark_offset=${watermarkOffset}`,
+    `/api/projects/${id}/results/save?watermark=${watermark}&watermark_offset=${watermarkOffset}&image_scale=${imageScale}`,
+    { method: 'POST' },
+  );
+}
+
+export function importResultsFromFolder(id: string, folder: string): Promise<{ imported: number; wood_names: string[] }> {
+  return request<{ imported: number; wood_names: string[] }>(
+    `/api/projects/${id}/results/import?folder=${encodeURIComponent(folder)}`,
     { method: 'POST' },
   );
 }

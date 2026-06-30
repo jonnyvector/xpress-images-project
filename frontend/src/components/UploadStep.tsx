@@ -22,6 +22,7 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
   const [geminiModel, setGeminiModel] = useState(project.gemini_model || 'gemini-3-pro-image-preview');
   const [learning, setLearning] = useState(project.learning_status === 'running');
   const [error, setError] = useState<string | null>(project.learning_error);
+  const [learnInMaple, setLearnInMaple] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const projectIdRef = useRef(project.id);
@@ -149,13 +150,13 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
         style_notes: styleNotes,
         gemini_model: geminiModel,
       });
-      await api.learnStyle(project.id);
+      await api.learnStyle(project.id, learnInMaple);
       start();
     } catch (err) {
       setLearning(false);
       setError(err instanceof Error ? err.message : 'Learn failed');
     }
-  }, [project.id, styleName, materialType, doorStyle, cornerStyle, styleNotes, geminiModel, resetErrors, start]);
+  }, [project.id, styleName, materialType, doorStyle, cornerStyle, styleNotes, geminiModel, learnInMaple, resetErrors, start]);
 
   const canLearn = Boolean(apiKey && project.upload_filename);
 
@@ -322,6 +323,34 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
               <option value="gemini-3.1-flash-image-preview">Gemini 3.1 Flash</option>
             </select>
           </div>
+
+          {materialType === 'wood' && (
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontSize: '0.8125rem',
+                color: '#aaa',
+                cursor: 'pointer',
+                marginBottom: '0.5rem',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={learnInMaple}
+                onChange={(e) => setLearnInMaple(e.target.checked)}
+                disabled={learning}
+              />
+              Learn in Maple Select
+              <span
+                title="Forces Gemini to generate a new image in maple select instead of replicating the original material. Can produce a stronger thought signature."
+                style={{ cursor: 'help', opacity: 0.6 }}
+              >
+                (?)
+              </span>
+            </label>
+          )}
 
           <button
             className="primary"

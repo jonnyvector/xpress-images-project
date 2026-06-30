@@ -79,29 +79,32 @@ def list_swatches(
             )
         )
 
-    # Virtual swatches (have swatch_key but no physical file)
+    # Virtual swatches (entries in material_types with no physical file)
     for key, data in material_types.items():
-        if data.get("swatch_key") and key not in swatch_stems:
+        if key in swatch_stems:
+            continue
+        borrowed_key = None
+        borrowed_url = None
+        if data.get("swatch_key"):
             borrowed_key = normalize_material_key(data["swatch_key"])
-            borrowed_url = None
             for f in swatch_files:
                 if normalize_material_key(f.stem) == borrowed_key:
                     borrowed_url = f"/files/{url_prefix}/{f.name}"
                     break
-            ref_key = data.get("reference_key", key)
-            result.append(
-                SwatchResponse(
-                    key=key,
-                    name=data.get("name", key),
-                    description=data.get("description"),
-                    swatch_image_url=borrowed_url or "",
-                    reference_image_url=_get_reference_image_url(
-                        ref_key, material
-                    ),
-                    is_virtual=True,
-                    swatch_key=borrowed_key,
-                )
+        ref_key = data.get("reference_key", key)
+        result.append(
+            SwatchResponse(
+                key=key,
+                name=data.get("name", key),
+                description=data.get("description"),
+                swatch_image_url=borrowed_url or "",
+                reference_image_url=_get_reference_image_url(
+                    ref_key, material
+                ),
+                is_virtual=True,
+                swatch_key=borrowed_key,
             )
+        )
 
     return result
 

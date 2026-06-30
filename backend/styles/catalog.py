@@ -196,8 +196,12 @@ STYLES: dict[str, dict[str, str]] = {
         ),
         "variation_hint": (
             "CRITICAL: This is a RECESSED/INSET panel door — the center panel must be FLAT and sit BELOW "
-            "the surrounding frame. Do NOT make a raised panel door. The panel must NOT have a raised bevel "
-            "or convex surface. Preserve the exact flat recessed panel design, frame molding profile, "
+            "the surrounding frame. Do NOT make a raised panel door. The panel must NOT have a raised bevel, "
+            "convex surface, or any outward curvature whatsoever — it is completely FLAT and RECESSED. "
+            "Even though the frame may have ornate or decorative molding profiles, the CENTER PANEL is "
+            "still FLAT and RECESSED — do NOT assume an ornate frame means a raised panel. "
+            "The panel surface must be a flat plane sitting in a recess below the frame surface. "
+            "Preserve the exact flat recessed panel design, frame molding profile, "
             "and rail/stile proportions from before."
         ),
     },
@@ -540,6 +544,35 @@ STYLES: dict[str, dict[str, str]] = {
             "Preserve the exact skinny frame width, miter geometry, and proportions from before."
         ),
     },
+    "shaker_bevel": {
+        "name": "Shaker Bevel",
+        "category": "door",
+        "learn_prompt": (
+            "Generate an exact replica of the reference image. "
+            "This is essentially a standard Shaker door. The frame, panel, and proportions are "
+            "all standard Shaker construction. The center panel is FLAT and RECESSED below the frame. "
+            "The ONLY difference from a plain Shaker is that the inner edge of the frame where it "
+            "meets the panel is very slightly eased — the tiniest hint of an angle instead of a "
+            "perfectly sharp 90-degree corner. This is just a router pass on the frame edge, "
+            "NOT a separate trim piece, NOT an applied molding, NOT a visible chamfer. "
+            "There is NO separate inner trim or border of any kind. The frame is ONE piece of wood. "
+            "At a glance this should look like a normal Shaker door. "
+            "Use the reference image to match the exact design details: "
+            "the panel depth, frame width, rail/stile proportions, and wood grain direction. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
+            "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
+            "Leave at least 5% whitespace margin on ALL four sides (top, bottom, left, right). "
+            "The entire door must be fully visible and centered with clear white space surrounding it."
+        ),
+        "variation_hint": (
+            "This is essentially a standard Shaker door. The center panel is FLAT and RECESSED. "
+            "The inner frame edge has the tiniest eased bevel — barely visible, just a softened corner. "
+            "There is NO separate trim piece, NO applied molding, NO visible inner border. "
+            "The frame is ONE solid piece of wood. At a glance this should look like a normal Shaker. "
+            "Preserve the exact frame proportions and flat recessed panel from before."
+        ),
+    },
     "shaker": {
         "name": "Shaker",
         "category": "door",
@@ -757,6 +790,8 @@ STYLES: dict[str, dict[str, str]] = {
             "this is a single flat piece of material with NO frame, NO panel, NO rails, NO stiles, "
             "NO raised or recessed sections, NO routed channels, NO inset details. "
             "The face is a single flat surface. "
+            "The wood grain must be continuous across the face — NO visible stave joints, "
+            "NO glue lines, NO seams between separate boards. "
             "EDGE PROFILE: Study the reference image carefully and replicate the exact outer edge profile — "
             "this may be a simple square edge, a subtle bevel, an ogee, a cove, or another decorative profile. "
             "The edge detail is a defining characteristic of this drawer front and must be preserved exactly. "
@@ -772,6 +807,7 @@ STYLES: dict[str, dict[str, str]] = {
             "CRITICAL: This is a SOLID SLAB drawer front — a single flat face with NO frame, "
             "NO panel, NO rails, NO stiles, NO routed profiles, NO raised or recessed areas on the face. "
             "Do NOT add any frame-and-panel details. "
+            "The wood grain must be continuous — NO visible stave joints, NO glue lines, NO seams. "
             "Preserve the exact flat face, outer edge profile (bevel, ogee, square, or other detail), "
             "and proportions from before. "
             "Wood grain runs HORIZONTALLY."
@@ -820,6 +856,17 @@ STYLES: dict[str, dict[str, str]] = {
             "frame proportions, and panel depth from before."
         ),
     },
+    "drawer_durango": {
+        "name": "Durango (Drawer)",
+        "category": "drawer",
+        "use_base_door_reference": True,
+        "learn_prompt": (
+            "Generate an exact replica of this drawer front."
+        ),
+        "variation_hint": (
+            "Preserve the exact drawer front structure. Change only the wood material."
+        ),
+    },
     "drawer_shaker": {
         "name": "Shaker (Drawer)",
         "category": "drawer",
@@ -830,8 +877,10 @@ STYLES: dict[str, dict[str, str]] = {
             "The center panel is FLAT and sits BELOW the frame — it is NOT raised and has NO bevel. "
             "The frame has SQUARE, CLEAN inner edges — NO decorative routing, NO ogee, NO chamfer. "
             "The inner edge where frame meets panel is a simple sharp 90-degree step down. "
-            "Use the reference image to match the exact design details: "
-            "the panel depth, edge profile, and rail/stile proportions. "
+            "CRITICAL PROPORTIONS: Measure the stile and rail widths in the reference image and "
+            "replicate them EXACTLY. The vertical stiles (left and right) are typically WIDER than "
+            "the horizontal rails (top and bottom) — do NOT make them equal width. "
+            "Study the reference image carefully for the exact stile-to-rail ratio and match it precisely. "
             "GRAIN DIRECTION: The wood grain must run HORIZONTALLY (left to right) across the drawer front. Do NOT use vertical grain. "
             "Create a brand new render - do NOT return the reference image. "
             "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
@@ -843,6 +892,8 @@ STYLES: dict[str, dict[str, str]] = {
             "CRITICAL: This is a SHAKER style drawer front — the center panel must be FLAT and RECESSED "
             "below the frame. Do NOT make a raised panel. The panel must NOT have a raised bevel or "
             "convex surface. The frame inner edges are SQUARE and CLEAN — no decorative routing. "
+            "CRITICAL PROPORTIONS: The stiles (left and right) are WIDER than the rails (top and bottom) — "
+            "do NOT make them equal width. Preserve the exact stile-to-rail ratio from before. "
             "Wood grain runs HORIZONTALLY. "
             "Preserve the exact Shaker flat recessed panel design and square-edge framing from before."
         ),
@@ -914,6 +965,58 @@ STYLES: dict[str, dict[str, str]] = {
             "Wood grain runs HORIZONTALLY. "
             "Preserve the exact skinny ~1-inch frame width, miter geometry, square inner edge, "
             "flat recessed panel, and shallow drawer proportions from before."
+        ),
+    },
+    "drawer_minimal": {
+        "name": "Minimal (Drawer Test)",
+        "category": "drawer",
+        "learn_prompt": (
+            "Generate an exact replica of this drawer front."
+        ),
+        "variation_hint": (
+            "Preserve the exact drawer front structure. Change only the wood material."
+        ),
+    },
+    "drawer_durango_minimal": {
+        "name": "Durango Minimal (Drawer)",
+        "category": "drawer",
+        "use_base_door_reference": True,
+        "learn_prompt": (
+            "Replicate this drawer front exactly. Pay strict attention to the structural "
+            "proportions: notice that the vertical side stiles are significantly wider than "
+            "the top and bottom horizontal rails. Explicitly break down these exact geometric "
+            "proportions in your internal reasoning before generating the image."
+        ),
+        "variation_hint": (
+            "Maintain the exact structural dimensions from the previous turn: the vertical "
+            "stiles must remain visibly wider than the horizontal top and bottom rails. "
+            "Do not make the borders symmetrical."
+        ),
+    },
+    "drawer_routed": {
+        "name": "Routed (Drawer)",
+        "category": "drawer",
+        "learn_prompt": (
+            "Generate an exact replica of the reference image. "
+            "This is a ROUTED drawer front — a SINGLE SOLID PIECE of wood with a routed channel "
+            "cut into the face to create a frame-and-panel appearance. "
+            "This is NOT 5-piece construction. There are NO separate rails, stiles, or panel — "
+            "it is ONE continuous piece of wood with a CNC-routed groove. "
+            "Use the reference image to match the exact routed profile, channel depth and width, "
+            "and proportions. "
+            "GRAIN DIRECTION: The wood grain must run HORIZONTALLY (left to right) across the "
+            "drawer front. Do NOT use vertical grain. "
+            "Create a brand new render - do NOT return the reference image. "
+            "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). "
+            "Absolutely no shadows, no gradients, no grey tones — the background must be "
+            "perfectly uniform bright white. Professional lighting."
+        ),
+        "variation_hint": (
+            "CRITICAL: This is a ROUTED drawer front — a SINGLE SOLID PIECE of wood, NOT 5-piece "
+            "construction. The routed channel is cut into one continuous piece. "
+            "Do NOT convert to separate rails and stiles. "
+            "Wood grain runs HORIZONTALLY. "
+            "Preserve the exact routed profile, channel depth, and proportions from before."
         ),
     },
 }

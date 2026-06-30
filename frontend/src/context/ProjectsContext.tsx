@@ -38,10 +38,7 @@ function reducer(state: ProjectsState, action: Action): ProjectsState {
     case 'SET_PROJECTS': {
       const ids = new Set(action.projects.map((p) => p.id));
       const activeStillExists = state.activeProjectId && ids.has(state.activeProjectId);
-      const openTabIds =
-        state.openTabIds.length > 0
-          ? state.openTabIds.filter((id) => ids.has(id))
-          : action.projects.map((p) => p.id);
+      const openTabIds = state.openTabIds.filter((id) => ids.has(id));
 
       return {
         ...state,

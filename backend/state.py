@@ -186,13 +186,15 @@ class ProjectStore:
         return project
 
     def update(self, project_id: str, **kwargs: object) -> ProjectState | None:
+        unknown = [k for k in kwargs if k not in ProjectState.__dataclass_fields__]
+        if unknown:
+            raise ValueError(f"Unknown ProjectState fields: {unknown}")
         with self._lock:
             project = self._projects.get(project_id)
             if project is None:
                 return None
             for key, value in kwargs.items():
-                if hasattr(project, key):
-                    setattr(project, key, value)
+                setattr(project, key, value)
             self._save_project(project)
             return project
 

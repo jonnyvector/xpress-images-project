@@ -44,6 +44,7 @@ export default function DoorLibrary({ projects, onSelectProject, onRenameProject
   }
 
   const learned = projects.filter((p) => p.has_signature);
+  const imported = projects.filter((p) => !p.has_signature && p.results.length > 0);
 
   const filtered = useMemo(() => {
     let items = learned;
@@ -76,10 +77,10 @@ export default function DoorLibrary({ projects, onSelectProject, onRenameProject
     return items;
   }, [learned, productFilter, materialFilter, searchQuery, sortBy]);
 
-  if (learned.length === 0) {
+  if (learned.length === 0 && imported.length === 0) {
     return (
       <div className="status-info">
-        No learned door styles yet. Upload a door image and learn its style in a project tab to see it here.
+        No door styles yet. Upload a door image and learn its style in a project tab to see it here.
       </div>
     );
   }
@@ -215,6 +216,93 @@ export default function DoorLibrary({ projects, onSelectProject, onRenameProject
             </div>
           ))}
         </div>
+      )}
+
+      {imported.length > 0 && (
+        <>
+          {(() => {
+            const importedDoors = imported.filter((p) => p.product_type !== 'Drawer Front');
+            const importedDrawers = imported.filter((p) => p.product_type === 'Drawer Front');
+            const sections: { label: string; items: Project[] }[] = [];
+            if (importedDoors.length > 0) sections.push({ label: 'Imported Doors', items: importedDoors });
+            if (importedDrawers.length > 0) sections.push({ label: 'Imported Drawer Fronts', items: importedDrawers });
+            if (sections.length === 0) sections.push({ label: 'Imported', items: imported });
+            return sections.map((section) => (
+              <div key={section.label}>
+                <h3 style={{ marginTop: '2rem', marginBottom: '0.75rem' }}>{section.label}</h3>
+                <div className="library-grid">
+                  {section.items.map((p) => (
+              <div
+                key={p.id}
+                className="library-card"
+                role="button"
+                tabIndex={0}
+                onClick={() => onSelectProject(p.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectProject(p.id);
+                  }
+                }}
+              >
+                {p.results.length > 0 && (
+                  <img
+                    src={`/api/projects/${p.id}/results/0/image?watermark=false`}
+                    alt={p.name}
+                    className="library-card-thumb"
+                  />
+                )}
+                <div className="library-card-info">
+                  <div className="library-card-header-row">
+                    {editingId === p.id ? (
+                      <input
+                        className="library-card-name-input"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onBlur={() => handleRenameSubmit(p)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleRenameSubmit(p);
+                          if (e.key === 'Escape') setEditingId(null);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        autoFocus
+                      />
+                    ) : (
+                      <div
+                        className="library-card-name"
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          setEditingId(p.id);
+                          setEditName(p.name);
+                        }}
+                        title="Double-click to rename"
+                      >
+                        {p.name}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      className="library-delete-btn"
+                      disabled={deletingId === p.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleDeleteProject(p);
+                      }}
+                    >
+                      {deletingId === p.id ? 'Deleting…' : 'Delete'}
+                    </button>
+                  </div>
+                  <div className="library-card-count">
+                    {p.results.length} image{p.results.length !== 1 ? 's' : ''}
+                  </div>
+                </div>
+              </div>
+            ))}
+                </div>
+              </div>
+            ));
+          })()}
+        </>
       )}
     </div>
   );

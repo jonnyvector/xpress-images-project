@@ -93,3 +93,8 @@ class GenerationStatusResponse(BaseModel):
 class SaveToFolderResponse(BaseModel):
     saved_to: str
     files: list[str]
+
+
+class ImportResultsResponse(BaseModel):
+    imported: int
+    wood_names: list[str]

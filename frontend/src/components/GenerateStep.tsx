@@ -19,6 +19,11 @@ export default function GenerateStep({ project, apiKey }: Props) {
   const projectIdRef = useRef(project.id);
   projectIdRef.current = project.id;
 
+  const handleErrorExhausted = useCallback(() => {
+    setGenerating(false);
+    setError('Lost connection to server. Click Generate to retry.');
+  }, []);
+
   const { start, stop, retrying, resetErrors } = usePollingTask({
     enabled: false,
     onPoll: async () => {
@@ -27,19 +32,20 @@ export default function GenerateStep({ project, apiKey }: Props) {
       setTotal(genStatus.total);
 
       if (genStatus.status !== 'running') {
-        stop();
         setGenerating(false);
-        const updated = await api.getProject(projectIdRef.current);
-        dispatch({ type: 'UPDATE_PROJECT', project: updated });
+        stop();
+        try {
+          const updated = await api.getProject(projectIdRef.current);
+          dispatch({ type: 'UPDATE_PROJECT', project: updated });
+        } catch {
+          // generation is done — context will sync on next interaction or refresh
+        }
         return false;
       }
 
       return true;
     },
-    onErrorExhausted: () => {
-      setGenerating(false);
-      setError('Lost connection to server. Click Generate to retry.');
-    },
+    onErrorExhausted: handleErrorExhausted,
   });
 
   useEffect(() => {

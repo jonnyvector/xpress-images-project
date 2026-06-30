@@ -15,7 +15,7 @@
         "finish": "solid"
     },
     "alabaster-taction-oak": {
-        "name": "Alabaster Taction RTF",
+        "name": "Alabaster Taction Oak",
         "finish": "woodgrain",
         "description": "This is an RTF vinyl wrap \u2014 NOT real wood. Despite the name, the grain pattern runs VERTICALLY (top to bottom) across the entire surface including all rails. Do NOT apply natural wood grain direction rules."
     },
@@ -30,7 +30,7 @@
         "finish": "solid"
     },
     "black-oak": {
-        "name": "Black RTF",
+        "name": "Black Oak",
         "finish": "woodgrain",
         "description": "This is an RTF vinyl wrap \u2014 NOT real wood. Despite the name, the grain pattern runs VERTICALLY (top to bottom) across the entire surface including all rails. Do NOT apply natural wood grain direction rules."
     },
@@ -43,7 +43,7 @@
         "finish": "solid"
     },
     "cherry-blossom": {
-        "name": "Cherry Blossom RTF",
+        "name": "Cherry Blossom",
         "finish": "woodgrain",
         "description": "This is an RTF vinyl wrap \u2014 NOT real wood. Despite the name, the grain pattern runs VERTICALLY (top to bottom) across the entire surface including all rails. Do NOT apply natural wood grain direction rules."
     },
@@ -57,7 +57,7 @@
         "finish": "solid"
     },
     "dark-italian-walnut": {
-        "name": "Dark Italian RTF",
+        "name": "Dark Italian Walnut",
         "finish": "woodgrain",
         "description": "This is an RTF vinyl wrap \u2014 NOT real wood. Despite the name, the grain pattern runs VERTICALLY (top to bottom) across the entire surface including all rails. Do NOT apply natural wood grain direction rules."
     },
@@ -66,7 +66,7 @@
         "hex": "DAD6D3",
         "finish": "solid"
     },
-    "feather-white-suedetter": {
+    "feather-white-suedette": {
         "name": "Feather White Suedette",
         "hex": "FEFEF9",
         "finish": "solid"
@@ -87,7 +87,7 @@
         "finish": "solid"
     },
     "gibraltar-taction-oak": {
-        "name": "Gibraltar Taction RTF",
+        "name": "Gibraltar Taction Oak",
         "finish": "woodgrain",
         "description": "This is an RTF vinyl wrap \u2014 NOT real wood. Despite the name, the grain pattern runs VERTICALLY (top to bottom) across the entire surface including all rails. Do NOT apply natural wood grain direction rules."
     },
@@ -139,7 +139,7 @@
         "finish": "solid"
     },
     "natural-maple": {
-        "name": "Natural RTF",
+        "name": "Natural Maple",
         "finish": "woodgrain",
         "description": "This is an RTF vinyl wrap \u2014 NOT real wood. Despite the name, the grain pattern runs VERTICALLY (top to bottom) across the entire surface including all rails. Do NOT apply natural wood grain direction rules."
     },
