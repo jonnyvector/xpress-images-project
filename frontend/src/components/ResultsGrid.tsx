@@ -191,14 +191,10 @@ export default function ResultsGrid({ project }: Props) {
           </button>
         </div>
         {importStatus && (
-          <div style={{
-            padding: '0.5rem',
-            marginTop: '0.5rem',
-            borderRadius: 'var(--radius)',
-            background: importStatus.startsWith('Imported') ? '#d4edda' : '#f8d7da',
-            color: importStatus.startsWith('Imported') ? '#155724' : '#721c24',
-            fontSize: '0.875rem',
-          }}>
+          <div
+            className={importStatus.startsWith('Imported') ? 'status-success' : 'status-error'}
+            style={{ marginTop: '0.5rem' }}
+          >
             {importStatus}
           </div>
         )}
@@ -218,13 +214,7 @@ export default function ResultsGrid({ project }: Props) {
 
           {project.results.length > 0 && (
             <>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                marginBottom: '0.5rem',
-                flexWrap: 'wrap',
-              }}>
+              <div className="control-row">
                 <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>
                   Watermark position
                 </label>
@@ -247,13 +237,7 @@ export default function ResultsGrid({ project }: Props) {
                   Reset
                 </button>
               </div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                marginBottom: '0.75rem',
-                flexWrap: 'wrap',
-              }}>
+              <div className="control-row">
                 <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>
                   Image size
                 </label>
@@ -285,14 +269,16 @@ export default function ResultsGrid({ project }: Props) {
                 </button>
               </div>
               {saveStatus && (
-                <div style={{
-                  padding: '0.5rem',
-                  marginBottom: '0.5rem',
-                  borderRadius: 'var(--radius)',
-                  background: saveStatus.startsWith('Saved') ? '#d4edda' : saveStatus === 'Saving...' ? '#cce5ff' : '#f8d7da',
-                  color: saveStatus.startsWith('Saved') ? '#155724' : saveStatus === 'Saving...' ? '#004085' : '#721c24',
-                  fontSize: '0.875rem',
-                }}>
+                <div
+                  className={
+                    saveStatus.startsWith('Saved')
+                      ? 'status-success'
+                      : saveStatus === 'Saving...'
+                      ? 'status-info'
+                      : 'status-error'
+                  }
+                  style={{ marginBottom: '0.5rem' }}
+                >
                   {saveStatus}
                 </div>
               )}
@@ -308,22 +294,8 @@ export default function ResultsGrid({ project }: Props) {
               return (
                 <div key={result.index} className="result-card" style={{ position: 'relative' }}>
                   {isRetrying && (
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: 'rgba(0, 0, 0, 0.5)',
-                      borderRadius: 'var(--radius)',
-                      zIndex: 1,
-                    }}>
-                      <div style={{
-                        color: '#fff',
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        textAlign: 'center',
-                      }}>
+                    <div className="result-retry-overlay">
+                      <div className="result-retry-overlay-label">
                         <div className="spinner" style={{ margin: '0 auto 0.5rem' }} />
                         Retrying...
                       </div>

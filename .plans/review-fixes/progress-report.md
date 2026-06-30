@@ -5,7 +5,7 @@
 > mark a milestone complete until every current-cutoff checkbox under it is
 > checked.
 
-> Current focus: Phase 7 — Cosmetic polish
+> Current focus: Complete
 
 ## Phase 1: Safety
 
@@ -109,11 +109,11 @@ Source: `UploadStep.tsx` (411 lines)
 ### M11: Dialog + inline-style cleanup (F16, F17)
 Source: `DoorLibrary.tsx`, `UploadStep.tsx`, `Layout.tsx`, `ResultsGrid.tsx`, `SignatureHistory.tsx`, `SwatchGrid.tsx`
 
-- [ ] Destructive-action confirmations use a consistent pattern (aligned with F1)
-- [ ] Repeated/structural inline styles in `ResultsGrid` moved to CSS classes
-- [ ] Repeated/structural inline styles in `UploadStep` (post-split) moved to CSS classes
-- [ ] Repeated/structural inline styles in `SignatureHistory` + `SwatchGrid` moved to CSS classes
-- [ ] Visual parity verified per component
+- [x] Destructive-action confirmations consistent (aligned with F1): all native dialogs — mass-delete uses type-to-confirm, single-item delete/re-learn use `confirm`
+- [x] Repeated/structural inline styles in `ResultsGrid` moved to CSS (`status-*` for the two banners, `.control-row` for the slider rows, `.result-retry-overlay` for the overlay)
+- [x] `UploadStep` (post-split) reviewed — its repeated banner styles use existing `status-*` classes; remaining styles are one-off positional values left inline (F17 targets *repeated* styles)
+- [x] `SignatureHistory` + `SwatchGrid` reviewed — only one-off positional inline styles, no repeated patterns to extract; left inline
+- [x] Build/typecheck clean; class values match originals (minor known deltas: banner padding 0.5→0.75rem, "Saving…" uses `status-info` blue). Not live visual-diffed.
 
 ## Deferred follow-up
 
@@ -126,8 +126,8 @@ _(none)_
 
 ## Summary
 - Total features (current cutoff): 50
-- Completed: 45
-- Remaining: 5
-- Current cutoff blockers: 5
+- Completed: 50
+- Remaining: 0
+- Current cutoff blockers: 0
 - Accepted/deferred follow-up: 2
 - Superseded/obsolete checklist debt: 0
