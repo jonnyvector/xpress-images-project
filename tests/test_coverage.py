@@ -65,8 +65,25 @@ def test_project_matches_on_name_word():
     assert project_matches(_project(name="door1.jpg"), {"shaker"}) is False
 
 
-def test_project_matches_on_door_style_key():
-    assert project_matches(_project(name="door1", door_style="solid_plank"), {"plank"}) is True
+def test_project_matches_ignores_door_style():
+    # door_style holds geometry words (e.g. "solid_plank") that must NOT match product tokens
+    assert project_matches(_project(name="door1", door_style="solid_plank"), {"plank"}) is False
+
+
+def test_matched_project_ids_orders_results_bearing_first(tmp_path):
+    csv = tmp_path / "wood_cabinet_doors.csv"
+    csv.write_text(
+        '"Product title","Net sales","Quantity ordered"\n'
+        '"Shaker Cabinet Door",100.0,5\n'
+    )
+    empty = _project(id="empty", name="Shaker", results=[])
+    full = _project(id="full", name="Shaker", results=[("Maple", b"img")])
+    cats = compute_coverage([empty, full], data_dir=tmp_path)
+    wood_cd = next(c for c in cats if c["key"] == "wood_cabinet_doors")
+    row = wood_cd["products"][0]
+    assert row["covered"] is True
+    assert row["matched_project_ids"][0] == "full"  # results-bearing first
+    assert set(row["matched_project_ids"]) == {"empty", "full"}
 
 
 def test_compute_coverage_marks_covered_only_with_results(tmp_path: Path):

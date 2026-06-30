@@ -48,6 +48,7 @@ export default function CoverageTable({ category, onlyUncovered, onOpenProject }
                 <td>
                   {p.covered && p.matched_project_ids.length > 0 ? (
                     <button
+                      type="button"
                       className="link-button"
                       onClick={() => onOpenProject(p.matched_project_ids[0])}
                     >

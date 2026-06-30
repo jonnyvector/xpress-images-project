@@ -93,25 +93,22 @@ def load_products(csv_path: Path) -> list[tuple[str, float, int]]:
     if not csv_path.exists():
         return []
     rows: list[tuple[str, float, int]] = []
-    with open(csv_path, newline="") as f:
+    with open(csv_path, newline="", encoding="utf-8-sig") as f:
         reader = csv.reader(f)
         next(reader, None)  # header
         for row in reader:
             if len(row) < 3:
                 continue
             try:
-                rows.append((row[0], float(row[1]), int(row[2])))
+                rows.append((row[0], float(row[1]), int(float(row[2]))))
             except ValueError:
                 continue
     return rows
 
 
 def project_matches(project: ProjectState, tokens: set[str]) -> bool:
-    """True if any token is a whole word in the project's name or door_style."""
-    haystack = set(_words(project.name))
-    if project.door_style:
-        haystack |= set(_words(project.door_style))
-    return bool(tokens & haystack)
+    """True if any token is a whole word in the project's name."""
+    return bool(tokens & set(_words(project.name)))
 
 
 def compute_coverage(
@@ -131,6 +128,7 @@ def compute_coverage(
         for title, net_sales, quantity in load_products(data_dir / cat["csv"]):
             tokens = extract_match_tokens(title)
             matched = [p for p in candidates if project_matches(p, tokens)]
+            matched.sort(key=lambda p: 0 if p.results else 1)  # results-bearing first
             is_covered = any(p.results for p in matched)
             if is_covered:
                 covered_count += 1
