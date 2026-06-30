@@ -391,6 +391,77 @@ class ProjectStore:
                 return path.read_bytes()
             return None
 
+    def record_result(
+        self,
+        project_id: str,
+        wood_name: str,
+        *,
+        image_data: bytes | None = None,
+        error: str | None = None,
+        advance: bool = True,
+    ) -> bool:
+        """Append a generation result or error and persist, atomically.
+
+        Called concurrently by generation worker threads, so the whole
+        read-modify-write (append + counter bump + save) happens under the
+        store lock to avoid lost updates. Returns False if the project is gone.
+        """
+        with self._lock:
+            project = self._projects.get(project_id)
+            if project is None:
+                return False
+            if image_data is not None:
+                project.results.append((wood_name, image_data))
+            else:
+                project.errors.append((wood_name, error or "Unknown error"))
+            if advance:
+                project.generation_completed += 1
+            self._save_project(project)
+            return True
+
+    def record_retry_result(
+        self,
+        project_id: str,
+        idx: int,
+        wood_name: str,
+        *,
+        image_data: bytes | None = None,
+        error: str | None = None,
+    ) -> bool:
+        """Record the outcome of a single-result retry, atomically.
+
+        Clears any prior error entries for the same wood name first, so
+        repeated retries don't accumulate stale errors. On success the result
+        is replaced in place; on failure an error is recorded and the existing
+        result (if any) is left untouched. Returns False if the project is gone.
+        """
+        with self._lock:
+            project = self._projects.get(project_id)
+            if project is None:
+                return False
+            project.errors = [
+                (wn, err) for wn, err in project.errors if wn != wood_name
+            ]
+            if image_data is not None:
+                if 0 <= idx < len(project.results):
+                    project.results[idx] = (wood_name, image_data)
+                else:
+                    project.results.append((wood_name, image_data))
+            else:
+                project.errors.append((wood_name, error or "Retry failed"))
+            self._save_project(project)
+            return True
+
+    def finish_retry(self, project_id: str, idx: int) -> None:
+        """Clear a result index from retrying_indices and persist, atomically."""
+        with self._lock:
+            project = self._projects.get(project_id)
+            if project is None:
+                return
+            if idx in project.retrying_indices:
+                project.retrying_indices.remove(idx)
+            self._save_project(project)
+
     def save(self, project_id: str) -> None:
         """Explicitly persist a project (call after mutation outside the store)."""
         with self._lock:

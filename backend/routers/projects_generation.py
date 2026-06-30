@@ -9,6 +9,7 @@ from backend.routers.projects_common import (
     to_generation_status,
     to_project_response,
 )
+from backend.styles.catalog import STYLES
 from backend.worker import start_generation, start_learning, start_retry
 
 router = APIRouter()
@@ -81,7 +82,12 @@ def retry_result(
 ) -> GenerationStatusResponse:
     store = get_store(request)
     project = get_project_or_404(store, project_id)
-    if not project.has_signature or project.learned_signature is None:
+    # Reference-based styles retry from base_door.bin rather than a signature,
+    # so only require a signature for the non-reference path (start_retry does
+    # its own base-image validation for the reference case).
+    style = STYLES.get(project.door_style or "", {})
+    use_ref = bool(style.get("use_base_door_reference"))
+    if not use_ref and (not project.has_signature or project.learned_signature is None):
         raise HTTPException(status_code=400, detail="No learned signature")
     if idx < 0 or idx >= len(project.results):
         raise HTTPException(status_code=404, detail="Result not found")

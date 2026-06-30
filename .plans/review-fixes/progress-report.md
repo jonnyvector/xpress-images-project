@@ -5,7 +5,7 @@
 > mark a milestone complete until every current-cutoff checkbox under it is
 > checked.
 
-> Current focus: Phase 3 — Backend correctness
+> Current focus: Phase 4 — Backend dedup
 
 ## Phase 1: Safety
 
@@ -34,18 +34,18 @@ Source: `routers/projects_media.py`, `generator.py`, `styles/catalog.py`, `route
 ### M3: Lock-guarded result writes (F2)
 Source: `worker.py:199`, `state.py:170`
 
-- [ ] Concurrency test asserts `generation_completed` == number of writes with no lost results
-- [ ] Store gains a lock-held write method (e.g. `record_result`) that appends + increments + persists atomically
-- [ ] `_run_generation` (success and except branches) routes writes through the store method instead of mutating shared state
-- [ ] `_run_retry` result/error writes go through a lock-safe path
-- [ ] No nested lock acquisition introduced (no deadlock)
+- [x] Concurrency test asserts `generation_completed` == number of writes with no lost results
+- [x] Store gains a lock-held write method (e.g. `record_result`) that appends + increments + persists atomically
+- [x] `_run_generation` (success and except branches) routes writes through the store method instead of mutating shared state
+- [x] `_run_retry` result/error writes go through a lock-safe path
+- [x] No nested lock acquisition introduced (no deadlock)
 
 ### M4: Consistent retry errors (F19)
 Source: `worker.py:392`, `:398`, `routers/projects_generation.py:86`
 
-- [ ] Test: failed-then-successful retry on same index leaves exactly one (success) entry, no stale error
-- [ ] `_run_retry` clears/keys the prior error for an index before appending or replacing
-- [ ] `retry_result` router gate no longer rejects reference-based styles for missing signature when `start_retry` can handle them
+- [x] Test: failed-then-successful retry on same index leaves exactly one (success) entry, no stale error
+- [x] `_run_retry` clears/keys the prior error for an index before appending or replacing
+- [x] `retry_result` router gate no longer rejects reference-based styles for missing signature when `start_retry` can handle them
 
 ## Phase 4: Backend dedup
 
@@ -126,8 +126,8 @@ _(none)_
 
 ## Summary
 - Total features (current cutoff): 50
-- Completed: 10
-- Remaining: 40
-- Current cutoff blockers: 40
+- Completed: 18
+- Remaining: 32
+- Current cutoff blockers: 32
 - Accepted/deferred follow-up: 2
 - Superseded/obsolete checklist debt: 0

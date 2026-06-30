@@ -199,37 +199,25 @@ def _run_generation(
             for future in as_completed(futures):
                 try:
                     wood_name, result = future.result()
-                    project = store.get(project_id)
-                    if project is None:
+                    if not store.record_result(
+                        project_id,
+                        wood_name,
+                        image_data=result.image_data,
+                        error=result.error,
+                    ):
                         return
-                    if result.image_data:
-                        project.results.append((wood_name, result.image_data))
-                    else:
-                        project.errors.append(
-                            (wood_name, result.error or "Unknown error")
-                        )
-                    project.generation_completed += 1
-                    store.save(project_id)
                 except Exception as exc:
-                    project = store.get(project_id)
-                    if project is None:
-                        return
                     sel = futures[future]
-                    project.errors.append((sel["wood_name"], str(exc)))
-                    project.generation_completed += 1
-                    store.save(project_id)
+                    if not store.record_result(
+                        project_id, sel["wood_name"], error=str(exc)
+                    ):
+                        return
     except Exception as exc:
         # Catch any top-level error so status always gets set to done
-        project = store.get(project_id)
-        if project is not None:
-            project.errors.append(("Generation", str(exc)))
-            store.save(project_id)
+        store.record_result(project_id, "Generation", error=str(exc), advance=False)
     finally:
         # Always mark done, even on crash
-        project = store.get(project_id)
-        if project is not None:
-            project.generation_status = "done"
-            store.save(project_id)
+        store.update(project_id, generation_status="done")
 
 
 OUTPUT_DIR = Path("output")
@@ -383,24 +371,17 @@ def _run_retry(
                     hex_color=selection.get("hex"),
                     rtf_finish=selection.get("rtf_finish"),
                 )
-        project = store.get(project_id)
-        if project is None:
-            return
-        if result.image_data:
-            project.results[idx] = (wood_name, result.image_data)
-        else:
-            project.errors.append((wood_name, result.error or "Retry failed"))
+        store.record_retry_result(
+            project_id,
+            idx,
+            wood_name,
+            image_data=result.image_data,
+            error=result.error,
+        )
     except Exception as exc:
-        project = store.get(project_id)
-        if project is None:
-            return
-        project.errors.append((selection["wood_name"], str(exc)))
+        store.record_retry_result(project_id, idx, selection["wood_name"], error=str(exc))
     finally:
-        project = store.get(project_id)
-        if project is not None:
-            if idx in project.retrying_indices:
-                project.retrying_indices.remove(idx)
-            store.save(project_id)
+        store.finish_retry(project_id, idx)
 
 
 def start_retry(
