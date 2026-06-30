@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Project } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
+import { usePollingTask } from '../hooks/usePollingTask';
 
 interface Props {
   project: Project;
@@ -42,26 +43,24 @@ export default function ResultsGrid({ project }: Props) {
     });
   }, [project.retrying_indices]);
 
+  // Single shared poller for all in-flight retries: refresh the project until
+  // the server reports no indices still retrying. The sync effect above clears
+  // local entries as they finish. usePollingTask gives us unmount cleanup and
+  // an error cap for free.
+  const { start: startRetryPoll } = usePollingTask({
+    enabled: false,
+    onPoll: async () => {
+      const updated = await api.getProject(project.id);
+      dispatch({ type: 'UPDATE_PROJECT', project: updated });
+      return updated.retrying_indices.length > 0;
+    },
+  });
+
   const handleRetry = useCallback(async (idx: number) => {
     setRetryingIndices((prev) => new Set(prev).add(idx));
     try {
       await api.retryVariation(project.id, idx);
-
-      // Poll until this index leaves retrying_indices
-      const poll = async () => {
-        const updated = await api.getProject(project.id);
-        dispatch({ type: 'UPDATE_PROJECT', project: updated });
-        if (updated.retrying_indices.includes(idx)) {
-          setTimeout(poll, 2000);
-        } else {
-          setRetryingIndices((prev) => {
-            const next = new Set(prev);
-            next.delete(idx);
-            return next;
-          });
-        }
-      };
-      setTimeout(poll, 2000);
+      startRetryPoll();
     } catch (err) {
       console.error('Failed to retry variation:', err);
       setRetryingIndices((prev) => {
@@ -70,14 +69,13 @@ export default function ResultsGrid({ project }: Props) {
         return next;
       });
     }
-  }, [dispatch, project.id]);
+  }, [project.id, startRetryPoll]);
 
   const handleDiscard = useCallback(async (idx: number) => {
     try {
       await api.discardResult(project.id, idx);
-      const projects = await api.listProjects();
-      const updated = projects.find((p) => p.id === project.id);
-      if (updated) dispatch({ type: 'UPDATE_PROJECT', project: updated });
+      const updated = await api.getProject(project.id);
+      dispatch({ type: 'UPDATE_PROJECT', project: updated });
     } catch (err) {
       console.error('Failed to discard result:', err);
     }

@@ -4,6 +4,12 @@ function getApiKey(): string {
   return localStorage.getItem('gemini_api_key') ?? '';
 }
 
+// Auth headers for raw fetch() calls that can't use request() (blob/204 responses).
+function authHeaders(): Record<string, string> {
+  const apiKey = getApiKey();
+  return apiKey ? { 'X-API-Key': apiKey } : {};
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const apiKey = getApiKey();
   const headers: Record<string, string> = {
@@ -40,10 +46,7 @@ export function createProject(name: string, product_type: string, material_type:
 }
 
 export async function deleteProject(id: string): Promise<void> {
-  const apiKey = getApiKey();
-  const headers: Record<string, string> = {};
-  if (apiKey) headers['X-API-Key'] = apiKey;
-  const res = await fetch(`/api/projects/${id}`, { method: 'DELETE', headers });
+  const res = await fetch(`/api/projects/${id}`, { method: 'DELETE', headers: authHeaders() });
   if (!res.ok && res.status !== 404) {
     throw new Error(`${res.status}: ${await res.text()}`);
   }
@@ -87,10 +90,7 @@ export function retryVariation(id: string, idx: number): Promise<GenerationStatu
 }
 
 export async function discardResult(id: string, idx: number): Promise<void> {
-  const apiKey = getApiKey();
-  const headers: Record<string, string> = {};
-  if (apiKey) headers['X-API-Key'] = apiKey;
-  const res = await fetch(`/api/projects/${id}/results/${idx}`, { method: 'DELETE', headers });
+  const res = await fetch(`/api/projects/${id}/results/${idx}`, { method: 'DELETE', headers: authHeaders() });
   if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
 }
 
@@ -100,12 +100,9 @@ export async function getResultsZip(
   watermarkOffset: number = 0,
   imageScale: number = 1.0,
 ): Promise<Blob> {
-  const apiKey = getApiKey();
-  const headers: Record<string, string> = {};
-  if (apiKey) headers['X-API-Key'] = apiKey;
   const res = await fetch(
     `/api/projects/${id}/results/zip?watermark=${watermark}&watermark_offset=${watermarkOffset}&image_scale=${imageScale}`,
-    { headers },
+    { headers: authHeaders() },
   );
   if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
   return res.blob();

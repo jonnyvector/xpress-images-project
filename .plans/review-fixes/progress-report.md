@@ -5,7 +5,7 @@
 > mark a milestone complete until every current-cutoff checkbox under it is
 > checked.
 
-> Current focus: Phase 5 — Frontend correctness & consistency
+> Current focus: Phase 6 — Frontend structure
 
 ## Phase 1: Safety
 
@@ -79,11 +79,11 @@ Source: `routers/projects_media.py:203`–`:255`
 ### M8: Frontend consistency fixes (F9, F14, F13, F8a)
 Source: `ResultsGrid.tsx:45`, `:78`, `api.ts:42`/`89`/`97`/`114`, `UploadStep.tsx`
 
-- [ ] `ResultsGrid` retry uses `usePollingTask` (unmount cleanup + error cap), no recursive `setTimeout` (F9)
-- [ ] `handleDiscard` uses `getProject(id)` instead of `listProjects()` + find (F14)
-- [ ] `authHeaders()`/`requestRaw()` helper added in `api.ts` and used by the 4 raw-fetch functions (F13)
-- [ ] UploadStep mirrored fields sync from props via effects (F8a)
-- [ ] Restoring a version updates visible form fields (no stale state)
+- [x] `ResultsGrid` retry uses `usePollingTask` (unmount cleanup + error cap), no recursive `setTimeout` (F9)
+- [x] `handleDiscard` uses `getProject(id)` instead of `listProjects()` + find (F14)
+- [x] `authHeaders()` helper added in `api.ts` and used by the raw-fetch functions (F13)
+- [x] UploadStep mirrored fields sync from props via effects (F8a)
+- [x] Restoring a version updates visible form fields (no stale state)
 
 ## Phase 6: Frontend structure
 
@@ -126,8 +126,8 @@ _(none)_
 
 ## Summary
 - Total features (current cutoff): 50
-- Completed: 31
-- Remaining: 19
-- Current cutoff blockers: 19
+- Completed: 36
+- Remaining: 14
+- Current cutoff blockers: 14
 - Accepted/deferred follow-up: 2
 - Superseded/obsolete checklist debt: 0

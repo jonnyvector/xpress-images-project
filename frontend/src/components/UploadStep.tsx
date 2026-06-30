@@ -28,6 +28,20 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
   const projectIdRef = useRef(project.id);
   projectIdRef.current = project.id;
 
+  // Re-sync mirrored form fields when the project changes underneath us
+  // (e.g. a version restore changes door_style / material / notes). Each effect
+  // keys on its own field so resyncing one never clobbers another mid-edit.
+  useEffect(() => setMaterialType(project.material_type || 'wood'), [project.material_type]);
+  useEffect(() => setProductType(project.product_type || 'Cabinet Door'), [project.product_type]);
+  useEffect(() => setDoorStyle(project.door_style ?? ''), [project.door_style]);
+  useEffect(() => setCornerStyle(project.corner_style ?? 'sharp'), [project.corner_style]);
+  useEffect(() => setStyleNotes(project.style_notes ?? ''), [project.style_notes]);
+  useEffect(
+    () => setGeminiModel(project.gemini_model || 'gemini-3-pro-image-preview'),
+    [project.gemini_model],
+  );
+  useEffect(() => setStyleName(project.name), [project.name]);
+
   useEffect(() => {
     api.listStyles(materialType).then(setStyles).catch(console.error);
   }, [materialType]);
