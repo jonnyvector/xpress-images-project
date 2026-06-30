@@ -9,7 +9,7 @@ from backend.routers.projects_common import (
     to_generation_status,
     to_project_response,
 )
-from backend.worker import start_generation, start_retry
+from backend.worker import start_generation, start_learning, start_retry
 
 router = APIRouter()
 
@@ -21,8 +21,6 @@ def learn_style(
     x_api_key: str = Header(..., alias="X-API-Key"),
     learn_in_maple: bool = False,
 ) -> ProjectResponse:
-    from backend.worker import start_learning
-
     store = get_store(request)
     project = get_project_or_404(store, project_id)
     if project.learning_status == "running":

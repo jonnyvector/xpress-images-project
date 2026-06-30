@@ -1,6 +1,8 @@
 """Door and drawer style catalog."""
 
-STYLES: dict[str, dict[str, str]] = {
+from typing import Any
+
+STYLES: dict[str, dict[str, Any]] = {
     "davenport": {
         "name": "Davenport",
         "category": "door",

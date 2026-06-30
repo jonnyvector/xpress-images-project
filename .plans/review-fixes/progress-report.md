@@ -5,7 +5,7 @@
 > mark a milestone complete until every current-cutoff checkbox under it is
 > checked.
 
-> Current focus: Phase 2 — Backend low-risk cleanups
+> Current focus: Phase 3 — Backend correctness
 
 ## Phase 1: Safety
 
@@ -22,12 +22,12 @@ Source: `frontend/src/components/Layout.tsx:64`, `:106`
 ### M2: Mechanical backend cleanups (F3, F4, F11, F15, F18)
 Source: `routers/projects_media.py`, `generator.py`, `styles/catalog.py`, `routers/projects_generation.py`, `state.py`
 
-- [ ] `import re` added at top of `projects_media.py`; all 5 `__import__("re")` sites replaced (F3)
-- [ ] `DoorGenerator.generate_batch` removed; unused `Callable` import dropped if orphaned (F4)
-- [ ] `STYLES` annotation changed to `dict[str, dict[str, Any]]` with `Any` imported (F11)
-- [ ] `start_learning` import hoisted to module top in `projects_generation.py` (F15)
-- [ ] Dead `upload_path` no-op block removed from `state.py:88` (F18)
-- [ ] `grep -rn '__import__' backend` returns nothing; ruff + pytest green
+- [x] `import re` added at top of `projects_media.py`; all 5 `__import__("re")` sites replaced (F3)
+- [x] `DoorGenerator.generate_batch` removed; unused `Callable` import dropped if orphaned (F4)
+- [x] `STYLES` annotation changed to `dict[str, dict[str, Any]]` with `Any` imported (F11)
+- [x] `start_learning` import hoisted to module top in `projects_generation.py` (F15)
+- [x] Dead `upload_path` no-op block removed from `state.py:88` (F18)
+- [x] `grep -rn '__import__' backend` returns nothing; ruff + pytest green
 
 ## Phase 3: Backend correctness
 
@@ -126,8 +126,8 @@ _(none)_
 
 ## Summary
 - Total features (current cutoff): 50
-- Completed: 4
-- Remaining: 46
-- Current cutoff blockers: 46
+- Completed: 10
+- Remaining: 40
+- Current cutoff blockers: 40
 - Accepted/deferred follow-up: 2
 - Superseded/obsolete checklist debt: 0

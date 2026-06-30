@@ -85,11 +85,6 @@ class ProjectStore:
                 if base_path.exists():
                     project.base_door_image = base_path.read_bytes()
 
-                upload_path = d / "upload.bin"
-                if upload_path.exists() and not project.upload_filename:
-                    # upload exists on disk but filename wasn't recorded
-                    pass
-
                 # Load results
                 results: list[tuple[str, bytes]] = []
                 result_names = data.get("result_names", [])

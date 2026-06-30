@@ -3,7 +3,6 @@
 import io
 import sys
 import time
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -761,55 +760,3 @@ class DoorGenerator:
             thought_signature=None,
             error="Max retries exceeded",
         )
-
-    def generate_batch(
-        self,
-        door_image_path: Path,
-        swatch_paths: list[tuple[Path, str]],
-        progress_callback: Callable[[int, int, str], None] | None = None,
-    ) -> tuple[GenerationResult | None, list[tuple[str, GenerationResult]]]:
-        """
-        Generate multiple variations for a door style.
-
-        First learns the door style, then generates variations using that signature.
-
-        Args:
-            door_image_path: Path to the door style reference image
-            swatch_paths: List of (swatch_path, wood_name) tuples
-            progress_callback: Optional callback(current, total, wood_name)
-
-        Returns:
-            Tuple of (base_door_result, list of (wood_name, GenerationResult) tuples)
-        """
-        results: list[tuple[str, GenerationResult]] = []
-        total = len(swatch_paths) + 1  # +1 for the initial learning step
-
-        # Step 1: Learn the door style
-        if progress_callback:
-            progress_callback(0, total, "Learning door style...")
-
-        base_result = self.learn_door_style(door_image_path)
-
-        if base_result.error or base_result.thought_signature is None:
-            # Failed to learn door style
-            return base_result, []
-
-        base_signature = base_result.thought_signature
-
-        # Step 2: Generate variations using the learned signature
-        for i, (swatch_path, wood_name) in enumerate(swatch_paths):
-            if progress_callback:
-                progress_callback(i + 1, total, wood_name)
-
-            result = self.generate_variation(
-                swatch_image_path=swatch_path,
-                wood_name=wood_name,
-                base_signature=base_signature,
-            )
-
-            results.append((wood_name, result))
-
-        if progress_callback:
-            progress_callback(total, total, "Complete")
-
-        return base_result, results

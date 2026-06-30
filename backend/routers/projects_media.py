@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import re
 import zipfile
 from pathlib import Path
 
@@ -190,14 +191,14 @@ def download_results_zip(
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
 
-_TRAILING_VERSION_RE = __import__("re").compile(r"\s*\(?(\d+)\)?\s*$")
+_TRAILING_VERSION_RE = re.compile(r"\s*\(?(\d+)\)?\s*$")
 
 # Matches a leading product/model+style prefix like "DR1-df-slab_", "DN917 Slab Plain_".
 # We find potential split points (underscores) and try each from left to right,
 # accepting the first one whose remainder resolves to a known material.
-_MODEL_CODE_RE = __import__("re").compile(r"^[A-Za-z]+\d+", __import__("re").IGNORECASE)
+_MODEL_CODE_RE = re.compile(r"^[A-Za-z]+\d+", re.IGNORECASE)
 
-_TRAILING_RTF_RE = __import__("re").compile(r"[-_]rtf$", __import__("re").IGNORECASE)
+_TRAILING_RTF_RE = re.compile(r"[-_]rtf$", re.IGNORECASE)
 
 
 def _match_color_key(color_part: str, wood_types: dict[str, dict]) -> str | None:
@@ -224,7 +225,7 @@ def _extract_wood_name(stem: str, wood_types: dict[str, dict]) -> str:
     clean = _TRAILING_VERSION_RE.sub("", stem).strip()
 
     # Try progressively shorter suffixes against wood_types keys (exact match).
-    tokens = __import__("re").split(r"[_\-]+", clean)
+    tokens = re.split(r"[_\-]+", clean)
     for start in range(len(tokens)):
         candidate = "-".join(tokens[start:])
         key = normalize_material_key(candidate)
