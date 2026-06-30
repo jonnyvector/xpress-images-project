@@ -62,6 +62,14 @@ export default function Layout() {
   }, [dispatch]);
 
   const handleResetAll = useCallback(async () => {
+    // Type-to-confirm guard: mass deletion destroys irreplaceable style
+    // signatures, so require the user to type DELETE before proceeding.
+    const confirmation = window.prompt(
+      `This permanently deletes ALL ${projects.length} project(s) and their ` +
+        `irreplaceable style signatures. This cannot be undone.\n\n` +
+        `Type DELETE to confirm.`,
+    );
+    if (confirmation !== 'DELETE') return;
     try {
       for (const p of projects) {
         await api.deleteProject(p.id);
