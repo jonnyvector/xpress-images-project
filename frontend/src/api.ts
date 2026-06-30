@@ -1,4 +1,4 @@
-import type { Project, Swatch, Style, GenerationStatus, SignatureVersion } from './types';
+import type { Project, Swatch, Style, GenerationStatus, SignatureVersion, CoverageResponse } from './types';
 
 function getApiKey(): string {
   return localStorage.getItem('gemini_api_key') ?? '';
@@ -143,4 +143,9 @@ export function listSwatches(material: string = 'wood'): Promise<Swatch[]> {
 
 export function listStyles(material: string = 'wood'): Promise<Style[]> {
   return request<Style[]>(`/api/styles?material=${material}`);
+}
+
+// Coverage
+export function getCoverage(): Promise<CoverageResponse> {
+  return request<CoverageResponse>('/api/coverage');
 }

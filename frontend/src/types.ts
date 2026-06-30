@@ -67,3 +67,23 @@ export interface Style {
   name: string;
   category: string;
 }
+
+export interface CoverageProduct {
+  title: string;
+  net_sales: number;
+  quantity: number;
+  covered: boolean;
+  matched_project_ids: string[];
+}
+
+export interface CoverageCategory {
+  key: string;
+  label: string;
+  covered: number;
+  total: number;
+  products: CoverageProduct[];
+}
+
+export interface CoverageResponse {
+  categories: CoverageCategory[];
+}
