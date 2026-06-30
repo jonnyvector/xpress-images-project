@@ -4,13 +4,14 @@ import * as api from '../api';
 import TabBar from './TabBar';
 import ProjectTab from './ProjectTab';
 import DoorLibrary from './DoorLibrary';
+import CoveragePage from './CoveragePage';
 
 export default function Layout() {
   const { projects, openTabIds, activeProjectId } = useProjects();
   const openProjects = projects.filter((p) => openTabIds.includes(p.id));
   const dispatch = useDispatch();
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_api_key') ?? '');
-  const [activeView, setActiveView] = useState<'library' | 'project'>('project');
+  const [activeView, setActiveView] = useState<'library' | 'project' | 'coverage'>('project');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem('sidebar_collapsed') === 'true'
   );
@@ -140,11 +141,19 @@ export default function Layout() {
             }}
             onClose={handleCloseTab}
             onSelectLibrary={() => setActiveView('library')}
+            onSelectCoverage={() => setActiveView('coverage')}
           />
           <button onClick={handleAddProject}>+ Add New Door</button>
         </div>
         <div className="content-area">
-          {activeView === 'library' ? (
+          {activeView === 'coverage' ? (
+            <CoveragePage
+              onOpenProject={(id) => {
+                dispatch({ type: 'OPEN_TAB', id });
+                setActiveView('project');
+              }}
+            />
+          ) : activeView === 'library' ? (
             <DoorLibrary
               projects={projects}
               onSelectProject={(id) => {

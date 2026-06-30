@@ -3,13 +3,22 @@ import type { Project } from '../types';
 interface Props {
   projects: Project[];
   activeId: string | null;
-  activeView: 'library' | 'project';
+  activeView: 'library' | 'project' | 'coverage';
   onSelect: (id: string) => void;
   onClose: (id: string) => void;
   onSelectLibrary: () => void;
+  onSelectCoverage: () => void;
 }
 
-export default function TabBar({ projects, activeId, activeView, onSelect, onClose, onSelectLibrary }: Props) {
+export default function TabBar({
+  projects,
+  activeId,
+  activeView,
+  onSelect,
+  onClose,
+  onSelectLibrary,
+  onSelectCoverage,
+}: Props) {
   return (
     <div className="tab-bar">
       <button
@@ -17,6 +26,12 @@ export default function TabBar({ projects, activeId, activeView, onSelect, onClo
         onClick={onSelectLibrary}
       >
         Library
+      </button>
+      <button
+        className={`tab-item ${activeView === 'coverage' ? 'active' : ''}`}
+        onClick={onSelectCoverage}
+      >
+        Coverage
       </button>
       {projects.map((p) => (
         <button
@@ -26,11 +41,11 @@ export default function TabBar({ projects, activeId, activeView, onSelect, onClo
         >
           {p.name}
           <span
-              className="close-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose(p.id);
-              }}
+            className="close-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose(p.id);
+            }}
           >
             x
           </span>
