@@ -117,7 +117,7 @@ Source: `DoorLibrary.tsx`, `UploadStep.tsx`, `Layout.tsx`, `ResultsGrid.tsx`, `S
 
 ## Deferred follow-up
 
-- [ ] F12 (davenport plank count) — pending user confirmation of intended count (D-002); generation-behavior change, do not edit prompts until confirmed
+- [x] F12 (davenport): three planks in the recessed panel; beads on all four sides with two beads close to the frame (confirmed by user, D-005)
 - [ ] F20 (broader test coverage beyond Phases 3–4) — opportunistic, not a blocker
 
 ## Superseded/obsolete checklist debt
@@ -129,5 +129,5 @@ _(none)_
 - Completed: 50
 - Remaining: 0
 - Current cutoff blockers: 0
-- Accepted/deferred follow-up: 2
+- Accepted/deferred follow-up: 1
 - Superseded/obsolete checklist debt: 0

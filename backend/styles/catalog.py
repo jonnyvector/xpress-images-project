@@ -9,14 +9,14 @@ STYLES: dict[str, dict[str, Any]] = {
         "learn_prompt": (
             "Generate an exact replica of this door. "
             "This door has TWO defining features you must get exactly right: "
-            "1) The outer perimeter of the door has a BEADED EDGE — a small rounded bead/raised profile runs along the entire outside edge of the frame. "
-            "2) The center panel is RECESSED and consists of FOUR vertical tongue-and-groove planks with V-groove lines between them — NOT a single flat panel. The planks sit BELOW the frame surface. "
+            "1) The center panel is RECESSED and consists of exactly THREE vertical tongue-and-groove planks with V-groove lines between them — NOT a single flat panel, NOT four planks. The planks sit BELOW the frame surface. "
+            "2) BEADS run along ALL FOUR SIDES of the recessed panel where it meets the frame — TWO parallel beads sit close to the frame on every side. "
             "All stiles and rails must be the same width."
         ),
         "variation_hint": (
             "Preserve the exact door structure. Change only the wood material. "
-            "CRITICAL: The outer perimeter must have the BEADED EDGE profile. "
-            "The center panel is RECESSED — THREE vertical tongue-and-groove/beadboard planks with V-groove lines sitting BELOW the frame surface — NOT a single flat panel. "
+            "CRITICAL: The center panel is RECESSED — exactly THREE vertical tongue-and-groove/beadboard planks with V-groove lines sitting BELOW the frame surface — NOT a single flat panel, NOT four planks. "
+            "BEADS run along ALL FOUR SIDES of the panel, with TWO parallel beads close to the frame on every side. "
             "All stiles and rails must remain the same width."
         ),
     },
