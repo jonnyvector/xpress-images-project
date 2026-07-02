@@ -17,8 +17,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.qa.corpus import Candidate, walk_corpus
-from backend.qa.labels import Label, LabelStore
-from backend.qa.sheet import render_index, render_project_sheet
+from backend.qa.labels import LabelStore
+from backend.qa.sheet import parse_label_post, render_index, render_project_sheet
 from backend.qa.thumbs import export_thumb
 
 QA_DIR = Path("output/.qa")
@@ -62,10 +62,12 @@ class LabelHandler(SimpleHTTPRequestHandler):
             self.send_error(404)
             return
         length = int(self.headers.get("Content-Length", "0"))
-        data = json.loads(self.rfile.read(length))
-        self.store.set(
-            Label(key=data["key"], verdict=data["verdict"], reasons=data.get("reasons", []))
-        )
+        raw = self.rfile.read(length)
+        try:
+            self.store.set(parse_label_post(raw))
+        except (json.JSONDecodeError, KeyError, ValueError) as exc:
+            self.send_error(400, str(exc))
+            return
         self.send_response(204)
         self.end_headers()
 

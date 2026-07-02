@@ -1,9 +1,20 @@
 """Render the calibration labeling contact sheets (static HTML + tiny JS)."""
 
 import html
+import json
 
 from backend.qa.corpus import Candidate
-from backend.qa.labels import REASONS, LabelStore
+from backend.qa.labels import REASONS, Label, LabelStore
+
+
+def parse_label_post(raw: bytes) -> Label:
+    """Parse a ``POST /label`` request body into a Label.
+
+    Raises ``json.JSONDecodeError`` on malformed JSON and ``KeyError`` on missing
+    fields; verdict/reason validation happens in ``LabelStore.set``.
+    """
+    data = json.loads(raw)
+    return Label(key=data["key"], verdict=data["verdict"], reasons=data.get("reasons", []))
 
 _CSS = """
 body{font-family:system-ui;background:#141414;color:#eee;margin:0;padding:16px}
