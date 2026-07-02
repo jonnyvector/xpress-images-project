@@ -45,20 +45,20 @@ Source: `backend/styles/catalog.py`, new `backend/qa/styles_classes.py`
 ### M3: Synthetic measurement core
 Source: new `backend/qa/geometry.py`, new `tests/qa/test_geometry.py`
 
-- [ ] Feature: synthetic door fixture builder (exact ratios + grain-noise overlay + JPEG re-encode)
-- [ ] Feature: load/grayscale at min(native, 1536) working width
-- [ ] Feature: door-box detection with confidence checks (min_box_fraction, margin variance, aspect sanity)
-- [ ] Feature: edge-energy profiles with two-scale peak persistence (grain suppression)
-- [ ] Feature: sub-pixel parabolic peak refinement
-- [ ] Feature: ratio recovery within ±0.005 at high confidence on noisy synthetic fixtures (test)
-- [ ] Feature: 2% and 3% stile/rail distortions and panel shifts detected as drift with correct worst-measurement detail (test)
-- [ ] Feature: order-preserving DP boundary matching; spurious peak does not cascade (test)
-- [ ] Feature: unmatched strong boundary counted in unmatched_boundaries, not folded into max_delta (test)
-- [ ] Feature: GEO-001 unreadable file → unmeasurable (test)
-- [ ] Feature: GEO-002 box-confidence failure → unmeasurable with detail naming image+check (test)
-- [ ] Feature: GEO-003 no interior peaks → partial measurement at low confidence (test)
-- [ ] Feature: GEO-004 injected exception → unmeasurable, never raises (test)
-- [ ] Feature: per-pair timing benchmark recorded (informational)
+- [x] Feature: synthetic door fixture builder (exact ratios + grain-noise overlay + JPEG re-encode)
+- [x] Feature: load/grayscale at min(native, 1536) working width
+- [x] Feature: door-box detection with confidence checks (min_box_fraction, margin variance, aspect sanity)
+- [x] Feature: edge-energy profiles with two-scale peak persistence (grain suppression)
+- [x] Feature: sub-pixel parabolic peak refinement
+- [x] Feature: ratio recovery within ±0.005 at high confidence on noisy synthetic fixtures (test)
+- [x] Feature: 2% and 3% stile/rail distortions and panel shifts detected as drift with correct worst-measurement detail (test)
+- [x] Feature: order-preserving DP boundary matching; spurious peak does not cascade (test)
+- [x] Feature: unmatched strong boundary counted in unmatched_boundaries, not folded into max_delta (test)
+- [x] Feature: GEO-001 unreadable file → unmeasurable (test)
+- [x] Feature: GEO-002 box-confidence failure → unmeasurable with detail naming image+check (test)
+- [x] Feature: GEO-003 no interior peaks → partial measurement at low confidence (test)
+- [x] Feature: GEO-004 injected exception → unmeasurable, never raises (test)
+- [x] Feature: per-pair timing benchmark recorded (informational)
 
 ### M4: Real-fixture spike (A-001, A-002)
 Source: `output/.qa/labels.json`, fixtures to `tests/qa/fixtures/geometry/`
