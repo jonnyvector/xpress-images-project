@@ -1,0 +1,213 @@
+[
+ {
+  "key": "7efd9e3d:1:variant:2",
+  "kind": "variant",
+  "reasons": [
+   "geometry_drift",
+   "profile_character"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/7efd9e3d_1_variant_2/sample.jpg",
+   "replica": ".plans/geometry-checks/misses/7efd9e3d_1_variant_2/replica.jpg",
+   "candidate": ".plans/geometry-checks/misses/7efd9e3d_1_variant_2/candidate.jpg"
+  },
+  "door_style": "recessed_panel"
+ },
+ {
+  "key": "27eef02f:10:replica:-1",
+  "kind": "replica",
+  "reasons": [
+   "geometry_drift",
+   "profile_character"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/27eef02f_10_replica_-1/sample.jpg",
+   "candidate": ".plans/geometry-checks/misses/27eef02f_10_replica_-1/candidate.jpg"
+  },
+  "door_style": "mission"
+ },
+ {
+  "key": "4ebf2d15:1:replica:-1",
+  "kind": "replica",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/4ebf2d15_1_replica_-1/sample.jpg",
+   "candidate": ".plans/geometry-checks/misses/4ebf2d15_1_replica_-1/candidate.jpg"
+  },
+  "door_style": "shaker"
+ },
+ {
+  "key": "58ad6f7f:1:replica:-1",
+  "kind": "replica",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/58ad6f7f_1_replica_-1/sample.jpg",
+   "candidate": ".plans/geometry-checks/misses/58ad6f7f_1_replica_-1/candidate.jpg"
+  },
+  "door_style": "recessed_panel_center_stile"
+ },
+ {
+  "key": "23d3dae0:1:replica:-1",
+  "kind": "replica",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/23d3dae0_1_replica_-1/sample.jpg",
+   "candidate": ".plans/geometry-checks/misses/23d3dae0_1_replica_-1/candidate.jpg"
+  },
+  "door_style": "recessed_panel"
+ },
+ {
+  "key": "27eef02f:11:replica:-1",
+  "kind": "replica",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/27eef02f_11_replica_-1/sample.jpg",
+   "candidate": ".plans/geometry-checks/misses/27eef02f_11_replica_-1/candidate.jpg"
+  },
+  "door_style": "mission"
+ },
+ {
+  "key": "571ae351:1:variant:0",
+  "kind": "variant",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/571ae351_1_variant_0/sample.jpg",
+   "replica": ".plans/geometry-checks/misses/571ae351_1_variant_0/replica.jpg",
+   "candidate": ".plans/geometry-checks/misses/571ae351_1_variant_0/candidate.jpg"
+  },
+  "door_style": "drawer_durango_minimal"
+ },
+ {
+  "key": "4ebf2d15:1:variant:0",
+  "kind": "variant",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/4ebf2d15_1_variant_0/sample.jpg",
+   "replica": ".plans/geometry-checks/misses/4ebf2d15_1_variant_0/replica.jpg",
+   "candidate": ".plans/geometry-checks/misses/4ebf2d15_1_variant_0/candidate.jpg"
+  },
+  "door_style": "shaker"
+ },
+ {
+  "key": "92e60a19:2:replica:-1",
+  "kind": "replica",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/92e60a19_2_replica_-1/sample.jpg",
+   "candidate": ".plans/geometry-checks/misses/92e60a19_2_replica_-1/candidate.jpg"
+  },
+  "door_style": "drawer_durango"
+ },
+ {
+  "key": "58ad6f7f:2:replica:-1",
+  "kind": "replica",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/58ad6f7f_2_replica_-1/sample.jpg",
+   "candidate": ".plans/geometry-checks/misses/58ad6f7f_2_replica_-1/candidate.jpg"
+  },
+  "door_style": "recessed_panel_center_stile"
+ },
+ {
+  "key": "098e0626:3:replica:-1",
+  "kind": "replica",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/098e0626_3_replica_-1/sample.jpg",
+   "candidate": ".plans/geometry-checks/misses/098e0626_3_replica_-1/candidate.jpg"
+  },
+  "door_style": "drawer_solid_plank"
+ },
+ {
+  "key": "571ae351:2:replica:-1",
+  "kind": "replica",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/571ae351_2_replica_-1/sample.jpg",
+   "candidate": ".plans/geometry-checks/misses/571ae351_2_replica_-1/candidate.jpg"
+  },
+  "door_style": "drawer_durango_minimal"
+ },
+ {
+  "key": "4ebf2d15:1:variant:1",
+  "kind": "variant",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/4ebf2d15_1_variant_1/sample.jpg",
+   "replica": ".plans/geometry-checks/misses/4ebf2d15_1_variant_1/replica.jpg",
+   "candidate": ".plans/geometry-checks/misses/4ebf2d15_1_variant_1/candidate.jpg"
+  },
+  "door_style": "shaker"
+ },
+ {
+  "key": "92e60a19:1:replica:-1",
+  "kind": "replica",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/92e60a19_1_replica_-1/sample.jpg",
+   "candidate": ".plans/geometry-checks/misses/92e60a19_1_replica_-1/candidate.jpg"
+  },
+  "door_style": "drawer_durango"
+ },
+ {
+  "key": "367b7b57:0:replica:-1",
+  "kind": "replica",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/367b7b57_0_replica_-1/sample.jpg",
+   "candidate": ".plans/geometry-checks/misses/367b7b57_0_replica_-1/candidate.jpg"
+  },
+  "door_style": "drawer_durango"
+ },
+ {
+  "key": "4962feb2:0:replica:-1",
+  "kind": "replica",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/4962feb2_0_replica_-1/sample.jpg",
+   "candidate": ".plans/geometry-checks/misses/4962feb2_0_replica_-1/candidate.jpg"
+  },
+  "door_style": "drawer_durango"
+ },
+ {
+  "key": "b684d34b:0:variant:0",
+  "kind": "variant",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "images": {
+   "sample": ".plans/geometry-checks/misses/b684d34b_0_variant_0/sample.jpg",
+   "replica": ".plans/geometry-checks/misses/b684d34b_0_variant_0/replica.jpg",
+   "candidate": ".plans/geometry-checks/misses/b684d34b_0_variant_0/candidate.jpg"
+  },
+  "door_style": "drawer_minimal"
+ }
+]
