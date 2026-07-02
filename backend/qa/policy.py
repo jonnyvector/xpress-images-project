@@ -34,6 +34,8 @@ def load_policy(path: Path = DEFAULT_POLICY_PATH) -> PolicyConfig:
 def decide(result: JudgeResult, candidate: Candidate, config: PolicyConfig) -> Decision:
     if candidate.door_style in config.untrusted_styles:
         return Decision(result.key, "needs_human", f"untrusted style: {candidate.door_style}")
+    if candidate.sample_path is None:
+        return Decision(result.key, "needs_human", "no sample photo on file")
     if result.verdict == "error":
         return Decision(result.key, "needs_human", f"judge error: {result.reason}")
     scores = {

@@ -1,6 +1,7 @@
 """Accept/reject labels for generated images, persisted to JSON."""
 
 import json
+import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -45,4 +46,6 @@ class LabelStore:
     def _save(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         payload = {"labels": [asdict(label) for label in self._labels.values()]}
-        self._path.write_text(json.dumps(payload, indent=1))
+        tmp = self._path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(payload, indent=1))
+        os.replace(tmp, self._path)

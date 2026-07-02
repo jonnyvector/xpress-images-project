@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from backend.qa.corpus import walk_corpus
+from backend.qa.corpus import Candidate, walk_corpus
 from backend.qa.judge import VisionJudge
 
 
@@ -85,3 +85,43 @@ def test_valid_json_wrong_shape_reports_unparseable_not_api_error(
     assert result.verdict == "error"
     assert "unparseable" in result.reason
     assert "api error" not in result.reason
+
+
+def test_error_verdict_is_not_cached(
+    projects_dir: Path, swatches_dir: Path, tmp_path: Path
+) -> None:
+    cache_dir = tmp_path / "verdicts"
+    c = _candidate(projects_dir, swatches_dir)
+
+    bad_client = FakeClient(["not json at all"] * 3)
+    first = VisionJudge(api_key="x", cache_dir=cache_dir, client=bad_client)
+    result = first.judge(c)
+    assert result.verdict == "error"
+
+    good_client = FakeClient([GOOD])
+    second = VisionJudge(api_key="x", cache_dir=cache_dir, client=good_client)
+    result = second.judge(c)
+    assert result.verdict == "pass"  # error verdict was not cached, so this actually ran
+
+
+def test_unreadable_image_yields_error_without_calling_client(tmp_path: Path) -> None:
+    candidate = Candidate(
+        key="missing:0:variant:0",
+        project_id="missing",
+        project_name="Missing",
+        door_style="shaker",
+        version=0,
+        kind="variant",
+        index=0,
+        wood_name="Cherry Natural",
+        image_path=tmp_path / "does_not_exist.bin",
+        sample_path=None,
+        swatch_path=None,
+        presumed="accept",
+    )
+    client = FakeClient([])
+    judge = VisionJudge(api_key="x", cache_dir=tmp_path / "verdicts", client=client)
+    result = judge.judge(candidate)
+    assert result.verdict == "error"
+    assert "unreadable image" in result.reason
+    assert client.models.calls == 0

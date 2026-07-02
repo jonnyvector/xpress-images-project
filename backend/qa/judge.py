@@ -3,6 +3,7 @@
 import hashlib
 import json
 import re
+import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -92,8 +93,9 @@ class VisionJudge:
             result.confidence = "high" if fails in (0, 3) else "low"
             result.votes = 3
 
-        cache.parent.mkdir(parents=True, exist_ok=True)
-        cache.write_text(json.dumps(asdict(result)))
+        if result.verdict != "error":
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            cache.write_text(json.dumps(asdict(result)))
         return result
 
     def _judge_once(self, candidate: Candidate) -> JudgeResult:
@@ -108,23 +110,28 @@ class VisionJudge:
                 f" rendered in {candidate.wood_name}" if candidate.wood_name else ""
             ),
         )
-        parts: list[types.Part] = []
-        if candidate.sample_path is not None:
-            parts.append(_image_part(candidate.sample_path))
-        if candidate.swatch_path is not None:
-            parts.append(_image_part(candidate.swatch_path))
-        parts.append(_image_part(candidate.image_path))
-        parts.append(types.Part.from_text(text=prompt))
+        try:
+            parts: list[types.Part] = []
+            if candidate.sample_path is not None:
+                parts.append(_image_part(candidate.sample_path))
+            if candidate.swatch_path is not None:
+                parts.append(_image_part(candidate.swatch_path))
+            parts.append(_image_part(candidate.image_path))
+            parts.append(types.Part.from_text(text=prompt))
+        except OSError as exc:
+            reason = f"unreadable image: {exc}"
+            return JudgeResult(key=candidate.key, verdict="error", reason=reason)
         contents = [types.Content(role="user", parts=parts)]
 
         last_error = ""
-        for _ in range(3):
+        for attempt in range(3):
             try:
                 response = self.client.models.generate_content(
                     model=self.model, contents=contents
                 )
-            except Exception as exc:  # network/API errors -> retry then error verdict
+            except Exception as exc:  # network/API errors -> retry with backoff then error verdict
                 last_error = f"api error: {exc}"
+                time.sleep(2**attempt)
                 continue
             try:
                 return self._parse(candidate.key, response.text or "")
