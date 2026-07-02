@@ -269,3 +269,75 @@ variant misses: 4, drift-detected: 1
 - Fixtures under tests/qa/fixtures/geometry/ are referenced in-place by the
   new regression tests (skipif-guarded); committing them with the manifest
   remains an M4 deliverable.
+
+---
+
+# Addendum — Phase 3: M5 policy composition + M6 eval wiring (D-010)
+
+## M5 — `backend/qa/policy.py`
+
+- `decide(result, candidate, config, geometry=None, approved_keys=frozenset(),
+  replica_approved=True)` implements the reshaped 12-step precedence.
+  Additions to the file docstring document the philosophy: replica anchors
+  human-reviewed (D1), variants of unapproved replicas never ship
+  (`TRANSITIVE_REVIEW_REASON = "replica not approved"`, step 4),
+  render-vs-render high-confidence drift is the only auto-regenerate geometry
+  gate (step 7), sample-reference drift is advisory → needs_human at ANY
+  confidence (step 8), low-conf drift step 9, unmeasurable step 10 (after
+  judge-fail step 6 — asymmetry preserved).
+- `PolicyConfig` gains `transitive_replica_review: bool = True` and
+  `geometry: GeometryConfig | None = None`; `load_policy` parses the nested
+  `"geometry"` object (absent → None → disabled).
+- `geometry=None` byte-identical: test iterates an 8-scenario matrix and
+  asserts Decision equality with the no-geometry call. All 73 prior tests
+  green unmodified.
+- `policy_config.json` committed with placeholder thresholds
+  (frame_standard 0.03, frame_narrow 0.015; M7 calibrates).
+- Acceptance on real fixtures: all 5 variant-miss keys (7efd9e3d:1:variant:2,
+  571ae351:1:variant:0, 4ebf2d15:1:variant:0/1, b684d34b:0:variant:0) route
+  needs_human "replica not approved"; accepts 2564359f:0:variant:0/:2 measure
+  ok/high vs replica and pass.
+
+## M6 — `scripts/qa_eval.py`, cache in `backend/qa/geometry.py`, attribution in `backend/qa/eval.py`
+
+- `measure_cached()` + `config_hash()` (mirrors the VisionJudge cache
+  pattern): `output/.qa/geometry/<config-hash>/<key>.json`; hash covers every
+  GeometryConfig field; unmeasurable results NOT cached (retryable, mirrors
+  the judge error rule) — all four behaviors tested.
+- Eval routing: style class via `styles_classes.style_class`; reference
+  selection — variant → replica primary (falls back to sample if the replica
+  image is missing), replica → sample (advisory); excluded class / disabled
+  geometry → None (judge-only).
+- `replica_approved` computed per variant: `{pid}:{version}:replica:-1` in
+  accept-label keys. Cheap short-circuits mirror decide() steps 2–4 before
+  paying for a judge call.
+- Attribution: every candidate is decided twice (geometry on / geometry=None
+  baseline); `geometry_attribution` diffs them — geometry-only catches and
+  geometry-added false flags; `transitive_review_load` and `excluded_count`
+  helpers each tested. eval_report.json now includes attribution fields.
+
+## Train-split smoke run (judge config 812b52bc6ea6, geometry placeholders)
+
+```
+n=146  rejects=43  accepts=103
+replica review load: 37 routed to human (D1)
+transitive replica load: 2 variants of unapproved replicas routed to human
+geometry attribution: 2 geometry-only catches, 7 geometry-added false flags
+excluded-class candidates (judge-only): 87
+reject recall:   97.7%  (target >= 95%)
+false-flag rate: 39.8%  (target <= 20%)
+recall by reason: geometry_drift 18/19, profile_character 27/27
+```
+
+38 geometry measurements ran (59 measurable-class candidates minus
+short-circuited ones); 10 geometry flags total, of which the baseline diff
+attributes 2 catches / 7 false flags to geometry. Notes for M7:
+
+- False-flag rate (39.8%) is dominated by pre-geometry judge behavior
+  (baseline ≈ 33%); geometry adds 7 (5 replica-vs-sample advisory drifts at
+  the placeholder thresholds + 2 variant low-conf drifts on ccb4b04b). The
+  advisory sample-reference gate and per-class thresholds are exactly what
+  the M7 sweep calibrates.
+- Recall 97.7%: the one geometry_drift miss is within the excluded-class
+  judge-only population.
+- Per-pair geometry cost ~150 ms, all local; cache warm after first run.

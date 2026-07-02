@@ -6,7 +6,8 @@ from dataclasses import dataclass, field
 
 from backend.qa.corpus import Candidate
 from backend.qa.labels import Label
-from backend.qa.policy import REPLICA_REVIEW_REASON, Decision
+from backend.qa.policy import REPLICA_REVIEW_REASON, TRANSITIVE_REVIEW_REASON, Decision
+from backend.qa.styles_classes import EXCLUDED, style_class
 
 
 def is_holdout(project_id: str) -> bool:
@@ -17,6 +18,47 @@ def is_holdout(project_id: str) -> bool:
 def replica_review_load(decisions: Iterable[Decision]) -> int:
     """How many decisions are replica-anchor human reviews (D1 routing)."""
     return sum(1 for d in decisions if d.reason == REPLICA_REVIEW_REASON)
+
+
+def transitive_review_load(decisions: Iterable[Decision]) -> int:
+    """How many decisions are variants routed to human via the transitive rule."""
+    return sum(1 for d in decisions if d.reason == TRANSITIVE_REVIEW_REASON)
+
+
+def excluded_count(candidates: Iterable[Candidate]) -> int:
+    """How many candidates route to the excluded class (judge-only, no geometry)."""
+    return sum(1 for c in candidates if style_class(c.door_style) == EXCLUDED)
+
+
+@dataclass
+class GeometryAttribution:
+    """What the geometry gate changed relative to a geometry=None baseline."""
+
+    geometry_only_catches: int = 0  # rejects flagged only with geometry on
+    geometry_added_false_flags: int = 0  # accepts flagged only with geometry on
+
+
+def geometry_attribution(
+    labels: list[Label],
+    decisions: dict[str, Decision],
+    baseline: dict[str, Decision],
+) -> GeometryAttribution:
+    """Diff decisions against the same pipeline with geometry disabled."""
+    attr = GeometryAttribution()
+    for label in labels:
+        decision = decisions.get(label.key)
+        base = baseline.get(label.key)
+        if decision is None or base is None:
+            continue
+        flagged = decision.verdict != "pass"
+        base_flagged = base.verdict != "pass"
+        if not flagged or base_flagged:
+            continue
+        if label.verdict == "reject":
+            attr.geometry_only_catches += 1
+        else:
+            attr.geometry_added_false_flags += 1
+    return attr
 
 
 @dataclass

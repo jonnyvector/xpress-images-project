@@ -349,6 +349,82 @@ def test_accepted_variants_not_flagged_by_weak_unmatched_peaks(name: str) -> Non
     assert rep.unmatched_boundaries == 0
 
 
+# --- geometry cache (M6) -------------------------------------------------------
+
+
+def test_cache_writes_report_under_config_hash(tmp_path: Path) -> None:
+    from backend.qa.geometry import config_hash, measure_cached
+
+    build_door(tmp_path / "ref.jpg", seed=1)
+    build_door(tmp_path / "cand.jpg", seed=2)
+    cache = tmp_path / "cache"
+    cfg = _config()
+    rep = measure_cached(
+        tmp_path / "ref.jpg", tmp_path / "cand.jpg", "p:0:variant:0", cfg,
+        "frame_standard", cache_dir=cache,
+    )
+    assert rep.status == "ok"
+    assert (cache / config_hash(cfg) / "p_0_variant_0.json").exists()
+
+
+def test_cache_hit_skips_measurement(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from backend.qa import geometry
+    from backend.qa.geometry import measure_cached
+
+    build_door(tmp_path / "ref.jpg", seed=1)
+    build_door(tmp_path / "cand.jpg", seed=2)
+    cache = tmp_path / "cache"
+    args = (tmp_path / "ref.jpg", tmp_path / "cand.jpg", "k:1", _config(), "frame_standard")
+    first = measure_cached(*args, cache_dir=cache)
+
+    def boom(*_a: object, **_k: object) -> object:
+        raise AssertionError("measure() called despite cache hit")
+
+    monkeypatch.setattr(geometry, "measure", boom)
+    second = measure_cached(*args, cache_dir=cache)
+    assert second == first
+
+
+def test_config_change_busts_cache(tmp_path: Path) -> None:
+    from backend.qa.geometry import config_hash, measure_cached
+
+    build_door(tmp_path / "ref.jpg", seed=1)
+    build_door(tmp_path / "cand.jpg", seed=2)
+    cache = tmp_path / "cache"
+    a = _config()
+    b = _config()
+    b.drift_thresholds = {"frame_standard": 0.03, "frame_narrow": 0.015}
+    assert config_hash(a) != config_hash(b)
+    measure_cached(tmp_path / "ref.jpg", tmp_path / "cand.jpg", "k:1", a,
+                   "frame_standard", cache_dir=cache)
+    measure_cached(tmp_path / "ref.jpg", tmp_path / "cand.jpg", "k:1", b,
+                   "frame_standard", cache_dir=cache)
+    assert (cache / config_hash(a) / "k_1.json").exists()
+    assert (cache / config_hash(b) / "k_1.json").exists()
+
+
+def test_unmeasurable_not_cached_and_retryable(tmp_path: Path) -> None:
+    from backend.qa.geometry import config_hash, measure_cached
+
+    build_door(tmp_path / "ref.jpg", seed=1)
+    bad = tmp_path / "cand.jpg"
+    bad.write_bytes(b"not an image")
+    cache = tmp_path / "cache"
+    cfg = _config()
+    rep = measure_cached(tmp_path / "ref.jpg", bad, "k:1", cfg, "frame_standard",
+                         cache_dir=cache)
+    assert rep.status == "unmeasurable"
+    assert not (cache / config_hash(cfg) / "k_1.json").exists()
+    # The failure is retryable: once the image is fixed, the next call measures.
+    build_door(bad, seed=2)
+    rep2 = measure_cached(tmp_path / "ref.jpg", bad, "k:1", cfg, "frame_standard",
+                          cache_dir=cache)
+    assert rep2.status == "ok"
+    assert (cache / config_hash(cfg) / "k_1.json").exists()
+
+
 # --- timing (informational) --------------------------------------------------
 
 

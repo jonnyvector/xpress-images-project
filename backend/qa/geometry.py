@@ -20,7 +20,9 @@ Pipeline (numpy + Pillow only, no scipy/cv2):
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import hashlib
+import json
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -655,3 +657,41 @@ def _detail(
     if partial:
         parts.append("GEO-003: partial (missing interior boundaries on an axis)")
     return "; ".join(parts)
+
+
+# --- disk cache (mirrors the judge verdict cache pattern) ---------------------
+
+DEFAULT_CACHE_DIR = Path("output/.qa/geometry")
+
+
+def config_hash(config: GeometryConfig) -> str:
+    """Stable hash of every config field: any change busts the cache."""
+    payload = json.dumps(asdict(config), sort_keys=True)
+    return hashlib.sha256(payload.encode()).hexdigest()[:12]
+
+
+def measure_cached(
+    reference_path: Path,
+    candidate_path: Path,
+    key: str,
+    config: GeometryConfig,
+    style_class: str,
+    *,
+    reference: str = "sample",
+    cache_dir: Path = DEFAULT_CACHE_DIR,
+) -> GeometryReport:
+    """measure() with a per-config-hash disk cache.
+
+    Unmeasurable results are NOT cached (retryable — mirrors the judge error
+    rule): a transient read failure must not pin a candidate to needs_human.
+    """
+    path = cache_dir / config_hash(config) / f"{key.replace(':', '_')}.json"
+    if path.exists():
+        return GeometryReport(**json.loads(path.read_text()))
+    report = measure(
+        reference_path, candidate_path, key, config, style_class, reference=reference
+    )
+    if report.status != "unmeasurable":
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(asdict(report)))
+    return report

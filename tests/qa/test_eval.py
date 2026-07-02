@@ -67,3 +67,56 @@ def test_replica_review_load_counts_only_replica_routing() -> None:
         "a:0:variant:1": Decision("a:0:variant:1", "pass", "ok"),
     }
     assert replica_review_load(decisions.values()) == 2
+
+
+def test_geometry_attribution_counts_deltas_vs_baseline() -> None:
+    from backend.qa.eval import geometry_attribution
+
+    labels = [
+        Label(key="a:0:variant:0", verdict="reject", reasons=["geometry_drift"]),
+        Label(key="a:0:variant:1", verdict="reject", reasons=["geometry_drift"]),
+        Label(key="a:0:variant:2", verdict="accept"),
+        Label(key="a:0:variant:3", verdict="accept"),
+    ]
+    decisions = {
+        # geometry-only catch: flagged now, judge alone passed it
+        "a:0:variant:0": Decision("a:0:variant:0", "regenerate", "geometry drift: ..."),
+        # caught by judge in both worlds -> not geometry-only
+        "a:0:variant:1": Decision("a:0:variant:1", "regenerate", "judge fail"),
+        # geometry-added false flag: accept flagged only with geometry on
+        "a:0:variant:2": Decision("a:0:variant:2", "needs_human", "geometry unmeasurable: ..."),
+        "a:0:variant:3": Decision("a:0:variant:3", "pass", "ok"),
+    }
+    baseline = {
+        "a:0:variant:0": Decision("a:0:variant:0", "pass", "ok"),
+        "a:0:variant:1": Decision("a:0:variant:1", "regenerate", "judge fail"),
+        "a:0:variant:2": Decision("a:0:variant:2", "pass", "ok"),
+        "a:0:variant:3": Decision("a:0:variant:3", "pass", "ok"),
+    }
+    attr = geometry_attribution(labels, decisions, baseline)
+    assert attr.geometry_only_catches == 1
+    assert attr.geometry_added_false_flags == 1
+
+
+def test_transitive_review_load_counts_only_transitive_routing() -> None:
+    from backend.qa.eval import transitive_review_load
+    from backend.qa.policy import TRANSITIVE_REVIEW_REASON
+
+    decisions = {
+        "a:0:variant:0": Decision("a:0:variant:0", "needs_human", TRANSITIVE_REVIEW_REASON),
+        "a:0:variant:1": Decision("a:0:variant:1", "needs_human", TRANSITIVE_REVIEW_REASON),
+        "a:0:replica:-1": Decision("a:0:replica:-1", "needs_human", REPLICA_REVIEW_REASON),
+        "a:0:variant:2": Decision("a:0:variant:2", "pass", "ok"),
+    }
+    assert transitive_review_load(decisions.values()) == 2
+
+
+def test_excluded_count_uses_style_router() -> None:
+    from backend.qa.eval import excluded_count
+
+    candidates = [
+        _candidate("a:0:variant:0", style="shaker"),
+        _candidate("b:0:variant:0", style="louver"),
+        _candidate("c:0:variant:0", style="no_such_style"),
+    ]
+    assert excluded_count(candidates) == 2

@@ -90,12 +90,12 @@ Source: `backend/qa/policy.py`, `backend/qa/policy_config.json`
 ### M6: Eval wiring + cache + attribution
 Source: `scripts/qa_eval.py`
 
-- [ ] Feature: style routing in eval (class → reference selection → measure)
-- [ ] Feature: geometry cache at output/.qa/geometry/<config-hash>/<key>.json (test)
-- [ ] Feature: config change busts cache via hash (test)
-- [ ] Feature: unmeasurable results not cached — retryable, mirrors judge error rule (test)
-- [ ] Feature: metrics output — geometry-only catches, geometry-added false flags, excluded-class counts, replica load (test)
-- [ ] Feature: full train-split eval smoke run clean; lint; committed
+- [x] Feature: style routing in eval (class → reference selection → measure)
+- [x] Feature: geometry cache at output/.qa/geometry/<config-hash>/<key>.json (test)
+- [x] Feature: config change busts cache via hash (test)
+- [x] Feature: unmeasurable results not cached — retryable, mirrors judge error rule (test)
+- [x] Feature: metrics output — geometry-only catches, geometry-added false flags, excluded-class counts, replica load (test)
+- [x] Feature: full train-split eval smoke run clean; lint; committed
 
 ## Phase 4: Threshold calibration + acceptance
 
