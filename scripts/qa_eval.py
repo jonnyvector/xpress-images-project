@@ -21,10 +21,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from dotenv import load_dotenv
 
 from backend.qa.corpus import walk_corpus
-from backend.qa.eval import evaluate, is_holdout
+from backend.qa.eval import evaluate, is_holdout, replica_review_load
 from backend.qa.judge import VisionJudge
 from backend.qa.labels import LabelStore
-from backend.qa.policy import Decision, decide, load_policy
+from backend.qa.policy import REPLICA_REVIEW_REASON, Decision, decide, load_policy
 
 QA_DIR = Path("output/.qa")
 
@@ -44,6 +44,9 @@ def main() -> None:
         raise SystemExit("GEMINI_API_KEY not set (see .env)")
 
     labels = LabelStore(QA_DIR / "labels.json").all()
+    approved_keys = frozenset(
+        label.key for label in labels if label.verdict == "accept"
+    )
     candidates = {
         c.key: c for c in walk_corpus(Path("output/.projects"), Path("swatches"))
     }
@@ -68,13 +71,22 @@ def main() -> None:
             decisions[label.key] = Decision(label.key, "needs_human", "no sample photo on file")
             print(f"[{i}/{len(judged_labels)}] {label.key}: needs_human (no sample, not judged)")
             continue
+        if (
+            policy.replica_review
+            and candidate.kind == "replica"
+            and candidate.key not in approved_keys
+        ):
+            decisions[label.key] = Decision(label.key, "needs_human", REPLICA_REVIEW_REASON)
+            print(f"[{i}/{len(judged_labels)}] {label.key}: needs_human (replica review)")
+            continue
         result = judge.judge(candidate)
-        decisions[label.key] = decide(result, candidate, policy)
+        decisions[label.key] = decide(result, candidate, policy, approved_keys=approved_keys)
         print(f"[{i}/{len(judged_labels)}] {label.key}: {decisions[label.key].verdict}")
 
     metrics = evaluate(judged_labels, decisions, candidates)
     print(f"\n== {split} metrics (judge config {judge.config_hash()}) ==")
     print(f"n={metrics.n}  rejects={metrics.n_rejects}  accepts={metrics.n_accepts}")
+    print(f"replica review load: {replica_review_load(decisions.values())} routed to human (D1)")
     print(f"reject recall:   {metrics.reject_recall:.1%}  (target >= 95%)")
     print(f"false-flag rate: {metrics.false_flag_rate:.1%}  (target <= 20%)")
     print("recall by reason:")

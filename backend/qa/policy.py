@@ -8,12 +8,14 @@ from backend.qa.corpus import Candidate
 from backend.qa.judge import JudgeResult
 
 DEFAULT_POLICY_PATH = Path("backend/qa/policy_config.json")
+REPLICA_REVIEW_REASON = "replica review: geometry anchor"
 
 
 @dataclass
 class PolicyConfig:
     min_score: int = 4
     untrusted_styles: list[str] = field(default_factory=list)
+    replica_review: bool = True  # replicas are geometry anchors: human-review unless approved
 
 
 @dataclass
@@ -28,14 +30,26 @@ def load_policy(path: Path = DEFAULT_POLICY_PATH) -> PolicyConfig:
     return PolicyConfig(
         min_score=int(data.get("min_score", 4)),
         untrusted_styles=list(data.get("untrusted_styles", [])),
+        replica_review=bool(data.get("replica_review", True)),
     )
 
 
-def decide(result: JudgeResult, candidate: Candidate, config: PolicyConfig) -> Decision:
+def decide(
+    result: JudgeResult,
+    candidate: Candidate,
+    config: PolicyConfig,
+    approved_keys: frozenset[str] = frozenset(),
+) -> Decision:
     if candidate.door_style in config.untrusted_styles:
         return Decision(result.key, "needs_human", f"untrusted style: {candidate.door_style}")
     if candidate.sample_path is None:
         return Decision(result.key, "needs_human", "no sample photo on file")
+    if (
+        config.replica_review
+        and candidate.kind == "replica"
+        and candidate.key not in approved_keys
+    ):
+        return Decision(result.key, "needs_human", REPLICA_REVIEW_REASON)
     if result.verdict == "error":
         return Decision(result.key, "needs_human", f"judge error: {result.reason}")
     scores = {

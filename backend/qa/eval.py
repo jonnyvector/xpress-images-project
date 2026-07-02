@@ -1,16 +1,22 @@
 """Score a judge+policy configuration against human labels."""
 
 import hashlib
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from backend.qa.corpus import Candidate
 from backend.qa.labels import Label
-from backend.qa.policy import Decision
+from backend.qa.policy import REPLICA_REVIEW_REASON, Decision
 
 
 def is_holdout(project_id: str) -> bool:
     """Deterministic ~20% holdout split, by project so tuning can't leak."""
     return int(hashlib.sha1(project_id.encode()).hexdigest(), 16) % 5 == 0
+
+
+def replica_review_load(decisions: Iterable[Decision]) -> int:
+    """How many decisions are replica-anchor human reviews (D1 routing)."""
+    return sum(1 for d in decisions if d.reason == REPLICA_REVIEW_REASON)
 
 
 @dataclass

@@ -1,9 +1,9 @@
 from pathlib import Path
 
 from backend.qa.corpus import Candidate
-from backend.qa.eval import evaluate, is_holdout
+from backend.qa.eval import evaluate, is_holdout, replica_review_load
 from backend.qa.labels import Label
-from backend.qa.policy import Decision
+from backend.qa.policy import REPLICA_REVIEW_REASON, Decision
 
 
 def _candidate(key: str, style: str = "shaker") -> Candidate:
@@ -57,3 +57,13 @@ def test_evaluate_recall_and_false_flags() -> None:
     assert m.recall_by_reason["geometry_drift"] == (1, 1)
     assert m.recall_by_reason["artifacts"] == (0, 1)
     assert "shaker" in m.by_style
+
+
+def test_replica_review_load_counts_only_replica_routing() -> None:
+    decisions = {
+        "a:0:replica:-1": Decision("a:0:replica:-1", "needs_human", REPLICA_REVIEW_REASON),
+        "b:0:replica:-1": Decision("b:0:replica:-1", "needs_human", REPLICA_REVIEW_REASON),
+        "a:0:variant:0": Decision("a:0:variant:0", "needs_human", "low judge confidence"),
+        "a:0:variant:1": Decision("a:0:variant:1", "pass", "ok"),
+    }
+    assert replica_review_load(decisions.values()) == 2
