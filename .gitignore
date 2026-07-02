@@ -27,3 +27,6 @@ output/
 
 # CodeGraph local index
 .codegraph/
+
+# planner state databases (living, per-machine)
+.plans/**/plan.db
