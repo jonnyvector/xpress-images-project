@@ -34,6 +34,11 @@ FastAPI + React app that generates cabinet door image variations across differen
 - `swatches/` - Wood swatch reference images + `wood_types.json`
 - `output/` - Generated images & project data (gitignored)
 
+## QA Judgment Pipeline
+Generated images are auto-graded (pass / regenerate / needs_human) by a three-layer
+pipeline: replica approvals, LLM vision judge, deterministic geometry checks.
+Operator guide: `docs/qa-pipeline.md`.
+
 ## Key Concept: Thought Signatures
 Gemini returns a binary "thought signature" when generating images. This signature encodes the model's understanding of the door style and can be passed back in subsequent requests to maintain geometric consistency while changing materials.
 
