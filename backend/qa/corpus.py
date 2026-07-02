@@ -23,7 +23,12 @@ class Candidate:
 
 
 def _swatch_index(swatches_dir: Path) -> dict[str, Path]:
-    """Map lowercased display name -> swatch image path, tolerant of filename drift."""
+    """Map lowercased display name -> swatch image path, tolerant of filename drift.
+
+    Matches case-insensitively against the actual directory contents so it works on
+    case-sensitive filesystems too (real files preserve display-name casing, e.g.
+    rtf/949T-White.jpg or wood/Alabaster-Taction-Oak.jpg).
+    """
     index: dict[str, Path] = {}
     for json_name, img_subdir in (("wood_types.json", "wood"), ("rtf_types.json", "rtf")):
         types_path = swatches_dir / json_name
@@ -33,17 +38,28 @@ def _swatch_index(swatches_dir: Path) -> dict[str, Path]:
             types = json.loads(types_path.read_text())
         except json.JSONDecodeError:
             continue
+        img_dir = swatches_dir / img_subdir
+        files_by_lower: dict[str, Path] = {}
+        if img_dir.is_dir():
+            for path in sorted(img_dir.iterdir()):
+                if path.is_file():
+                    files_by_lower.setdefault(path.name.lower(), path)
         for slug, info in types.items():
-            name = str(info.get("name", slug)).lower()
-            for filename in (
-                f"{slug.replace('-', '_')}.jpg",
-                f"{slug}.jpg",
-                f"{slug}-new.png",
-                f"{slug.replace('-', '_')}.png",
-                f"{slug}.png",
-            ):
-                path = swatches_dir / img_subdir / filename
-                if path.exists():
+            display_name = str(info.get("name", slug))
+            name = display_name.lower()
+            # Candidate stems: slug variants plus display-name variants (real files
+            # are often named after the display name rather than the slug).
+            stems = (
+                slug.replace("-", "_"),
+                slug,
+                f"{slug}-new",
+                display_name.replace(" ", "-"),
+                display_name.replace(" ", "_"),
+            )
+            candidates = [f"{stem}{ext}".lower() for stem in stems for ext in (".jpg", ".png")]
+            for filename in candidates:
+                path = files_by_lower.get(filename)
+                if path is not None:
                     index[name] = path
                     break
     return index
@@ -87,7 +103,10 @@ def walk_corpus(projects_dir: Path, swatches_dir: Path) -> list[Candidate]:
             if not vdir.is_dir() or not vdir.name.startswith("v") or not vdir.name[1:].isdigit():
                 continue
             names_path = vdir / "result_names.json"
-            result_names = json.loads(names_path.read_text()) if names_path.exists() else []
+            result_names: list[str] = []
+            if names_path.exists():
+                with contextlib.suppress(json.JSONDecodeError):
+                    result_names = json.loads(names_path.read_text())
             vstyle = style
             meta_path = vdir / "meta.json"
             if meta_path.exists():
