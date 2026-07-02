@@ -18,12 +18,18 @@ from backend.qa.geometry import (
     GeometryReport,
     _match_boundaries,
     _measure_image,
+    _strong_unmatched,
     measure,
 )
 
 FRAME_GRAY = 120
 PANEL_GRAY = 180
 BG = 247
+
+FIXTURES = Path(__file__).parent / "fixtures" / "geometry"
+needs_fixtures = pytest.mark.skipif(
+    not FIXTURES.exists(), reason="real-photo fixtures not exported (M4 spike)"
+)
 
 
 def build_door(
@@ -250,6 +256,97 @@ def test_geo004_injected_exception_never_raises(
     assert isinstance(rep, GeometryReport)
     assert rep.status == "unmeasurable"
     assert "GEO-004" in rep.detail
+
+
+# --- strong-peak floor for unmatched boundaries (unit) ------------------------
+
+
+def test_weak_unmatched_peak_does_not_count() -> None:
+    # Unmatched peak at 40% of the median matched strength: grain/shadow, not
+    # structure.
+    flat = np.zeros(100)
+    n = _strong_unmatched([0], [0.5], [0.12], [0.3, 0.3, 0.3], flat)
+    assert n == 0
+
+
+def test_strong_unmatched_peak_counts_when_other_image_is_flat() -> None:
+    flat = np.full(100, 0.005)  # grain-level energy only
+    n = _strong_unmatched([0], [0.5], [0.3], [0.3, 0.3, 0.3], flat)
+    assert n == 1
+
+
+def test_strong_unmatched_peak_suppressed_by_cross_energy() -> None:
+    # The other image carries a real (if weaker) edge at the same position:
+    # tone-dependent detection asymmetry, not drift.
+    energy = np.full(100, 0.005)
+    energy[48:52] = 0.15  # clearly-real edge at position ~0.5
+    n = _strong_unmatched([0], [0.5], [0.6], [0.3, 0.3, 0.3], energy)
+    assert n == 0
+
+
+def test_no_matched_structure_counts_all_unmatched_failsafe() -> None:
+    n = _strong_unmatched([0, 1], [0.3, 0.7], [0.05, 0.04], [], np.zeros(100))
+    assert n == 2
+
+
+# --- real-photo fixtures (M4 spike regressions) --------------------------------
+
+
+@needs_fixtures
+def test_full_bleed_real_samples_are_measurable() -> None:
+    # These real photographed samples returned GEO-002 before the full-frame
+    # fallback: the door fills the frame, so there is no background to find.
+    for name in ("4ebf2d15_1_replica_-1", "571ae351_2_replica_-1", "23d3dae0_1_replica_-1"):
+        m = _measure_image(FIXTURES / name / "sample.jpg", _config())
+        assert m.ok, f"{name}: {m.reason}"
+        assert m.full_bleed
+        assert not m.forced_low  # clean full-bleed stays high-confidence eligible
+
+
+@needs_fixtures
+def test_pale_wood_full_bleed_measurable_at_forced_low() -> None:
+    # Light maple fills the frame; the border median sits in the near-white
+    # band, so margin evidence is genuinely ambiguous -> measurable, low conf.
+    m = _measure_image(FIXTURES / "92e60a19_11_replica_-1" / "sample.jpg", _config())
+    assert m.ok, m.reason
+    assert m.full_bleed
+    assert m.forced_low
+
+
+@needs_fixtures
+def test_clean_full_bleed_replica_pair_measures_high_confidence() -> None:
+    d = FIXTURES / "571ae351_0_replica_-1"
+    rep = measure(d / "sample.jpg", d / "candidate.jpg", "k", _config(), "frame_standard")
+    assert rep.status == "ok"
+    assert rep.confidence == "high"
+
+
+@needs_fixtures
+def test_full_bleed_crop_aspect_is_not_drift_evidence() -> None:
+    # The sample is a square catalog crop: its frame aspect is not the door
+    # aspect. A human accepted this replica; aspect alone must not flag it.
+    d = FIXTURES / "4ebf2d15_0_replica_-1"
+    rep = measure(d / "sample.jpg", d / "candidate.jpg", "k", _config(), "frame_standard")
+    assert rep.status != "unmeasurable"
+    assert rep.aspect_delta > 0.3  # the bogus crop-aspect signal is present...
+    assert "unverified: full-bleed crop" in rep.detail  # ...and explicitly ignored
+
+
+@needs_fixtures
+@pytest.mark.parametrize(
+    "name",
+    ["2564359f_0_variant_0", "2564359f_0_variant_2", "40236826_0_variant_1"],
+)
+def test_accepted_variants_not_flagged_by_weak_unmatched_peaks(name: str) -> None:
+    # Human-accepted variants previously flagged drift at high confidence via
+    # unmatched grain/shadow peaks and tone-dependent edge detection asymmetry.
+    d = FIXTURES / name
+    rep = measure(
+        d / "replica.jpg", d / "candidate.jpg", "k", _config(), "frame_standard",
+        reference="replica",
+    )
+    assert rep.status == "ok", rep.detail
+    assert rep.unmatched_boundaries == 0
 
 
 # --- timing (informational) --------------------------------------------------
