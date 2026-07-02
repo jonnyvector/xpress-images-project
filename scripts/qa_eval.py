@@ -84,6 +84,7 @@ def main() -> None:
             f"false flags {stats['false_flag_rate']:.0%} ({stats['n_accepts']:.0f} accepts)"
         )
     report_path = QA_DIR / "eval_report.json"
+    QA_DIR.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps({"split": split, **asdict(metrics)}, indent=1))
     print(f"\nwritten: {report_path}")
 
