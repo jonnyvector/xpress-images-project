@@ -12,7 +12,7 @@ from google.genai import types
 
 from backend.qa.corpus import Candidate
 
-DEFAULT_MODEL = "gemini-3-pro-preview"
+DEFAULT_MODEL = "gemini-3.1-pro-preview"
 
 RUBRIC_PROMPT = """You are a strict quality inspector for AI-generated cabinet door product images.
 The first image is the customer's SAMPLE photo of the real door.{swatch_line}
