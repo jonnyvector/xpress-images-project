@@ -37,10 +37,10 @@ Source: `backend/qa/policy.py`, `scripts/qa_eval.py`, `backend/qa/policy_config.
 ### M2: Style-class router
 Source: `backend/styles/catalog.py`, new `backend/qa/styles_classes.py`
 
-- [ ] Feature: explicit style→class dict covering all catalog keys (frame_standard | frame_narrow | excluded) with module comment
-- [ ] Feature: shaker-family keys map to measurable classes; skinny-shaker maps to frame_narrow (test)
-- [ ] Feature: slab/bevel, plank, louver, radius/arched, glass styles map to excluded (test)
-- [ ] Feature: unknown/None door_style maps to excluded — fail-safe (test)
+- [x] Feature: explicit style→class dict covering all catalog keys (frame_standard | frame_narrow | excluded) with module comment
+- [x] Feature: shaker-family keys map to measurable classes; skinny-shaker maps to frame_narrow (test)
+- [x] Feature: slab/bevel, plank, louver, radius/arched, glass styles map to excluded (test)
+- [x] Feature: unknown/None door_style maps to excluded — fail-safe (test)
 
 ### M3: Synthetic measurement core
 Source: new `backend/qa/geometry.py`, new `tests/qa/test_geometry.py`
