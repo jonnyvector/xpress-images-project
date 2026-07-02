@@ -1,4 +1,18 @@
 {
   "min_score": 4,
-  "untrusted_styles": []
+  "untrusted_styles": [],
+  "replica_review": true,
+  "transitive_replica_review": true,
+  "geometry": {
+    "measurable_styles": ["frame_standard", "frame_narrow"],
+    "working_width": 1536,
+    "drift_thresholds": {
+      "frame_standard": 0.03,
+      "frame_narrow": 0.015
+    },
+    "aspect_threshold": 0.04,
+    "min_box_fraction": 0.4,
+    "min_peak_prominence": 0.15,
+    "max_match_residual": 0.02
+  }
 }

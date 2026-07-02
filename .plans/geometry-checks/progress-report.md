@@ -75,17 +75,17 @@ Source: `output/.qa/labels.json`, fixtures to `tests/qa/fixtures/geometry/`
 ### M5: Policy composition
 Source: `backend/qa/policy.py`, `backend/qa/policy_config.json`
 
-- [ ] Feature: `decide(..., geometry: GeometryReport | None, replica_approved: bool)` implements the reshaped 12-step precedence (D-010)
-- [ ] Feature: transitive replica approval — variant of unapproved replica → needs_human, behind transitive_replica_review flag (test)
-- [ ] Feature: sample-reference drift → needs_human regardless of confidence — advisory rule (test)
-- [ ] Feature: acceptance test on real fixtures — all 5 variant-miss keys route needs_human via transitive rule; accepts 2564359f variants measure ok/high
-- [ ] Feature: high-confidence drift overrides passing judge → regenerate (test)
-- [ ] Feature: low-confidence drift → needs_human (test)
-- [ ] Feature: unmeasurable → needs_human (test)
-- [ ] Feature: judge-fail + unmeasurable → regenerate — asymmetry preserved (test)
-- [ ] Feature: geometry=None leaves pre-geometry behavior byte-identical (test)
-- [ ] Feature: PolicyConfig.geometry: GeometryConfig | None parsed from nested policy_config.json object; absent → disabled
-- [ ] Feature: policy_config.json committed with per-class thresholds (placeholder values until M7)
+- [x] Feature: `decide(..., geometry: GeometryReport | None, replica_approved: bool)` implements the reshaped 12-step precedence (D-010)
+- [x] Feature: transitive replica approval — variant of unapproved replica → needs_human, behind transitive_replica_review flag (test)
+- [x] Feature: sample-reference drift → needs_human regardless of confidence — advisory rule (test)
+- [x] Feature: acceptance test on real fixtures — all 5 variant-miss keys route needs_human via transitive rule; accepts 2564359f variants measure ok/high
+- [x] Feature: high-confidence drift overrides passing judge → regenerate (test)
+- [x] Feature: low-confidence drift → needs_human (test)
+- [x] Feature: unmeasurable → needs_human (test)
+- [x] Feature: judge-fail + unmeasurable → regenerate — asymmetry preserved (test)
+- [x] Feature: geometry=None leaves pre-geometry behavior byte-identical (test)
+- [x] Feature: PolicyConfig.geometry: GeometryConfig | None parsed from nested policy_config.json object; absent → disabled
+- [x] Feature: policy_config.json committed with per-class thresholds (placeholder values until M7)
 
 ### M6: Eval wiring + cache + attribution
 Source: `scripts/qa_eval.py`

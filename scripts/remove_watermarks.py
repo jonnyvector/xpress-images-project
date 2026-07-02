@@ -175,10 +175,14 @@ def main() -> None:
         description="Remove 'Example' watermark from door images."
     )
     parser.add_argument("folders", nargs="+", type=Path, help="Folders with watermarked PNGs")
-    parser.add_argument("--output", type=Path, default=None, help="Output directory (default: cleaned/ subfolder)")
+    parser.add_argument(
+        "--output", type=Path, default=None, help="Output directory (default: cleaned/ subfolder)"
+    )
     parser.add_argument("--inplace", action="store_true", help="Overwrite originals")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be processed")
-    parser.add_argument("--skip-existing", action="store_true", help="Skip already-processed images")
+    parser.add_argument(
+        "--skip-existing", action="store_true", help="Skip already-processed images"
+    )
     args = parser.parse_args()
 
     font = _load_font()
