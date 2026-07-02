@@ -104,9 +104,9 @@ Source: `scripts/qa_eval.py`, selection split of labels
 
 - [x] Feature: per-class threshold sweep on selection split; curves + chosen values in phase4-calibration.md
 - [x] Feature: chosen thresholds committed to policy_config.json; frozen
-- [ ] Feature: holdout eval run exactly once
-- [ ] Feature: holdout verdict recorded — pass (recall ≥95%, false-flag ≤20%) or documented shortfall + stage regression
-- [ ] Feature: replica-review load reported alongside holdout metrics
+- [x] Feature: holdout eval run exactly once
+- [x] Feature: holdout verdict recorded — PASS (recall 100%, false-flag 19.2%; beat original gate)
+- [x] Feature: replica-review load reported alongside holdout metrics (5 replica, 0 transitive)
 
 ## Deferred follow-up
 
@@ -119,8 +119,8 @@ Source: `scripts/qa_eval.py`, selection split of labels
 
 ## Summary
 - Total features: 58
-- Completed: 55
-- Remaining: 3
-- Current cutoff blockers: 3
+- Completed: 58
+- Remaining: 0
+- Current cutoff blockers: 0
 - Accepted/deferred follow-up: 2
 - Superseded/obsolete checklist debt: 1
