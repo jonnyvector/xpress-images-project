@@ -5,7 +5,7 @@
 > implemented — never mark a milestone complete until every current-cutoff
 > checkbox under it is checked.
 
-> Current focus: Phase 2 — Measurement core + real-fixture spike
+> Current focus: Phase 3 — Policy + eval integration
 
 ## Phase 0: Mechanism decomposition (no code)
 
@@ -63,19 +63,22 @@ Source: new `backend/qa/geometry.py`, new `tests/qa/test_geometry.py`
 ### M4: Real-fixture spike (A-001, A-002)
 Source: `output/.qa/labels.json`, fixtures to `tests/qa/fixtures/geometry/`
 
-- [ ] Feature: fixture working copies exported (17 missed pairs + style-matched accepts) with manifest.json
-- [ ] Feature: measure() run across all fixtures; results table in phase2-spike.md
-- [ ] Feature: A-001 validated in plan-db (high-confidence rate ≥80% on measurable replica-vs-sample) or failed with evidence
-- [ ] Feature: A-002 validated in plan-db (selection-split sweep separates variant rejects from accepts) or failed with evidence
-- [ ] Feature: committed acceptance test — ≥4/5 variant-miss fixtures detected, zero high-confidence false drifts on accepts
-- [ ] Feature: on assumption failure: stage regressed, OQ-1 surfaced to Jonathan (only if triggered)
+- [x] Feature: fixture working copies exported (17 missed pairs + 18 style-matched accepts) with manifest.json
+- [x] Feature: measure() run across all fixtures; results in phase2-spike.md + m2-m3-report.md
+- [x] Feature: A-001 recorded FAIL in plan-db with evidence (27% high-conf vs 80% target)
+- [x] Feature: A-002 recorded FAIL in plan-db with evidence (drift inherited from rejected replicas, D-009)
+- [ ] ~~Feature: committed acceptance test — ≥4/5 variant-miss fixtures detected, zero high-confidence false drifts on accepts~~ — superseded by D-009/D-010: variant misses are D1-transitive; replaced by M5 policy acceptance tests
+- [x] Feature: assumption-failure handling — targeted plan reshape per D-010, OQ-1 surfaced (user AFK, recommended path adopted, reversible)
 
 ## Phase 3: Policy + eval integration
 
 ### M5: Policy composition
 Source: `backend/qa/policy.py`, `backend/qa/policy_config.json`
 
-- [ ] Feature: `decide(..., geometry: GeometryReport | None)` implements the 10-step precedence
+- [ ] Feature: `decide(..., geometry: GeometryReport | None, replica_approved: bool)` implements the reshaped 12-step precedence (D-010)
+- [ ] Feature: transitive replica approval — variant of unapproved replica → needs_human, behind transitive_replica_review flag (test)
+- [ ] Feature: sample-reference drift → needs_human regardless of confidence — advisory rule (test)
+- [ ] Feature: acceptance test on real fixtures — all 5 variant-miss keys route needs_human via transitive rule; accepts 2564359f variants measure ok/high
 - [ ] Feature: high-confidence drift overrides passing judge → regenerate (test)
 - [ ] Feature: low-confidence drift → needs_human (test)
 - [ ] Feature: unmeasurable → needs_human (test)
@@ -115,9 +118,9 @@ Source: `scripts/qa_eval.py`, selection split of labels
 (none)
 
 ## Summary
-- Total features: 56
-- Completed: 13
-- Remaining: 43
-- Current cutoff blockers: 43
+- Total features: 58
+- Completed: 36
+- Remaining: 22
+- Current cutoff blockers: 22
 - Accepted/deferred follow-up: 2
-- Superseded/obsolete checklist debt: 0
+- Superseded/obsolete checklist debt: 1

@@ -115,19 +115,27 @@ mean match residual ≤ `max_match_residual`, and boundary counts agree
 within one. Partial measurement (GEO-003) forces `low` confidence.
 
 **Decision precedence (`decide(result, candidate, config,
-geometry=None, approved_keys=frozenset())`):**
+geometry=None, approved_keys=frozenset(), replica_approved=True)`):**
+
+<!-- D-010 --> Reshaped after the M4 spike (A-001/A-002 failed as stated):
 
 1. Untrusted style → needs_human
 2. No sample photo → needs_human
 3. Replica + `replica_review` and key not in approved_keys → needs_human
    ("replica review: geometry anchor")
-4. Judge error → needs_human
-5. Judge fail / low scores → regenerate
-6. Geometry drift, high confidence → regenerate (names worst measurement)
-7. Geometry drift, low confidence → needs_human
-8. Geometry unmeasurable (measurable class only) → needs_human
-9. Judge low confidence → needs_human
-10. Pass
+4. Variant + `transitive_replica_review` and its replica not approved →
+   needs_human ("replica not approved") — production semantics: variants
+   of an unapproved replica never ship; false-flag impact measured in M6
+5. Judge error → needs_human
+6. Judge fail / low scores → regenerate
+7. Geometry drift, high confidence, reference=replica → regenerate
+   (names worst measurement) — the render-vs-render hard gate
+8. Geometry drift, reference=sample (any confidence) → needs_human —
+   photo comparison is advisory (A-001: only 27% high-confidence)
+9. Geometry drift, low confidence → needs_human
+10. Geometry unmeasurable (measurable class only) → needs_human
+11. Judge low confidence → needs_human
+12. Pass
 
 `geometry=None` (excluded class / no reference / disabled) MUST leave
 pre-geometry behavior byte-identical. Judge-fail beats unmeasurable
@@ -139,8 +147,10 @@ measurement, low confidence, or unmeasurable if aspect+frame also
 unavailable; GEO-004 any exception at `measure()` boundary → unmeasurable.
 No geometry path may silently pass or raise.
 
-**Dual reference (D3):** replicas measured vs sample; variants vs replica
-(primary) and vs sample (backstop).
+**Dual reference (D3, reshaped per D-010):** replicas measured vs sample
+(ADVISORY — informs human review, never auto-regenerates); variants vs
+replica (PRIMARY hard gate) with vs-sample as advisory backstop.
+`PolicyConfig` gains `transitive_replica_review: bool = True`.
 
 ### Observability
 

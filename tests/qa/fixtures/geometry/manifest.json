@@ -1,0 +1,506 @@
+[
+ {
+  "key": "7efd9e3d:1:variant:2",
+  "kind": "variant",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift",
+   "profile_character"
+  ],
+  "door_style": "recessed_panel",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "7efd9e3d_1_variant_2/candidate.jpg",
+   "sample": "7efd9e3d_1_variant_2/sample.jpg",
+   "replica": "7efd9e3d_1_variant_2/replica.jpg"
+  }
+ },
+ {
+  "key": "27eef02f:10:replica:-1",
+  "kind": "replica",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift",
+   "profile_character"
+  ],
+  "door_style": "mission",
+  "style_class": "excluded",
+  "images": {
+   "candidate": "27eef02f_10_replica_-1/candidate.jpg",
+   "sample": "27eef02f_10_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "4ebf2d15:1:replica:-1",
+  "kind": "replica",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "door_style": "shaker",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "4ebf2d15_1_replica_-1/candidate.jpg",
+   "sample": "4ebf2d15_1_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "58ad6f7f:1:replica:-1",
+  "kind": "replica",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "door_style": "recessed_panel_center_stile",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "58ad6f7f_1_replica_-1/candidate.jpg",
+   "sample": "58ad6f7f_1_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "23d3dae0:1:replica:-1",
+  "kind": "replica",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "door_style": "recessed_panel",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "23d3dae0_1_replica_-1/candidate.jpg",
+   "sample": "23d3dae0_1_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "27eef02f:11:replica:-1",
+  "kind": "replica",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "door_style": "mission",
+  "style_class": "excluded",
+  "images": {
+   "candidate": "27eef02f_11_replica_-1/candidate.jpg",
+   "sample": "27eef02f_11_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "571ae351:1:variant:0",
+  "kind": "variant",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "door_style": "drawer_durango_minimal",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "571ae351_1_variant_0/candidate.jpg",
+   "sample": "571ae351_1_variant_0/sample.jpg",
+   "replica": "571ae351_1_variant_0/replica.jpg"
+  }
+ },
+ {
+  "key": "4ebf2d15:1:variant:0",
+  "kind": "variant",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "door_style": "shaker",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "4ebf2d15_1_variant_0/candidate.jpg",
+   "sample": "4ebf2d15_1_variant_0/sample.jpg",
+   "replica": "4ebf2d15_1_variant_0/replica.jpg"
+  }
+ },
+ {
+  "key": "92e60a19:2:replica:-1",
+  "kind": "replica",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "door_style": "drawer_durango",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "92e60a19_2_replica_-1/candidate.jpg",
+   "sample": "92e60a19_2_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "58ad6f7f:2:replica:-1",
+  "kind": "replica",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "door_style": "recessed_panel_center_stile",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "58ad6f7f_2_replica_-1/candidate.jpg",
+   "sample": "58ad6f7f_2_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "098e0626:3:replica:-1",
+  "kind": "replica",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "door_style": "drawer_solid_plank",
+  "style_class": "excluded",
+  "images": {
+   "candidate": "098e0626_3_replica_-1/candidate.jpg",
+   "sample": "098e0626_3_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "571ae351:2:replica:-1",
+  "kind": "replica",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "door_style": "drawer_durango_minimal",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "571ae351_2_replica_-1/candidate.jpg",
+   "sample": "571ae351_2_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "4ebf2d15:1:variant:1",
+  "kind": "variant",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "door_style": "shaker",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "4ebf2d15_1_variant_1/candidate.jpg",
+   "sample": "4ebf2d15_1_variant_1/sample.jpg",
+   "replica": "4ebf2d15_1_variant_1/replica.jpg"
+  }
+ },
+ {
+  "key": "92e60a19:1:replica:-1",
+  "kind": "replica",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "door_style": "drawer_durango",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "92e60a19_1_replica_-1/candidate.jpg",
+   "sample": "92e60a19_1_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "367b7b57:0:replica:-1",
+  "kind": "replica",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "door_style": "drawer_durango",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "367b7b57_0_replica_-1/candidate.jpg",
+   "sample": "367b7b57_0_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "4962feb2:0:replica:-1",
+  "kind": "replica",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "door_style": "drawer_durango",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "4962feb2_0_replica_-1/candidate.jpg",
+   "sample": "4962feb2_0_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "b684d34b:0:variant:0",
+  "kind": "variant",
+  "group": "miss",
+  "label": "reject",
+  "reasons": [
+   "geometry_drift"
+  ],
+  "door_style": "drawer_minimal",
+  "style_class": "excluded",
+  "images": {
+   "candidate": "b684d34b_0_variant_0/candidate.jpg",
+   "sample": "b684d34b_0_variant_0/sample.jpg",
+   "replica": "b684d34b_0_variant_0/replica.jpg"
+  }
+ },
+ {
+  "key": "2564359f:0:replica:-1",
+  "kind": "replica",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "recessed_panel",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "2564359f_0_replica_-1/candidate.jpg",
+   "sample": "2564359f_0_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "2564359f:0:variant:2",
+  "kind": "variant",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "recessed_panel",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "2564359f_0_variant_2/candidate.jpg",
+   "sample": "2564359f_0_variant_2/sample.jpg",
+   "replica": "2564359f_0_variant_2/replica.jpg"
+  }
+ },
+ {
+  "key": "2564359f:0:variant:0",
+  "kind": "variant",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "recessed_panel",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "2564359f_0_variant_0/candidate.jpg",
+   "sample": "2564359f_0_variant_0/sample.jpg",
+   "replica": "2564359f_0_variant_0/replica.jpg"
+  }
+ },
+ {
+  "key": "44130ef4:0:replica:-1",
+  "kind": "replica",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "drawer_solid_plank",
+  "style_class": "excluded",
+  "images": {
+   "candidate": "44130ef4_0_replica_-1/candidate.jpg",
+   "sample": "44130ef4_0_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "2a13631b:0:replica:-1",
+  "kind": "replica",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "drawer_solid_plank",
+  "style_class": "excluded",
+  "images": {
+   "candidate": "2a13631b_0_replica_-1/candidate.jpg",
+   "sample": "2a13631b_0_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "2a13631b:0:variant:0",
+  "kind": "variant",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "drawer_solid_plank",
+  "style_class": "excluded",
+  "images": {
+   "candidate": "2a13631b_0_variant_0/candidate.jpg",
+   "sample": "2a13631b_0_variant_0/sample.jpg",
+   "replica": "2a13631b_0_variant_0/replica.jpg"
+  }
+ },
+ {
+  "key": "571ae351:1:replica:-1",
+  "kind": "replica",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "drawer_durango_minimal",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "571ae351_1_replica_-1/candidate.jpg",
+   "sample": "571ae351_1_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "92e60a19:11:replica:-1",
+  "kind": "replica",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "drawer_durango",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "92e60a19_11_replica_-1/candidate.jpg",
+   "sample": "92e60a19_11_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "4ebf2d15:0:replica:-1",
+  "kind": "replica",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "shaker",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "4ebf2d15_0_replica_-1/candidate.jpg",
+   "sample": "4ebf2d15_0_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "40236826:0:replica:-1",
+  "kind": "replica",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "recessed_panel_center_stile",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "40236826_0_replica_-1/candidate.jpg",
+   "sample": "40236826_0_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "571ae351:0:replica:-1",
+  "kind": "replica",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "drawer_durango_minimal",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "571ae351_0_replica_-1/candidate.jpg",
+   "sample": "571ae351_0_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "b684d34b:0:replica:-1",
+  "kind": "replica",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "drawer_minimal",
+  "style_class": "excluded",
+  "images": {
+   "candidate": "b684d34b_0_replica_-1/candidate.jpg",
+   "sample": "b684d34b_0_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "4ebf2d15:0:variant:0",
+  "kind": "variant",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "shaker",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "4ebf2d15_0_variant_0/candidate.jpg",
+   "sample": "4ebf2d15_0_variant_0/sample.jpg",
+   "replica": "4ebf2d15_0_variant_0/replica.jpg"
+  }
+ },
+ {
+  "key": "40236826:0:variant:0",
+  "kind": "variant",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "recessed_panel_center_stile",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "40236826_0_variant_0/candidate.jpg",
+   "sample": "40236826_0_variant_0/sample.jpg",
+   "replica": "40236826_0_variant_0/replica.jpg"
+  }
+ },
+ {
+  "key": "7634b572:0:replica:-1",
+  "kind": "replica",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "mission",
+  "style_class": "excluded",
+  "images": {
+   "candidate": "7634b572_0_replica_-1/candidate.jpg",
+   "sample": "7634b572_0_replica_-1/sample.jpg"
+  }
+ },
+ {
+  "key": "571ae351:0:variant:0",
+  "kind": "variant",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "drawer_durango_minimal",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "571ae351_0_variant_0/candidate.jpg",
+   "sample": "571ae351_0_variant_0/sample.jpg",
+   "replica": "571ae351_0_variant_0/replica.jpg"
+  }
+ },
+ {
+  "key": "4ebf2d15:0:variant:1",
+  "kind": "variant",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "shaker",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "4ebf2d15_0_variant_1/candidate.jpg",
+   "sample": "4ebf2d15_0_variant_1/sample.jpg",
+   "replica": "4ebf2d15_0_variant_1/replica.jpg"
+  }
+ },
+ {
+  "key": "40236826:0:variant:1",
+  "kind": "variant",
+  "group": "accept",
+  "label": "accept",
+  "reasons": [],
+  "door_style": "recessed_panel_center_stile",
+  "style_class": "frame_standard",
+  "images": {
+   "candidate": "40236826_0_variant_1/candidate.jpg",
+   "sample": "40236826_0_variant_1/sample.jpg",
+   "replica": "40236826_0_variant_1/replica.jpg"
+  }
+ }
+]
