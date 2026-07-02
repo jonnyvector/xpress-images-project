@@ -24,7 +24,7 @@ from backend.qa.corpus import walk_corpus
 from backend.qa.eval import evaluate, is_holdout
 from backend.qa.judge import VisionJudge
 from backend.qa.labels import LabelStore
-from backend.qa.policy import decide, load_policy
+from backend.qa.policy import Decision, decide, load_policy
 
 QA_DIR = Path("output/.qa")
 
@@ -64,6 +64,10 @@ def main() -> None:
     decisions = {}
     for i, label in enumerate(judged_labels, 1):
         candidate = candidates[label.key]
+        if candidate.sample_path is None:
+            decisions[label.key] = Decision(label.key, "needs_human", "no sample photo on file")
+            print(f"[{i}/{len(judged_labels)}] {label.key}: needs_human (no sample, not judged)")
+            continue
         result = judge.judge(candidate)
         decisions[label.key] = decide(result, candidate, policy)
         print(f"[{i}/{len(judged_labels)}] {label.key}: {decisions[label.key].verdict}")

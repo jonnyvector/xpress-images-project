@@ -45,6 +45,9 @@ npm run dev:frontend     # Vite dev server on :5173
 npm run build            # Build frontend for production
 npm run lint             # Ruff lint backend
 npm run format           # Ruff format backend
+uv run python scripts/qa_label.py    # labeling UI on :8777 (calibration ground truth)
+uv run python scripts/qa_eval.py     # judge labeled images + score vs labels (train split)
+uv run python scripts/qa_report.py   # build output/.qa/review.html of flagged images
 ```
 
 ## Environment
