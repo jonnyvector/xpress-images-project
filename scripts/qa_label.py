@@ -10,8 +10,9 @@ it locally. Accept/Reject clicks persist immediately to output/.qa/labels.json.
 import argparse
 import json
 import sys
+import threading
 from functools import partial
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -56,6 +57,7 @@ def build_site(candidates: list[Candidate], labels: LabelStore) -> None:
 
 class LabelHandler(SimpleHTTPRequestHandler):
     store: LabelStore  # set on the class before serving
+    store_lock = threading.Lock()  # ThreadingHTTPServer: serialize store writes
 
     def do_POST(self) -> None:  # noqa: N802 (stdlib API name)
         if self.path != "/label":
@@ -64,7 +66,8 @@ class LabelHandler(SimpleHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(length)
         try:
-            self.store.set(parse_label_post(raw))
+            with self.store_lock:
+                self.store.set(parse_label_post(raw))
         except (json.JSONDecodeError, KeyError, ValueError) as exc:
             self.send_error(400, str(exc))
             return
@@ -90,7 +93,7 @@ def main() -> None:
 
     LabelHandler.store = labels
     handler = partial(LabelHandler, directory=str(SITE_DIR))
-    server = HTTPServer(("127.0.0.1", args.port), handler)
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), handler)
     print(f"Labeling UI: http://127.0.0.1:{args.port}/index.html  (Ctrl-C to stop)")
     server.serve_forever()
 

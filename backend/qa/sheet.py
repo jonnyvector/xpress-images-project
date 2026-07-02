@@ -35,26 +35,40 @@ button{padding:6px 14px;margin:4px 6px 4px 0;cursor:pointer;border-radius:4px;bo
 
 _JS = """
 async function post(key, verdict, reasons){
-  await fetch('/label', {method:'POST',
-    body: JSON.stringify({key: key, verdict: verdict, reasons: reasons})});
+  for (let attempt = 0; attempt < 3; attempt++){
+    try {
+      const r = await fetch('/label', {method:'POST',
+        body: JSON.stringify({key: key, verdict: verdict, reasons: reasons})});
+      if (r.status === 204) return true;
+    } catch (e) { /* retry */ }
+    await new Promise(res => setTimeout(res, 200 * (attempt + 1)));
+  }
+  return false;
 }
 function reasonsOf(card){
   return Array.from(card.querySelectorAll('input:checked')).map(i => i.value);
+}
+function saveMsg(text){
+  const el = document.getElementById('savemsg');
+  if (el) el.textContent = text;
 }
 async function setLabel(btn, verdict){
   const card = btn.closest('.card');
   card.classList.remove('accept', 'reject');
   card.classList.add(verdict);
   card.dataset.explicit = '1';
-  await post(card.dataset.key, verdict, verdict === 'reject' ? reasonsOf(card) : []);
+  const ok = await post(card.dataset.key, verdict, verdict === 'reject' ? reasonsOf(card) : []);
+  saveMsg(ok ? '' : 'SAVE FAILED for ' + card.dataset.key + ' — click the button again');
 }
 async function saveAll(){
+  let failed = 0;
   for (const card of document.querySelectorAll('.card')){
     const verdict = card.classList.contains('reject') ? 'reject' : 'accept';
-    await post(card.dataset.key, verdict, verdict === 'reject' ? reasonsOf(card) : []);
-    card.dataset.explicit = '1';
+    const ok = await post(card.dataset.key, verdict, verdict === 'reject' ? reasonsOf(card) : []);
+    if (ok) card.dataset.explicit = '1'; else failed++;
   }
-  document.getElementById('savemsg').textContent = 'All cards on page saved.';
+  saveMsg(failed ? failed + ' card(s) FAILED to save — click Save all again'
+                 : 'All cards on page saved.');
 }
 """
 
