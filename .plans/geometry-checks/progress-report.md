@@ -5,7 +5,7 @@
 > implemented — never mark a milestone complete until every current-cutoff
 > checkbox under it is checked.
 
-> Current focus: Phase 3 — Policy + eval integration
+> Current focus: Phase 4 — Threshold calibration + acceptance
 
 ## Phase 0: Mechanism decomposition (no code)
 
@@ -119,8 +119,8 @@ Source: `scripts/qa_eval.py`, selection split of labels
 
 ## Summary
 - Total features: 58
-- Completed: 36
-- Remaining: 22
-- Current cutoff blockers: 22
+- Completed: 53
+- Remaining: 5
+- Current cutoff blockers: 5
 - Accepted/deferred follow-up: 2
 - Superseded/obsolete checklist debt: 1
