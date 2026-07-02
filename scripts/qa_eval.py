@@ -38,7 +38,7 @@ def main() -> None:
     parser.add_argument("--model", default=None, help="override judge model")
     args = parser.parse_args()
 
-    load_dotenv()
+    load_dotenv(override=True)  # project .env wins over stale shell exports
     api_key = os.environ.get("GEMINI_API_KEY", "")
     if not api_key:
         raise SystemExit("GEMINI_API_KEY not set (see .env)")
