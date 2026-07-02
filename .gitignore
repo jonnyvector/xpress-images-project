@@ -30,3 +30,6 @@ output/
 
 # planner state databases (living, per-machine)
 .plans/**/plan.db
+
+# geometry regression fixtures (regenerable working copies of output data; tests skip if absent)
+tests/qa/fixtures/geometry/*/
