@@ -5,7 +5,7 @@
 > implemented — never mark a milestone complete until every current-cutoff
 > checkbox under it is checked.
 
-> Current focus: Phase 1 — Replica-anchor policy
+> Current focus: Phase 2 — Measurement core + real-fixture spike
 
 ## Phase 0: Mechanism decomposition (no code)
 
@@ -23,14 +23,14 @@ Source: `.plans/geometry-checks/implementation.md` (Phase 0), labels at `output/
 ### M1: replica_review policy flag
 Source: `backend/qa/policy.py`, `scripts/qa_eval.py`, `backend/qa/policy_config.json`
 
-- [ ] Feature: `PolicyConfig.replica_review: bool = True` parsed from policy_config.json
-- [ ] Feature: `decide()` accepts `approved_keys: frozenset[str]` parameter (default empty)
-- [ ] Feature: replica + replica_review + not approved → needs_human with reason "replica review: geometry anchor" (test)
-- [ ] Feature: replica with accept label in approved_keys falls through to normal precedence (test)
-- [ ] Feature: replica_review=False reproduces pre-D1 behavior exactly (test)
-- [ ] Feature: qa_eval builds approved_keys from accept labels in the label store
-- [ ] Feature: eval output reports replica-review load as its own line, excluded from false-flag accounting (test)
-- [ ] Feature: all 35 pre-existing QA tests green; ruff clean; committed
+- [x] Feature: `PolicyConfig.replica_review: bool = True` parsed from policy_config.json
+- [x] Feature: `decide()` accepts `approved_keys: frozenset[str]` parameter (default empty)
+- [x] Feature: replica + replica_review + not approved → needs_human with reason "replica review: geometry anchor" (test)
+- [x] Feature: replica with accept label in approved_keys falls through to normal precedence (test)
+- [x] Feature: replica_review=False reproduces pre-D1 behavior exactly (test)
+- [x] Feature: qa_eval builds approved_keys from accept labels in the label store
+- [x] Feature: eval output reports replica-review load as its own line, excluded from false-flag accounting (test)
+- [x] Feature: all 35 pre-existing QA tests green; ruff clean; committed
 
 ## Phase 2: Measurement core + real-fixture spike
 
@@ -116,8 +116,8 @@ Source: `scripts/qa_eval.py`, selection split of labels
 
 ## Summary
 - Total features: 56
-- Completed: 5
-- Remaining: 51
-- Current cutoff blockers: 51
+- Completed: 13
+- Remaining: 43
+- Current cutoff blockers: 43
 - Accepted/deferred follow-up: 2
 - Superseded/obsolete checklist debt: 0
