@@ -74,3 +74,14 @@ def test_unparseable_response_yields_error_verdict(
     result = judge.judge(_candidate(projects_dir, swatches_dir))
     assert result.verdict == "error"
     assert result.confidence == "low"
+
+
+def test_valid_json_wrong_shape_reports_unparseable_not_api_error(
+    projects_dir: Path, swatches_dir: Path, tmp_path: Path
+) -> None:
+    client = FakeClient(["[1, 2, 3]"] * 3)  # valid JSON, wrong shape (top-level array)
+    judge = VisionJudge(api_key="x", cache_dir=tmp_path / "verdicts", client=client)
+    result = judge.judge(_candidate(projects_dir, swatches_dir))
+    assert result.verdict == "error"
+    assert "unparseable" in result.reason
+    assert "api error" not in result.reason

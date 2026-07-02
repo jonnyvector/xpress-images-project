@@ -123,11 +123,13 @@ class VisionJudge:
                 response = self.client.models.generate_content(
                     model=self.model, contents=contents
                 )
-                return self._parse(candidate.key, response.text or "")
-            except (json.JSONDecodeError, KeyError, ValueError) as exc:
-                last_error = f"unparseable response: {exc}"
             except Exception as exc:  # network/API errors -> retry then error verdict
                 last_error = f"api error: {exc}"
+                continue
+            try:
+                return self._parse(candidate.key, response.text or "")
+            except (json.JSONDecodeError, KeyError, ValueError, AttributeError, TypeError) as exc:
+                last_error = f"unparseable response: {exc}"
         return JudgeResult(key=candidate.key, verdict="error", reason=last_error)
 
     def _parse(self, key: str, text: str) -> JudgeResult:
