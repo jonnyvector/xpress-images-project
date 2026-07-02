@@ -27,6 +27,21 @@ SITE_DIR = QA_DIR / "site"
 THUMBS_DIR = SITE_DIR / "thumbs"
 
 
+def _thumb_urls_for(cands: list[Candidate]) -> dict[str, dict[str, str]]:
+    thumb_urls: dict[str, dict[str, str]] = {}
+    for c in cands:
+        urls: dict[str, str] = {}
+        for role, src in (("img", c.image_path), ("sample", c.sample_path),
+                          ("swatch", c.swatch_path)):
+            if src is None:
+                continue
+            thumb = export_thumb(src, THUMBS_DIR)
+            if thumb is not None:
+                urls[role] = f"thumbs/{thumb.name}"
+        thumb_urls[c.key] = urls
+    return thumb_urls
+
+
 def build_site(candidates: list[Candidate], labels: LabelStore) -> None:
     SITE_DIR.mkdir(parents=True, exist_ok=True)
     by_project: dict[str, list[Candidate]] = {}
@@ -37,21 +52,50 @@ def build_site(candidates: list[Candidate], labels: LabelStore) -> None:
 
     index_rows: list[tuple[str, str, int, int]] = []
     for pid, cands in sorted(by_project.items(), key=lambda kv: names[kv[0]].lower()):
-        thumb_urls: dict[str, dict[str, str]] = {}
-        for c in cands:
-            urls: dict[str, str] = {}
-            for role, src in (("img", c.image_path), ("sample", c.sample_path),
-                              ("swatch", c.swatch_path)):
-                if src is None:
-                    continue
-                thumb = export_thumb(src, THUMBS_DIR)
-                if thumb is not None:
-                    urls[role] = f"thumbs/{thumb.name}"
-            thumb_urls[c.key] = urls
-        page = render_project_sheet(names[pid], cands, labels, thumb_urls)
+        page = render_project_sheet(names[pid], cands, labels, _thumb_urls_for(cands))
         (SITE_DIR / f"project_{pid}.html").write_text(page)
         labeled = sum(1 for c in cands if labels.get(c.key) is not None)
         index_rows.append((pid, names[pid], labeled, len(cands)))
+    (SITE_DIR / "index.html").write_text(render_index(index_rows))
+
+
+def _stratified(pool: list[Candidate], n: int) -> list[Candidate]:
+    """Round-robin across door styles for a diverse, deterministic pick."""
+    by_style: dict[str, list[Candidate]] = {}
+    for c in pool:
+        by_style.setdefault(c.door_style or "unknown", []).append(c)
+    for group in by_style.values():
+        group.sort(key=lambda c: c.key)
+    groups = sorted(by_style.values(), key=len, reverse=True)
+    picked: list[Candidate] = []
+    while len(picked) < n and any(groups):
+        for group in groups:
+            if group and len(picked) < n:
+                picked.append(group.pop(0))
+    return picked
+
+
+def curate_sample(candidates: list[Candidate], target: int) -> list[Candidate]:
+    """Small calibration subset: only sample-photo candidates, half presumed
+    rejects (scarce, valuable) and half presumed accepts, spread across styles."""
+    judgeable = [c for c in candidates if c.sample_path is not None]
+    rejects = [c for c in judgeable if c.presumed == "reject"]
+    accepts = [c for c in judgeable if c.presumed == "accept"]
+    half = target // 2
+    picked_rejects = _stratified(rejects, half)
+    return picked_rejects + _stratified(accepts, target - len(picked_rejects))
+
+
+def build_sample_site(sampled: list[Candidate], labels: LabelStore, page_size: int = 30) -> None:
+    SITE_DIR.mkdir(parents=True, exist_ok=True)
+    chunks = [sampled[i : i + page_size] for i in range(0, len(sampled), page_size)]
+    index_rows: list[tuple[str, str, int, int]] = []
+    for n, chunk in enumerate(chunks, 1):
+        name = f"Calibration sample — page {n} of {len(chunks)}"
+        page = render_project_sheet(name, chunk, labels, _thumb_urls_for(chunk))
+        (SITE_DIR / f"project_sample-{n}.html").write_text(page)
+        labeled = sum(1 for c in chunk if labels.get(c.key) is not None)
+        index_rows.append((f"sample-{n}", name, labeled, len(chunk)))
     (SITE_DIR / "index.html").write_text(render_index(index_rows))
 
 
@@ -82,14 +126,23 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=8777)
     parser.add_argument("--project", help="rebuild/serve only this project id")
+    parser.add_argument(
+        "--sample", type=int, default=0,
+        help="serve a curated calibration subset of ~N images instead of all projects",
+    )
     args = parser.parse_args()
 
     labels = LabelStore(QA_DIR / "labels.json")
     candidates = walk_corpus(Path("output/.projects"), Path("swatches"))
     if args.project:
         candidates = [c for c in candidates if c.project_id == args.project]
-    print(f"Building site for {len(candidates)} images (thumbnails cached across runs)...")
-    build_site(candidates, labels)
+    if args.sample:
+        sampled = curate_sample(candidates, args.sample)
+        print(f"Building curated sample of {len(sampled)} images...")
+        build_sample_site(sampled, labels)
+    else:
+        print(f"Building site for {len(candidates)} images (thumbnails cached across runs)...")
+        build_site(candidates, labels)
 
     LabelHandler.store = labels
     handler = partial(LabelHandler, directory=str(SITE_DIR))
