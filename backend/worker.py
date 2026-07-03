@@ -15,6 +15,7 @@ from backend.materials import (
     resolve_swatch_path,
     swatch_name_from_path,
 )
+from backend.state import new_image_id
 from backend.styles.catalog import STYLES
 
 if TYPE_CHECKING:
@@ -303,7 +304,11 @@ def _run_learn(
             project.learned_signature = result.thought_signature
             project.has_signature = True
             project.base_door_image = result.image_data
+            # New replica image = new identity: approvals/verdicts of the old
+            # replica must never carry over to an image nobody has reviewed.
+            project.base_image_id = new_image_id()
             project.results = []
+            project.qa_verdicts = {}
             project.errors = []
             project.generation_status = "idle"
             project.generation_completed = 0
@@ -420,20 +425,20 @@ def start_retry(
     if use_ref:
         if not base_door_path.exists():
             project.errors.append(
-                (project.results[idx][0],
+                (project.results[idx].wood_name,
                  "No base door image available — please re-learn the door style.")
             )
             store.save(project.id)
             return
     elif not project.learned_signature:
         project.errors.append(
-            (project.results[idx][0],
+            (project.results[idx].wood_name,
              "No thought signature available — please re-learn the door style.")
         )
         store.save(project.id)
         return
 
-    wood_name = project.results[idx][0]
+    wood_name = project.results[idx].wood_name
 
     # Try to find the matching swatch in selected_swatches
     selection = None

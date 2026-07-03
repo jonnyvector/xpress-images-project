@@ -3,7 +3,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from backend.state import ProjectStore
+from backend.state import ProjectStore, ResultRecord
 
 
 def test_record_result_is_atomic_under_concurrency(tmp_path: Path) -> None:
@@ -21,15 +21,17 @@ def test_record_result_is_atomic_under_concurrency(tmp_path: Path) -> None:
             )
             for i in range(n)
         ]
-        for f in futures:
-            assert f.result() is True
+        records = [f.result() for f in futures]
+        assert all(isinstance(r, ResultRecord) for r in records)
 
     refreshed = store.get(project.id)
     assert refreshed is not None
     # No lost updates: every write counted, every result present.
     assert refreshed.generation_completed == n
     assert len(refreshed.results) == n
-    assert {wn for wn, _ in refreshed.results} == {f"wood_{i}" for i in range(n)}
+    assert {r.wood_name for r in refreshed.results} == {f"wood_{i}" for i in range(n)}
+    # Identity binds regardless of completion order.
+    assert {r.image_id for r in records} == {r.image_id for r in refreshed.results}
 
 
 def test_record_result_errors_and_advance_flag(tmp_path: Path) -> None:
@@ -68,7 +70,7 @@ def test_retry_failure_then_success_leaves_no_stale_error(tmp_path: Path) -> Non
     store.record_retry_result(project.id, 0, "Oak", image_data=b"new")
     final = store.get(project.id)
     assert final is not None
-    assert final.results[0] == ("Oak", b"new")
+    assert (final.results[0].wood_name, final.results[0].image_data) == ("Oak", b"new")
     assert all(wn != "Oak" for wn, _ in final.errors)
 
 

@@ -47,7 +47,7 @@ def to_project_response(project: ProjectState) -> ProjectResponse:
         generation_status=project.generation_status,
         generation_completed=project.generation_completed,
         generation_total=project.generation_total,
-        results=[ResultItem(index=i, wood_name=wn) for i, (wn, _) in enumerate(project.results)],
+        results=[ResultItem(index=i, wood_name=r.wood_name) for i, r in enumerate(project.results)],
         errors=[ErrorItem(wood_name=wn, error=err) for wn, err in project.errors],
         retrying_indices=project.retrying_indices,
         signature_version=project.signature_version,
@@ -60,7 +60,7 @@ def to_generation_status(project: ProjectState) -> GenerationStatusResponse:
         status=project.generation_status,
         completed=project.generation_completed,
         total=project.generation_total,
-        results=[ResultItem(index=i, wood_name=wn) for i, (wn, _) in enumerate(project.results)],
+        results=[ResultItem(index=i, wood_name=r.wood_name) for i, r in enumerate(project.results)],
         errors=[ErrorItem(wood_name=wn, error=err) for wn, err in project.errors],
         retrying_indices=project.retrying_indices,
     )

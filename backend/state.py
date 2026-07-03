@@ -1,4 +1,11 @@
-"""Project state management with disk persistence."""
+"""Project state management with disk persistence.
+
+Identity model (graduated-trust pipeline, D-006): every generated image —
+replica or variant attempt — carries a stable ``image_id`` assigned at
+submission. Approvals, QA verdicts, and the reliability ledger key off image
+IDs, never positional indices (which are completion-ordered and wiped on
+re-learn). Old tuple-format projects migrate in place, non-destructively.
+"""
 
 import json
 import shutil
@@ -7,6 +14,32 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+
+
+def new_image_id() -> str:
+    """Stable identity for one generated image (uuid4 hex)."""
+    return uuid.uuid4().hex
+
+
+def _now() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+@dataclass
+class ResultRecord:
+    """One generated variant image: identity + metadata + bytes.
+
+    ``image_id`` is the primary key for all trust state (approvals, verdicts,
+    ledger). ``attempt`` is 0 for operator-initiated generations and 1..N for
+    auto-regeneration attempts. Bytes live on disk as ``result_{idx}.bin``;
+    the manifest stores only the metadata.
+    """
+
+    image_id: str
+    wood_name: str
+    attempt: int = 0
+    created_at: str = ""
+    image_data: bytes = b""
 
 
 @dataclass
@@ -24,7 +57,9 @@ class ProjectState:
     has_signature: bool = False
     learned_signature: bytes | None = None  # NEVER sent to client
     base_door_image: bytes | None = None
-    results: list[tuple[str, bytes]] = field(default_factory=list)
+    base_image_id: str | None = None  # stable identity of the current replica
+    results: list[ResultRecord] = field(default_factory=list)
+    qa_verdicts: dict[str, dict] = field(default_factory=dict)  # image_id -> verdict
     errors: list[tuple[str, str]] = field(default_factory=list)
     learning_status: str = "idle"  # "idle" | "running" | "done" | "error"
     learning_error: str | None = None
@@ -34,6 +69,48 @@ class ProjectState:
     retrying_indices: list[int] = field(default_factory=list)
     signature_version: int = 0
     version_count: int = 0
+
+
+def _record_meta(record: ResultRecord) -> dict:
+    """Manifest-serializable metadata for a record (bytes stay in .bin files)."""
+    return {
+        "image_id": record.image_id,
+        "wood_name": record.wood_name,
+        "attempt": record.attempt,
+        "created_at": record.created_at,
+    }
+
+
+def _load_records(d: Path, data: dict) -> list[ResultRecord]:
+    """Build ResultRecords from a project dir, migrating old manifests.
+
+    New format: "result_records" metadata aligned by index with
+    result_{idx}.bin. Old format (pre-migration): "result_names" only —
+    generate fresh image_ids with attempt=0. Migration never touches files;
+    the upgraded manifest is written on the next save.
+    """
+    metas = data.get("result_records")
+    if metas is None:
+        metas = [
+            {"image_id": new_image_id(), "wood_name": wood_name, "attempt": 0,
+             "created_at": ""}
+            for wood_name in data.get("result_names", [])
+        ]
+    records: list[ResultRecord] = []
+    for idx, meta in enumerate(metas):
+        rpath = d / f"result_{idx}.bin"
+        if not rpath.exists():
+            continue
+        records.append(
+            ResultRecord(
+                image_id=meta.get("image_id") or new_image_id(),
+                wood_name=meta.get("wood_name", ""),
+                attempt=int(meta.get("attempt", 0)),
+                created_at=meta.get("created_at", ""),
+                image_data=rpath.read_bytes(),
+            )
+        )
+    return records
 
 
 class ProjectStore:
@@ -85,24 +162,23 @@ class ProjectStore:
                 if base_path.exists():
                     project.base_door_image = base_path.read_bytes()
 
-                # Load results
-                results: list[tuple[str, bytes]] = []
-                result_names = data.get("result_names", [])
-                for idx, wood_name in enumerate(result_names):
-                    rpath = d / f"result_{idx}.bin"
-                    if rpath.exists():
-                        results.append((wood_name, rpath.read_bytes()))
-                project.results = results
+                project.base_image_id = data.get("base_image_id")
+                project.qa_verdicts = data.get("qa_verdicts", {})
+
+                # Load results. New format: "result_records" metadata aligned
+                # with result_{idx}.bin. Old format: "result_names" only —
+                # migrate by generating stable ids (persisted on next save).
+                project.results = _load_records(d, data)
 
                 # Load errors
                 project.errors = [
                     (e["wood_name"], e["error"]) for e in data.get("errors", [])
                 ]
 
-                if results or project.errors:
+                if project.results or project.errors:
                     project.generation_status = "done"
-                    project.generation_completed = len(results)
-                    project.generation_total = len(results) + len(project.errors)
+                    project.generation_completed = len(project.results)
+                    project.generation_total = len(project.results) + len(project.errors)
 
                 self._projects[project.id] = project
             except (json.JSONDecodeError, KeyError, OSError):
@@ -128,9 +204,9 @@ class ProjectStore:
 
         # Write result images
         result_names: list[str] = []
-        for idx, (wood_name, image_data) in enumerate(project.results):
-            (d / f"result_{idx}.bin").write_bytes(image_data)
-            result_names.append(wood_name)
+        for idx, record in enumerate(project.results):
+            (d / f"result_{idx}.bin").write_bytes(record.image_data)
+            result_names.append(record.wood_name)
         # Clean stale results
         stale_idx = len(project.results)
         while (d / f"result_{stale_idx}.bin").exists():
@@ -149,7 +225,11 @@ class ProjectStore:
             "gemini_model": project.gemini_model,
             "selected_swatches": project.selected_swatches,
             "upload_filename": project.upload_filename,
+            # result_names stays for older readers (corpus walker, offline eval).
             "result_names": result_names,
+            "result_records": [_record_meta(r) for r in project.results],
+            "base_image_id": project.base_image_id,
+            "qa_verdicts": project.qa_verdicts,
             "errors": [
                 {"wood_name": wn, "error": err} for wn, err in project.errors
             ],
@@ -231,20 +311,27 @@ class ProjectStore:
 
             # Copy result images and build names list
             result_names: list[str] = []
-            for idx, (wood_name, image_data) in enumerate(project.results):
-                (vdir / f"result_{idx}.bin").write_bytes(image_data)
-                result_names.append(wood_name)
+            for idx, record in enumerate(project.results):
+                (vdir / f"result_{idx}.bin").write_bytes(record.image_data)
+                result_names.append(record.wood_name)
 
             (vdir / "result_names.json").write_text(json.dumps(result_names))
+            # Identity + verdict history travel with the archive (D-006):
+            # approvals/ledger reference these image_ids forever.
+            (vdir / "result_records.json").write_text(
+                json.dumps([_record_meta(r) for r in project.results])
+            )
+            (vdir / "qa_verdicts.json").write_text(json.dumps(project.qa_verdicts))
 
             # Write version metadata
             meta = {
                 "version": version,
-                "created_at": datetime.now(UTC).isoformat(),
+                "created_at": _now(),
                 "material_type": project.material_type,
                 "door_style": project.door_style,
                 "corner_style": project.corner_style,
                 "style_notes": project.style_notes,
+                "base_image_id": project.base_image_id,
             }
             (vdir / "meta.json").write_text(json.dumps(meta))
 
@@ -323,20 +410,23 @@ class ProjectStore:
                 project.base_door_image = base_data
                 (d / "base_door.bin").write_bytes(base_data)
 
-            # Restore results
+            # Restore results (records preserve identity; old archives without
+            # result_records.json migrate like old manifests do).
             names_path = vdir / "result_names.json"
-            results: list[tuple[str, bytes]] = []
-            if names_path.exists():
-                names = json.loads(names_path.read_text())
-                for idx, wood_name in enumerate(names):
-                    rpath = vdir / f"result_{idx}.bin"
-                    if rpath.exists():
-                        results.append((wood_name, rpath.read_bytes()))
-            project.results = results
+            names = json.loads(names_path.read_text()) if names_path.exists() else []
+            records_path = vdir / "result_records.json"
+            version_data = {"result_names": names}
+            if records_path.exists():
+                version_data["result_records"] = json.loads(records_path.read_text())
+            project.results = _load_records(vdir, version_data)
+            verdicts_path = vdir / "qa_verdicts.json"
+            project.qa_verdicts = (
+                json.loads(verdicts_path.read_text()) if verdicts_path.exists() else {}
+            )
             project.errors = []
-            project.generation_status = "done" if results else "idle"
-            project.generation_completed = len(results)
-            project.generation_total = len(results)
+            project.generation_status = "done" if project.results else "idle"
+            project.generation_completed = len(project.results)
+            project.generation_total = len(project.results)
             project.signature_version = version
 
             # Restore metadata from version
@@ -347,7 +437,23 @@ class ProjectStore:
                 project.door_style = meta.get("door_style", project.door_style)
                 project.corner_style = meta.get("corner_style", project.corner_style)
                 project.style_notes = meta.get("style_notes", project.style_notes)
+                # The restored replica is the archived image — same identity.
+                project.base_image_id = meta.get("base_image_id")
 
+            self._save_project(project)
+            return True
+
+    def set_qa_verdict(self, project_id: str, image_id: str, verdict: dict) -> bool:
+        """Attach a QA verdict to an image by stable id and persist, atomically.
+
+        Verdicts are stored as plain dicts (schema owned by the QA lane).
+        Returns False if the project is gone.
+        """
+        with self._lock:
+            project = self._projects.get(project_id)
+            if project is None:
+                return False
+            project.qa_verdicts[image_id] = verdict
             self._save_project(project)
             return True
 
@@ -399,25 +505,39 @@ class ProjectStore:
         image_data: bytes | None = None,
         error: str | None = None,
         advance: bool = True,
-    ) -> bool:
+        attempt: int = 0,
+    ) -> ResultRecord | bool:
         """Append a generation result or error and persist, atomically.
 
         Called concurrently by generation worker threads, so the whole
         read-modify-write (append + counter bump + save) happens under the
-        store lock to avoid lost updates. Returns False if the project is gone.
+        store lock to avoid lost updates.
+
+        Returns the created ResultRecord when an image was stored — callers
+        bind QA verdicts to its image_id, never to a positional index (which
+        is assigned in completion order under the lock). Returns True when
+        only an error was recorded, False if the project is gone.
         """
         with self._lock:
             project = self._projects.get(project_id)
             if project is None:
                 return False
+            record: ResultRecord | bool = True
             if image_data is not None:
-                project.results.append((wood_name, image_data))
+                record = ResultRecord(
+                    image_id=new_image_id(),
+                    wood_name=wood_name,
+                    attempt=attempt,
+                    created_at=_now(),
+                    image_data=image_data,
+                )
+                project.results.append(record)
             else:
                 project.errors.append((wood_name, error or "Unknown error"))
             if advance:
                 project.generation_completed += 1
             self._save_project(project)
-            return True
+            return record
 
     def record_retry_result(
         self,
@@ -433,7 +553,11 @@ class ProjectStore:
         Clears any prior error entries for the same wood name first, so
         repeated retries don't accumulate stale errors. On success the result
         is replaced in place; on failure an error is recorded and the existing
-        result (if any) is left untouched. Returns False if the project is gone.
+        result (if any) is left untouched.
+
+        Returns the fresh ResultRecord on success (a new image is a new
+        identity — verdicts of the replaced image do not carry over), True
+        when only an error was recorded, False if the project is gone.
         """
         with self._lock:
             project = self._projects.get(project_id)
@@ -442,15 +566,23 @@ class ProjectStore:
             project.errors = [
                 (wn, err) for wn, err in project.errors if wn != wood_name
             ]
+            record: ResultRecord | bool = True
             if image_data is not None:
+                record = ResultRecord(
+                    image_id=new_image_id(),
+                    wood_name=wood_name,
+                    attempt=0,
+                    created_at=_now(),
+                    image_data=image_data,
+                )
                 if 0 <= idx < len(project.results):
-                    project.results[idx] = (wood_name, image_data)
+                    project.results[idx] = record
                 else:
-                    project.results.append((wood_name, image_data))
+                    project.results.append(record)
             else:
                 project.errors.append((wood_name, error or "Retry failed"))
             self._save_project(project)
-            return True
+            return record
 
     def finish_retry(self, project_id: str, idx: int) -> None:
         """Clear a result index from retrying_indices and persist, atomically."""

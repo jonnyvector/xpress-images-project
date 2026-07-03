@@ -64,7 +64,8 @@ def get_result_image(
     project = get_project_or_404(store, project_id)
     if idx < 0 or idx >= len(project.results):
         raise HTTPException(status_code=404, detail="Result not found")
-    wood_name, image_data = project.results[idx]
+    record = project.results[idx]
+    wood_name, image_data = record.wood_name, record.image_data
 
     if watermark:
         image_data = add_watermark(
@@ -117,7 +118,7 @@ def save_results_to_folder(
     folder.mkdir(parents=True, exist_ok=True)
     saved_files: list[str] = []
 
-    for wood_name, image_data in project.results:
+    for wood_name, image_data in ((r.wood_name, r.image_data) for r in project.results):
         safe_wood = wood_name.lower().replace(" ", "_").replace("/", "_")
         base = f"{project.name}_{safe_wood}"
         dest = folder / f"{base}.png"
@@ -167,7 +168,7 @@ def download_results_zip(
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         use_dark = is_drawer_style(project.door_style)
-        for wood_name, image_data in project.results:
+        for wood_name, image_data in ((r.wood_name, r.image_data) for r in project.results):
             filename = f"{project.name}_{wood_name.lower().replace(' ', '_')}.png"
             zf.writestr(
                 filename,
@@ -219,7 +220,9 @@ def import_results_from_folder(
     for img_path in images:
         image_data = img_path.read_bytes()
         wood_name = extract_wood_name(img_path.stem, wood_types)
-        project.results.append((wood_name, image_data))
+        # Route through the store so each imported image gets a stable
+        # image_id (advance=False: imports aren't generation progress).
+        store.record_result(project_id, wood_name, image_data=image_data, advance=False)
         wood_names.append(wood_name)
 
     project.generation_status = "done"
