@@ -102,8 +102,43 @@ API failures retry on the next run.
   queued fix, measured against the existing labels.
 - ~1,650 older images have no sample photo on file; they route to
   `needs_human` unjudged. Pairing original photos back in would unlock them.
-- Bulk orchestration (generate → judge → regenerate loop) and the Shopify
-  Matrixify export are phase 2 — designed but not built.
+- The in-app graduated-trust workflow (below) now covers generation-time
+  judging and the regenerate loop; the Shopify Matrixify export is still
+  designed but not built.
+
+
+## The in-app workflow (graduated trust)
+
+Since 2026-07-03 the pipeline runs **inside the app** — you don't need the
+offline scripts for day-to-day work. Trust is graduated:
+
+1. **Stage A — approve the replica.** After Learn, the base door shows an
+   Approve/Reject control. Variants are locked (server-enforced, GT-001)
+   until you approve. A re-learned replica is a new image and starts
+   unapproved again — old approvals never carry over.
+2. **Stage B — small batches (≤5).** Generate is capped at 5 resolved
+   selections while bulk is locked (GT-002). Every image is judged seconds
+   after it lands: badges show pass / regenerate / needs-human / error with
+   the judge's reasoning on hover. `regenerate` verdicts retry automatically
+   (max 2 attempts per wood, best attempt kept; retries are capped by
+   `run_cost_cap_usd` — a breach shows GT-003 on the run record).
+   Review the batch and Approve/Reject each variant — every click is scored
+   against the pipeline's verdict in the **reliability ledger**
+   (`output/.qa/reliability.jsonl`; sidebar panel shows agreement/deferral).
+3. **Stage C — bulk (35–50).** When the ledger convinces you, edit
+   `backend/qa/trust_config.json`: set `"bulk_unlocked": true` (global) or
+   add style-classes to `"bulk_unlocked_style_classes"` (e.g.
+   `["frame_standard"]`). Applies to the next generate — no restart. Revoke
+   the same way, any time. In-flight runs keep the config they started with.
+
+Cost consent: every Generate first shows "Stage X — N images ≈ $Y (worst
+case $Z with auto-retries)". The worst case includes the full unconsented
+retry cap, so the dialog never under-quotes.
+
+Files that matter: approvals in `output/.qa/approvals.json`, run records in
+`output/.projects/<id>/runs/`, knobs in `backend/qa/trust_config.json`
+(parse errors fall back to bulk-locked, $10 cap). A run cut short by a crash
+shows a truncation banner — never a silent "done".
 
 ## Deeper reading
 
@@ -111,3 +146,4 @@ API failures retry on the next run.
 - Build plan: `docs/superpowers/plans/2026-07-02-judgment-pipeline.md`
 - Geometry module RFC + evidence: `.plans/geometry-checks/` (RFC v2,
   `phase0-mechanisms.md`, `phase2-spike.md`, `phase4-calibration.md`)
+- Graduated-trust pipeline RFC + plan: `.plans/graduated-trust-pipeline/`

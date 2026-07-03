@@ -155,13 +155,13 @@ Source: `implementation.md` (M11), Interface Specifications § Run manifest, § 
 ### M12: Bulk unlock
 Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, trust_config
 
-- [ ] Feature: project's style-class membership in `bulk_unlocked_style_classes` (or global flag) lifts GT-002
-- [ ] Feature: config edit re-locks the next request without server restart
-- [ ] Feature: in-flight run unaffected by config edits (snapshot semantics)
-- [ ] Feature: stage (A/B/C) surfaced in the estimate response and UI
-- [ ] Feature: eval adapter maps approved image IDs → candidate keys; `scripts/qa_eval.py` works unchanged
+- [x] Feature: project's style-class membership in `bulk_unlocked_style_classes` (or global flag) lifts GT-002
+- [x] Feature: config edit re-locks the next request without server restart
+- [x] Feature: in-flight run unaffected by config edits (snapshot semantics)
+- [x] Feature: stage (A/B/C) surfaced in the estimate response and UI
+- [x] Feature: eval adapter maps approved image IDs → candidate keys; `scripts/qa_eval.py` works unchanged
 - [ ] Feature: full-workflow rehearsal on a real project (learn → approve → 5-batch → review → unlock → bulk with auto-regen → ledger populated)
-- [ ] Feature: `docs/qa-pipeline.md` updated with the operator workflow
+- [x] Feature: `docs/qa-pipeline.md` updated with the operator workflow
 
 ## Deferred follow-up
 
@@ -176,8 +176,8 @@ Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, 
 
 ## Summary
 - Total features: 97
-- Completed: 90
-- Remaining: 7
-- Current cutoff blockers: 7
+- Completed: 96
+- Remaining: 1
+- Current cutoff blockers: 1
 - Accepted/deferred follow-up: 4
 - Superseded/obsolete checklist debt: 0

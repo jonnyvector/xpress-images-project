@@ -72,7 +72,7 @@ export default function GenerateStep({ project, apiKey }: Props) {
         return;
       }
       const msg =
-        `${est.images} image${est.images === 1 ? '' : 's'} ≈ $${est.est_cost_usd.toFixed(2)}` +
+        `Stage ${est.stage} — ${est.images} image${est.images === 1 ? '' : 's'} ≈ $${est.est_cost_usd.toFixed(2)}` +
         ` (worst case $${est.worst_case_usd.toFixed(2)} with auto-retries) — proceed?`;
       if (!window.confirm(msg)) return;
     } catch (err) {

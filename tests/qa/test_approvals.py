@@ -114,3 +114,31 @@ def test_concurrent_readers_and_writers(tmp_path: Path) -> None:
     assert len(store.approved_ids()) == 200
     # And the file on disk is valid JSON with all 200 entries.
     assert len(ApprovalStore(tmp_path / "approvals.json").approved_ids()) == 200
+
+
+def test_approved_candidate_keys_adapter(tmp_path: Path) -> None:
+    """Production approvals (image_ids) map to offline candidate keys so the
+    eval/report scripts can consume them without learning the new identity."""
+    import json
+
+    from backend.qa.approvals import approved_candidate_keys
+
+    d = tmp_path / "projects" / "abc123"
+    d.mkdir(parents=True)
+    (d / "manifest.json").write_text(json.dumps({
+        "id": "abc123", "name": "P", "base_image_id": "rep-1",
+        "result_names": ["Oak", "Cherry"],
+        "result_records": [
+            {"image_id": "var-0", "wood_name": "Oak", "attempt": 0, "created_at": ""},
+            {"image_id": "var-1", "wood_name": "Cherry", "attempt": 0, "created_at": ""},
+        ],
+        "errors": [],
+    }))
+    store = ApprovalStore(tmp_path / "approvals.json")
+    store.set(_approval("rep-1", project_id="abc123", kind="replica"))
+    store.set(_approval("var-1", project_id="abc123", kind="variant"))
+    store.set(_approval("var-0", project_id="abc123", kind="variant",
+                        verdict="rejected", reasons=["artifacts"]))
+
+    keys = approved_candidate_keys(store, tmp_path / "projects")
+    assert keys == frozenset({"abc123:0:replica:-1", "abc123:0:variant:1"})

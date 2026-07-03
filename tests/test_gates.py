@@ -328,3 +328,65 @@ def test_estimate_reports_gate_and_costs(client, monkeypatch) -> None:
     est = client.get(f"/api/projects/{project.id}/generate/estimate").json()
     assert est["gate_ok"] is False
     assert "GT-006" in est["gate_reason"]
+
+
+def _write_trust_config(path: Path, **overrides) -> Path:
+    base = {
+        "small_batch_limit": 5, "bulk_unlocked": False,
+        "bulk_unlocked_style_classes": [], "max_auto_retries": 2,
+        "run_cost_cap_usd": 10.0, "image_cost_usd": 0.134,
+    }
+    base.update(overrides)
+    path.write_text(json.dumps(base))
+    return path
+
+
+def test_style_class_unlock_lifts_gt002(client, monkeypatch, tmp_path) -> None:
+    from backend.qa.trust_config import load_trust_config as real_load
+
+    project = _learned_project(client, swatches=8)
+    client.app.state.project_store.update(project.id, door_style="shaker")
+    _approve_replica(client, project)
+    monkeypatch.setattr(gen_mod, "build_selections", _fake_resolver(8))
+    started: list[str] = []
+    monkeypatch.setattr(
+        gen_mod, "start_generation", lambda store, p, key: started.append(p.id)
+    )
+
+    # Locked: 8 resolved > 5 -> GT-002.
+    cfg = _write_trust_config(tmp_path / "tc.json")
+    monkeypatch.setattr(gen_mod, "load_trust_config", lambda: real_load(cfg))
+    resp = client.post(f"/api/projects/{project.id}/generate", headers={"X-API-Key": "k"})
+    assert resp.status_code == 422
+
+    # Unlock shaker's style-class (frame_standard): bulk allowed for it only.
+    _write_trust_config(cfg, bulk_unlocked_style_classes=["frame_standard"])
+    resp = client.post(f"/api/projects/{project.id}/generate", headers={"X-API-Key": "k"})
+    assert resp.status_code == 200
+    assert started == [project.id]
+
+    est = client.get(f"/api/projects/{project.id}/generate/estimate")
+    # estimate uses its own load; patch it too for stage reporting
+    monkeypatch.setattr(
+        "backend.routers.projects_generation.load_trust_config", lambda: real_load(cfg)
+    )
+    est = client.get(f"/api/projects/{project.id}/generate/estimate").json()
+    assert est["stage"] == "C"
+
+    # Config edit re-locks the NEXT request — no restart needed.
+    _write_trust_config(cfg, bulk_unlocked_style_classes=[])
+    resp = client.post(f"/api/projects/{project.id}/generate", headers={"X-API-Key": "k"})
+    assert resp.status_code == 422
+
+
+def test_global_bulk_unlock(client, monkeypatch, tmp_path) -> None:
+    from backend.qa.trust_config import load_trust_config as real_load
+
+    project = _learned_project(client, swatches=40)
+    _approve_replica(client, project)
+    monkeypatch.setattr(gen_mod, "build_selections", _fake_resolver(40))
+    monkeypatch.setattr(gen_mod, "start_generation", lambda store, p, key: None)
+    cfg = _write_trust_config(tmp_path / "tc.json", bulk_unlocked=True)
+    monkeypatch.setattr(gen_mod, "load_trust_config", lambda: real_load(cfg))
+    resp = client.post(f"/api/projects/{project.id}/generate", headers={"X-API-Key": "k"})
+    assert resp.status_code == 200

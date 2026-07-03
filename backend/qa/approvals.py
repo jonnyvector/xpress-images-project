@@ -98,3 +98,34 @@ class ApprovalStore:
         self._path.parent.mkdir(parents=True, exist_ok=True)
         payload = {"approvals": [asdict(a) for a in self._approvals.values()]}
         self._path.write_text(json.dumps(payload, indent=1))
+
+
+def approved_candidate_keys(
+    store: ApprovalStore, projects_dir: Path = Path("output/.projects")
+) -> frozenset[str]:
+    """Map approved image_ids to offline candidate keys (D-006 boundary).
+
+    The eval/report scripts reason in ``{pid}:{version}:{kind}:{index}`` keys;
+    production trust state keys off image_ids. This adapter is the ONLY place
+    the two key spaces meet: current-version replicas and variants whose
+    image_id carries an ``approved`` verdict become candidate keys.
+    """
+    approved = store.approved_ids()
+    keys: set[str] = set()
+    if not projects_dir.exists():
+        return frozenset()
+    for d in projects_dir.iterdir():
+        manifest = d / "manifest.json"
+        if not d.is_dir() or not manifest.exists():
+            continue
+        try:
+            data = json.loads(manifest.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        pid = data.get("id", d.name)
+        if data.get("base_image_id") in approved:
+            keys.add(f"{pid}:0:replica:-1")
+        for idx, meta in enumerate(data.get("result_records", [])):
+            if meta.get("image_id") in approved:
+                keys.add(f"{pid}:0:variant:{idx}")
+    return frozenset(keys)
