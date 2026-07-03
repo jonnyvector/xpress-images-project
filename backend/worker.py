@@ -33,6 +33,50 @@ def _is_drawer_product(project: ProjectState) -> bool:
     return project.product_type == "Drawer Front"
 
 
+# Near-white threshold: every RGB channel this light or lighter counts as
+# low-contrast. White Supermatte (FAF9F5), 949W (F8F8F6), Feather (FEFEF9) all
+# clear it; mid-tones and greys do not.
+_NEAR_WHITE_MIN_CHANNEL = 0xDC
+
+
+def _swatch_min_channel(swatch_path) -> int | None:
+    """Darkest RGB channel of the swatch's mean color, or None if unreadable."""
+    try:
+        from PIL import Image
+
+        with Image.open(swatch_path) as im:
+            r, g, b = im.convert("RGB").resize((1, 1)).getpixel((0, 0))
+        return min(r, g, b)
+    except Exception:
+        return None
+
+
+def _needs_geometry_anchor(sel: dict, material_type: str) -> bool:
+    """Whether this selection should attach the replica as a geometry reference.
+
+    White-on-white RTF collapses the tiered/recessed profile to a raised panel:
+    with near-zero luminance contrast the signature/prompt conditioning is too
+    weak, and the raised-panel prior wins (validated 2026-07-03). Attaching the
+    approved replica image restores geometry independent of color contrast.
+
+    Scoped to near-white RTF only — darker colors don't need it, and a white
+    replica reference could leak lightness into a saturated target. Uses the hex
+    when present, else falls back to the swatch's actual mean luminance so
+    non-hex whites (e.g. Velvet White) still anchor.
+    """
+    if material_type != "rtf":
+        return False
+    hexv = sel.get("hex")
+    if hexv and len(hexv) >= 6:
+        try:
+            r, g, b = (int(hexv[i : i + 2], 16) for i in (0, 2, 4))
+            return min(r, g, b) >= _NEAR_WHITE_MIN_CHANNEL
+        except ValueError:
+            pass  # malformed hex — fall back to the swatch pixels
+    mn = _swatch_min_channel(sel.get("swatch_path"))
+    return mn is not None and mn >= _NEAR_WHITE_MIN_CHANNEL
+
+
 def _generate_for_selection(
     generator: DoorGenerator,
     sel: dict,
@@ -418,6 +462,14 @@ def start_retry(
     # Inject base door reference for opted-in styles
     if use_ref:
         selection["reference_image"] = base_door_path
+    # Near-white RTF: anchor geometry on the replica (signature path, not the
+    # temp-0.0 from-reference path) so white-on-white keeps the recessed profile.
+    elif (
+        selection.get("reference_image") is None
+        and base_door_path.exists()
+        and _needs_geometry_anchor(selection, project.material_type)
+    ):
+        selection["reference_image"] = base_door_path
 
     project.retrying_indices.append(idx)
     store.save(project.id)
@@ -481,6 +533,14 @@ def start_generation(
     if use_ref:
         for sel in selections:
             sel["reference_image"] = base_door_path
+    # Near-white RTF: anchor geometry on the replica (signature path) so
+    # white-on-white keeps the recessed profile instead of collapsing to raised.
+    elif base_door_path.exists():
+        for sel in selections:
+            if sel.get("reference_image") is None and _needs_geometry_anchor(
+                sel, project.material_type
+            ):
+                sel["reference_image"] = base_door_path
 
     # Identity at submission (D-006): every planned image gets its id before
     # any API call, recorded in the run manifest for crash-safe accounting.
