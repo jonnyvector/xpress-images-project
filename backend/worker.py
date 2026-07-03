@@ -276,10 +276,16 @@ def start_learning(
     upload_bytes: bytes,
     *,
     learn_in_maple: bool = False,
+    aspect_ratio: str | None = None,
 ) -> None:
-    """Kick off background learning for a project."""
+    """Kick off background learning for a project.
+
+    ``aspect_ratio`` overrides the product-type default for doors that
+    aren't the usual 9:16 shape (operator finding: FC712 is ~2:3).
+    """
     is_drawer = _is_drawer_product(project)
-    aspect_ratio = "16:9" if is_drawer else "9:16"
+    if aspect_ratio is None:
+        aspect_ratio = "16:9" if is_drawer else "9:16"
     door_style = project.door_style or "recessed_panel"
 
     project.learning_status = "running"

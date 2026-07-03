@@ -26,23 +26,37 @@ from backend.worker import start_generation, start_learning, start_retry
 router = APIRouter()
 
 
+# Aspect ratios Gemini 3 Pro Image accepts; doors default to 9:16, but
+# some products aren't that shape (operator finding: FC712 is ~2:3).
+ALLOWED_ASPECTS = {"9:16", "16:9", "3:4", "4:3", "1:1", "2:3", "3:2", "4:5", "5:4"}
+
+
 @router.post("/projects/{project_id}/learn", response_model=ProjectResponse)
 def learn_style(
     project_id: str,
     request: Request,
     x_api_key: str = Header(..., alias="X-API-Key"),
     learn_in_maple: bool = False,
+    aspect_ratio: str | None = None,
 ) -> ProjectResponse:
     store = get_store(request)
     project = get_project_or_404(store, project_id)
     if project.learning_status == "running":
         raise HTTPException(status_code=409, detail="Learning already in progress")
+    if aspect_ratio is not None and aspect_ratio not in ALLOWED_ASPECTS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"aspect_ratio must be one of {sorted(ALLOWED_ASPECTS)}",
+        )
 
     upload_bytes = store.get_upload_bytes(project_id)
     if upload_bytes is None:
         raise HTTPException(status_code=400, detail="No uploaded image")
 
-    start_learning(store, project, x_api_key, upload_bytes, learn_in_maple=learn_in_maple)
+    start_learning(
+        store, project, x_api_key, upload_bytes,
+        learn_in_maple=learn_in_maple, aspect_ratio=aspect_ratio,
+    )
     return to_project_response(get_project_or_404(store, project_id))
 
 
