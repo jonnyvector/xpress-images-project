@@ -112,11 +112,17 @@ class _FakeGenerator:
         return _FakeLearnResult()
 
 
+class _NoopLane:
+    def enqueue(self, *args: object, **kwargs: object) -> None:
+        pass
+
+
 def test_replica_gets_image_id_at_learn_store_time(tmp_path, monkeypatch) -> None:
     store = ProjectStore(persist_dir=tmp_path / "projects")
     project = store.create(name="Door 1", product_type="Cabinet Door")
     monkeypatch.setattr(worker, "DoorGenerator", _FakeGenerator)
     monkeypatch.setattr(worker, "OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr(worker, "get_qa_lane", lambda: _NoopLane())  # identity test only
 
     worker._run_learn(
         store, project.id, "key", b"upload", "recessed_panel", "Door 1", "9:16"

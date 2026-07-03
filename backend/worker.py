@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from backend.generator import DoorGenerator
+from backend.qa.qa_lane import get_qa_lane
 from backend.qa.trust_config import load_trust_config, snapshot
 from backend.runs import RunManifest
 from backend.selections import build_selections
@@ -138,11 +139,15 @@ def _run_generation(
                     )
                     if not record:
                         return
-                    if run is not None and result.image_data is not None:
-                        run.record_attempt(
-                            image_id=image_id or getattr(record, "image_id", ""),
-                            wood_name=wood_name,
-                            attempt=0,
+                    if result.image_data is not None:
+                        stored_id = image_id or getattr(record, "image_id", "")
+                        if run is not None:
+                            run.record_attempt(
+                                image_id=stored_id, wood_name=wood_name, attempt=0,
+                            )
+                        get_qa_lane().enqueue(
+                            store, project_id, stored_id, api_key,
+                            kind="variant", swatch_path=sel.get("swatch_path"),
                         )
                 except Exception as exc:
                     if not store.record_result(
@@ -224,6 +229,11 @@ def _run_learn(
             project.learning_status = "done"
             project.learning_error = None
         store.save(project_id)
+        if project.learning_status == "done" and project.base_image_id:
+            # New replica: judge it (sample-reference, advisory) right away.
+            get_qa_lane().enqueue(
+                store, project_id, project.base_image_id, api_key, kind="replica"
+            )
     except Exception as exc:
         project = store.get(project_id)
         if project is not None:
@@ -301,13 +311,18 @@ def _run_retry(
                 material_type=material_type,
                 use_base_door_reference=use_base_door_reference,
             )
-        store.record_retry_result(
+        record = store.record_retry_result(
             project_id,
             idx,
             wood_name,
             image_data=result.image_data,
             error=result.error,
         )
+        if result.image_data is not None and hasattr(record, "image_id"):
+            get_qa_lane().enqueue(
+                store, project_id, record.image_id, api_key,
+                kind="variant", swatch_path=selection.get("swatch_path"),
+            )
     except Exception as exc:
         store.record_retry_result(project_id, idx, selection["wood_name"], error=str(exc))
     finally:

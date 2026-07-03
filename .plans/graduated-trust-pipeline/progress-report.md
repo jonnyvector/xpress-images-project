@@ -89,16 +89,16 @@ Source: `implementation.md` (M6); `frontend/src/` (types.ts, api.ts, UploadStep/
 ### M7: QA lane
 Source: Interface Specifications § Data models (QaVerdict), § Invariants; new `backend/qa/qa_lane.py`
 
-- [ ] Feature: QA task enqueued after image storage in `_run_learn`, `_run_generation`, and `_run_retry`
-- [ ] Feature: `QaVerdict` persisted by image_id with `qa_status` transitions pending→judging→done
-- [ ] Feature: `generation_status` "done" unaffected by slow/hung judge
-- [ ] Feature: one `_api_semaphore` slot held across an entire `judge()` call (votes + retries)
-- [ ] Feature: judge failure triggers exactly one automatic re-judge
-- [ ] Feature: persistent failure → verdict `error`, gates as needs_human
-- [ ] Feature: `error` verdicts never disk-cached and never trigger auto-regeneration
-- [ ] Feature: variant QA passes `replica_approved` + approvals-derived inputs into `policy.decide()`
-- [ ] Feature: replica QA uses the sample-reference advisory path
-- [ ] Feature: `POST /projects/{id}/images/{image_id}/rejudge` re-enqueues QA
+- [x] Feature: QA task enqueued after image storage in `_run_learn`, `_run_generation`, and `_run_retry`
+- [x] Feature: `QaVerdict` persisted by image_id with `qa_status` transitions pending→judging→done
+- [x] Feature: `generation_status` "done" unaffected by slow/hung judge
+- [x] Feature: one `_api_semaphore` slot held across an entire `judge()` call (votes + retries)
+- [x] Feature: judge failure triggers exactly one automatic re-judge
+- [x] Feature: persistent failure → verdict `error`, gates as needs_human
+- [x] Feature: `error` verdicts never disk-cached and never trigger auto-regeneration
+- [x] Feature: variant QA passes `replica_approved` + approvals-derived inputs into `policy.decide()`
+- [x] Feature: replica QA uses the sample-reference advisory path
+- [x] Feature: `POST /projects/{id}/images/{image_id}/rejudge` re-enqueues QA
 
 ### M8: Verdict surfacing
 Source: Interface Specifications § API surface; `frontend/src/components/ResultsGrid.tsx`, polling hooks
@@ -176,8 +176,8 @@ Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, 
 
 ## Summary
 - Total features: 97
-- Completed: 50
-- Remaining: 47
-- Current cutoff blockers: 47
+- Completed: 60
+- Remaining: 37
+- Current cutoff blockers: 37
 - Accepted/deferred follow-up: 4
 - Superseded/obsolete checklist debt: 0

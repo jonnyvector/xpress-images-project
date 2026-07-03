@@ -221,3 +221,30 @@ def test_migrated_project_gets_replica_id_on_load(tmp_path: Path) -> None:
     store.save("legacy01")
     reloaded = ProjectStore(persist_dir=tmp_path).get("legacy01")
     assert reloaded.base_image_id == project.base_image_id  # stable once saved
+
+
+def test_rejudge_endpoint_validates_and_enqueues(client, monkeypatch) -> None:
+    import backend.routers.qa as qa_router
+
+    project = _learned_project(client)
+    enqueued: list[tuple[str, str]] = []
+
+    class FakeLane:
+        def enqueue(self, store, project_id, image_id, api_key, *, kind, swatch_path=None):
+            enqueued.append((image_id, kind))
+
+    monkeypatch.setattr(qa_router, "get_qa_lane", lambda: FakeLane())
+
+    ok = client.post(
+        f"/api/projects/{project.id}/images/{project.base_image_id}/rejudge",
+        headers={"X-API-Key": "k"},
+    )
+    assert ok.status_code == 200
+    assert enqueued == [(project.base_image_id, "replica")]
+
+    bad = client.post(
+        f"/api/projects/{project.id}/images/not-mine/rejudge",
+        headers={"X-API-Key": "k"},
+    )
+    assert bad.status_code == 400
+    assert "GT-005" in bad.json()["detail"]

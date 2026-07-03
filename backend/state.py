@@ -128,6 +128,10 @@ class ProjectStore:
     def _project_dir(self, project_id: str) -> Path:
         return self._persist_dir / project_id
 
+    def project_dir(self, project_id: str) -> Path:
+        """Public path accessor (read-only use: QA lane resolves images by id)."""
+        return self._project_dir(project_id)
+
     def _load_all(self) -> None:
         """Load all projects from disk on startup."""
         if not self._persist_dir.exists():
@@ -467,6 +471,15 @@ class ProjectStore:
             project.qa_verdicts[image_id] = verdict
             self._save_project(project)
             return True
+
+    def clear_qa_verdict(self, project_id: str, image_id: str) -> None:
+        """Drop a verdict entry (stale QA task for a vanished image)."""
+        with self._lock:
+            project = self._projects.get(project_id)
+            if project is None:
+                return
+            if project.qa_verdicts.pop(image_id, None) is not None:
+                self._save_project(project)
 
     def get_version_base_image(self, project_id: str, version: int) -> bytes | None:
         """Read base_door.bin from a specific version."""

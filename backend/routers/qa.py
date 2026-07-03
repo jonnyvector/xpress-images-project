@@ -6,10 +6,11 @@ never touch a running generation: revocation applies at the next gate check
 (there is no mid-run cancel by design; the batch's spend is already consented).
 """
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException, Request
 
 from backend.models import ApprovalRequest, ApprovalResponse, ProjectResponse
 from backend.qa.approvals import Approval, get_approval_store
+from backend.qa.qa_lane import get_qa_lane
 from backend.routers.projects_common import (
     get_project_or_404,
     get_store,
@@ -53,6 +54,34 @@ def set_approval(
     # Pin migrated identities: saving persists any load-generated image_ids
     # so the approval still points at this image after a restart.
     store.save(project_id)
+    return to_project_response(get_project_or_404(store, project_id))
+
+
+@router.post(
+    "/projects/{project_id}/images/{image_id}/rejudge",
+    response_model=ProjectResponse,
+)
+def rejudge_image(
+    project_id: str,
+    image_id: str,
+    request: Request,
+    x_api_key: str = Header(..., alias="X-API-Key"),
+) -> ProjectResponse:
+    """Re-enqueue QA for one image (e.g. after an error verdict)."""
+    store = get_store(request)
+    project = get_project_or_404(store, project_id)
+
+    if image_id == project.base_image_id:
+        kind = "replica"
+    elif any(r.image_id == image_id for r in project.results):
+        kind = "variant"
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"GT-005: image {image_id!r} is not part of this project",
+        )
+
+    get_qa_lane().enqueue(store, project_id, image_id, x_api_key, kind=kind)
     return to_project_response(get_project_or_404(store, project_id))
 
 
