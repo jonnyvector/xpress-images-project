@@ -163,6 +163,14 @@ Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, 
 - [ ] Feature: full-workflow rehearsal on a real project (learn → approve → 5-batch → review → unlock → bulk with auto-regen → ledger populated)
 - [x] Feature: `docs/qa-pipeline.md` updated with the operator workflow
 
+### M13: Review queue (operator-requested mid-implementation)
+Source: operator request 2026-07-03 — "we need a better system for you automatically showing things that need my approval"
+
+- [x] Feature: `GET /api/qa/review-queue` lists pipeline-era items lacking an operator verdict (unapproved replicas with QA activity; judged variants without approval records), grouped by project
+- [x] Feature: Review tab in the app polls the queue and renders each project as sample + replica + pending variants with inline Approve/Reject
+- [x] Feature: queue count badge on the Review tab
+- [x] Feature: newly learned/generated images appear in the queue without refresh or hunting
+
 ## Deferred follow-up
 
 - [ ] Judge prompt iteration workstream (separate; runs against frozen calibration labels)
@@ -175,8 +183,8 @@ Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, 
 (none)
 
 ## Summary
-- Total features: 97
-- Completed: 96
+- Total features: 101
+- Completed: 100
 - Remaining: 1
 - Current cutoff blockers: 1
 - Accepted/deferred follow-up: 4

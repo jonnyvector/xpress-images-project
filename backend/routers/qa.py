@@ -117,6 +117,66 @@ def reliability_stats() -> dict:
     return aggregate()
 
 
+@router.get("/qa/review-queue")
+def review_queue(request: Request) -> dict:
+    """Everything awaiting the operator's verdict, grouped by project.
+
+    Scope is pipeline-era work only: projects with QA activity. Included per
+    project: the current replica when unapproved (the Stage-A gate is the
+    operator's, always), and judged variants with no approval record yet.
+    Legacy projects untouched by the pipeline never flood this queue.
+    """
+    store = get_store(request)
+    approvals = get_approval_store()
+    projects_out: list[dict] = []
+    total = 0
+    for project in store.list_projects():
+        if not project.qa_verdicts:
+            continue  # no pipeline activity — not reviewable yet
+        project_decided = {
+            a.image_id for a in approvals.for_project(project.id)
+        }
+        replica_pending = (
+            project.base_image_id is not None
+            and project.base_image_id not in project_decided
+        )
+        variants = []
+        for idx, record in enumerate(project.results):
+            verdict = project.qa_verdicts.get(record.image_id)
+            if not verdict or verdict.get("qa_status") != "done":
+                continue
+            if record.image_id in project_decided:
+                continue
+            variants.append({
+                "image_id": record.image_id,
+                "index": idx,
+                "wood_name": record.wood_name,
+                "attempt": record.attempt,
+                "verdict": verdict,
+            })
+        if not replica_pending and not variants:
+            continue
+        pending_count = (1 if replica_pending else 0) + len(variants)
+        total += pending_count
+        projects_out.append({
+            "project_id": project.id,
+            "project_name": project.name,
+            "has_sample": project.upload_filename is not None,
+            "replica": {
+                "image_id": project.base_image_id,
+                "pending": replica_pending,
+                "verdict": (
+                    project.qa_verdicts.get(project.base_image_id)
+                    if project.base_image_id else None
+                ),
+            },
+            "variants": variants,
+            "pending_count": pending_count,
+        })
+    projects_out.sort(key=lambda p: -p["pending_count"])
+    return {"projects": projects_out, "total_pending": total}
+
+
 @router.get("/projects/{project_id}/approvals", response_model=list[ApprovalResponse])
 def list_approvals(project_id: str, request: Request) -> list[ApprovalResponse]:
     store = get_store(request)

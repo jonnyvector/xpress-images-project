@@ -1,4 +1,5 @@
 import type { Project, ActiveView } from '../types';
+import ReviewCountBadge from './ReviewCountBadge';
 
 interface Props {
   projects: Project[];
@@ -24,6 +25,13 @@ export default function TabBar({
         onClick={() => onSelectView('library')}
       >
         Library
+      </button>
+      <button
+        className={`tab-item ${activeView === 'review' ? 'active' : ''}`}
+        onClick={() => onSelectView('review')}
+      >
+        Review
+        <ReviewCountBadge />
       </button>
       <button
         className={`tab-item ${activeView === 'coverage' ? 'active' : ''}`}

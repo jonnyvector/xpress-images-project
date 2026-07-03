@@ -390,3 +390,36 @@ def test_global_bulk_unlock(client, monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(gen_mod, "load_trust_config", lambda: real_load(cfg))
     resp = client.post(f"/api/projects/{project.id}/generate", headers={"X-API-Key": "k"})
     assert resp.status_code == 200
+
+
+def test_review_queue_lists_pending_verdict_items(client) -> None:
+    store = client.app.state.project_store
+    # Pipeline-era project: replica unapproved, one judged variant unreviewed,
+    # one judged variant already approved.
+    project = _learned_project(client)
+    store.set_qa_verdict(project.id, project.base_image_id,
+                         {"verdict": "needs_human", "qa_status": "done", "reason": "anchor"})
+    r1 = store.record_result(project.id, "Oak", image_data=b"a")
+    r2 = store.record_result(project.id, "Cherry", image_data=b"b")
+    store.set_qa_verdict(project.id, r1.image_id,
+                         {"verdict": "pass", "qa_status": "done", "reason": "ok"})
+    store.set_qa_verdict(project.id, r2.image_id,
+                         {"verdict": "regenerate", "qa_status": "done", "reason": "bad"})
+    client.post(f"/api/projects/{project.id}/approvals",
+                json={"image_id": r1.image_id, "verdict": "approved"})
+
+    # Legacy project with no QA activity: must NOT flood the queue.
+    legacy = store.create(name="Legacy", product_type="Cabinet Door")
+    store.update(legacy.id, base_door_image=b"x", base_image_id=new_image_id(),
+                 has_signature=True, learned_signature=b"s")
+
+    queue = client.get("/api/qa/review-queue").json()
+    ids = {p["project_id"] for p in queue["projects"]}
+    assert project.id in ids
+    assert legacy.id not in ids
+
+    entry = next(p for p in queue["projects"] if p["project_id"] == project.id)
+    assert entry["replica"]["pending"] is True  # unapproved -> needs Jonny
+    pending_variants = {v["wood_name"] for v in entry["variants"]}
+    assert pending_variants == {"Cherry"}  # Oak already approved
+    assert queue["total_pending"] == 2  # replica + Cherry

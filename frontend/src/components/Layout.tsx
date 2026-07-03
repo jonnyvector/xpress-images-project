@@ -7,6 +7,7 @@ import ReliabilityPanel from './ReliabilityPanel';
 import ProjectTab from './ProjectTab';
 import DoorLibrary from './DoorLibrary';
 import CoveragePage from './CoveragePage';
+import ReviewQueue from './ReviewQueue';
 
 export default function Layout() {
   const { projects, openTabIds, activeProjectId } = useProjects();
@@ -148,7 +149,9 @@ export default function Layout() {
           <button onClick={handleAddProject}>+ Add New Door</button>
         </div>
         <div className="content-area">
-          {activeView === 'coverage' ? (
+          {activeView === 'review' ? (
+            <ReviewQueue />
+          ) : activeView === 'coverage' ? (
             <CoveragePage
               onOpenProject={(id) => {
                 dispatch({ type: 'OPEN_TAB', id });
