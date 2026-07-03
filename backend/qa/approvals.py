@@ -39,6 +39,17 @@ class Approval:
     decided_at: str = ""  # ISO 8601, set by the store
 
 
+# Process-wide store at the default path; tests swap it for a tmp instance.
+_default_store: "ApprovalStore | None" = None
+
+
+def get_approval_store() -> "ApprovalStore":
+    global _default_store
+    if _default_store is None:
+        _default_store = ApprovalStore()
+    return _default_store
+
+
 class ApprovalStore:
     """Load/save approvals at ``path``; every ``set`` validates and persists."""
 

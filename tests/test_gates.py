@@ -1,0 +1,223 @@
+"""M5: server-enforced generation gates + approval endpoints.
+
+Stage A is absolute: no variant generation without an operator-approved
+replica (GT-001, 409). Stage B caps resolved selections at the small-batch
+limit while bulk is locked (GT-002, 422). Gates count RESOLVED selections —
+the same list the worker will generate — and empty resolution is rejected
+(GT-006, 400). Approval writes validate image-belongs-to-project (GT-005).
+"""
+
+import json
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+import backend.qa.approvals as approvals_mod
+import backend.routers.projects_generation as gen_mod
+from backend.app import app
+from backend.qa.approvals import ApprovalStore
+from backend.qa.trust_config import TrustConfig, load_trust_config
+from backend.state import ProjectStore, new_image_id
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    approval_store = ApprovalStore(tmp_path / "approvals.json")
+    monkeypatch.setattr(approvals_mod, "_default_store", approval_store)
+    with TestClient(app) as c:
+        c.app.state.project_store = ProjectStore(persist_dir=tmp_path / "projects")
+        yield c
+
+
+def _learned_project(client: TestClient, *, swatches: int = 3):
+    """Create a project that has 'learned' (signature + replica with id)."""
+    store = client.app.state.project_store
+    project = store.create(name="Door 1", product_type="Cabinet Door")
+    store.update(
+        project.id,
+        has_signature=True,
+        learned_signature=b"sig",
+        base_door_image=b"replica",
+        base_image_id=new_image_id(),
+        selected_swatches=[f"swatch_{i}" for i in range(swatches)],
+    )
+    return store.get(project.id)
+
+
+def _fake_resolver(n: int):
+    return lambda keys, door_style=None, material_type="wood": [
+        {"wood_name": f"W{i}", "swatch_path": None, "wood_description": None,
+         "reference_image": None}
+        for i in range(n)
+    ]
+
+
+def _approve_replica(client: TestClient, project) -> None:
+    resp = client.post(
+        f"/api/projects/{project.id}/approvals",
+        json={"image_id": project.base_image_id, "verdict": "approved"},
+    )
+    assert resp.status_code == 200
+
+
+# --- generation gates ---------------------------------------------------------
+
+
+def test_unapproved_replica_blocks_generation(client, monkeypatch) -> None:
+    project = _learned_project(client)
+    monkeypatch.setattr(gen_mod, "build_selections", _fake_resolver(3))
+    resp = client.post(f"/api/projects/{project.id}/generate", headers={"X-API-Key": "k"})
+    assert resp.status_code == 409
+    assert "GT-001" in resp.json()["detail"]
+
+
+def test_over_limit_while_bulk_locked_is_422(client, monkeypatch) -> None:
+    project = _learned_project(client, swatches=6)
+    _approve_replica(client, project)
+    monkeypatch.setattr(gen_mod, "build_selections", _fake_resolver(6))
+    resp = client.post(f"/api/projects/{project.id}/generate", headers={"X-API-Key": "k"})
+    assert resp.status_code == 422
+    assert "GT-002" in resp.json()["detail"]
+
+
+def test_empty_resolution_is_400(client, monkeypatch) -> None:
+    project = _learned_project(client)
+    _approve_replica(client, project)
+    monkeypatch.setattr(gen_mod, "build_selections", _fake_resolver(0))
+    resp = client.post(f"/api/projects/{project.id}/generate", headers={"X-API-Key": "k"})
+    assert resp.status_code == 400
+    assert "GT-006" in resp.json()["detail"]
+
+
+def test_approved_within_limit_starts_run(client, monkeypatch) -> None:
+    project = _learned_project(client)
+    _approve_replica(client, project)
+    monkeypatch.setattr(gen_mod, "build_selections", _fake_resolver(3))
+    started: list[str] = []
+    monkeypatch.setattr(
+        gen_mod, "start_generation", lambda store, p, key: started.append(p.id)
+    )
+    resp = client.post(f"/api/projects/{project.id}/generate", headers={"X-API-Key": "k"})
+    assert resp.status_code == 200
+    assert started == [project.id]
+
+
+def test_trust_config_parse_error_falls_back_conservative(tmp_path: Path) -> None:
+    bad = tmp_path / "trust_config.json"
+    bad.write_text("{not json")
+    config = load_trust_config(bad)
+    assert config.bulk_unlocked is False
+    assert config.small_batch_limit == 5
+    assert config.run_cost_cap_usd == 10.0
+    # Missing file falls back the same way.
+    assert load_trust_config(tmp_path / "missing.json") == TrustConfig()
+
+
+def test_default_trust_config_file_is_conservative() -> None:
+    config = load_trust_config()  # the committed backend/qa/trust_config.json
+    assert config.bulk_unlocked is False
+    assert config.small_batch_limit == 5
+
+
+# --- approval endpoints -------------------------------------------------------
+
+
+def test_approval_rejects_foreign_image_id(client) -> None:
+    project = _learned_project(client)
+    resp = client.post(
+        f"/api/projects/{project.id}/approvals",
+        json={"image_id": "not-an-image-of-this-project", "verdict": "approved"},
+    )
+    assert resp.status_code == 400
+    assert "GT-005" in resp.json()["detail"]
+
+
+def test_approval_persists_and_reports_state(client) -> None:
+    project = _learned_project(client)
+    resp = client.post(
+        f"/api/projects/{project.id}/approvals",
+        json={"image_id": project.base_image_id, "verdict": "approved"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["replica_approved"] is True
+
+    listing = client.get(f"/api/projects/{project.id}/approvals")
+    assert listing.status_code == 200
+    items = listing.json()
+    assert len(items) == 1
+    assert items[0]["image_id"] == project.base_image_id
+    assert items[0]["kind"] == "replica"
+    assert items[0]["verdict"] == "approved"
+
+
+def test_variant_approval_kind_derived(client) -> None:
+    project = _learned_project(client)
+    store = client.app.state.project_store
+    record = store.record_result(project.id, "Oak", image_data=b"img")
+    resp = client.post(
+        f"/api/projects/{project.id}/approvals",
+        json={"image_id": record.image_id, "verdict": "rejected",
+              "reasons": ["geometry_drift"]},
+    )
+    assert resp.status_code == 200
+    items = client.get(f"/api/projects/{project.id}/approvals").json()
+    got = next(a for a in items if a["image_id"] == record.image_id)
+    assert got["kind"] == "variant"
+    assert got["reasons"] == ["geometry_drift"]
+
+
+def test_revocation_does_not_cancel_running_generation(client, monkeypatch) -> None:
+    project = _learned_project(client)
+    _approve_replica(client, project)
+    store = client.app.state.project_store
+    store.update(project.id, generation_status="running")
+
+    # Operator rejects the replica mid-run: accepted, run untouched.
+    resp = client.post(
+        f"/api/projects/{project.id}/approvals",
+        json={"image_id": project.base_image_id, "verdict": "rejected",
+              "reasons": ["geometry_drift"]},
+    )
+    assert resp.status_code == 200
+    assert store.get(project.id).generation_status == "running"
+
+    # But the NEXT generate is gated.
+    store.update(project.id, generation_status="done")
+    monkeypatch.setattr(gen_mod, "build_selections", _fake_resolver(3))
+    blocked = client.post(
+        f"/api/projects/{project.id}/generate", headers={"X-API-Key": "k"}
+    )
+    assert blocked.status_code == 409
+    assert "GT-001" in blocked.json()["detail"]
+
+
+def test_replica_approved_on_project_and_status_responses(client) -> None:
+    project = _learned_project(client)
+    before = client.get(f"/api/projects/{project.id}").json()
+    assert before["replica_approved"] is False
+
+    _approve_replica(client, project)
+    after = client.get(f"/api/projects/{project.id}").json()
+    assert after["replica_approved"] is True
+    status = client.get(f"/api/projects/{project.id}/generate/status").json()
+    assert status["replica_approved"] is True
+
+
+def test_migrated_project_gets_replica_id_on_load(tmp_path: Path) -> None:
+    # Old-format project: base_door.bin exists, manifest has no base_image_id.
+    d = tmp_path / "legacy01"
+    d.mkdir(parents=True)
+    (d / "signature.bin").write_bytes(b"sig")
+    (d / "base_door.bin").write_bytes(b"replica")
+    (d / "manifest.json").write_text(json.dumps({
+        "id": "legacy01", "name": "Legacy", "product_type": "Cabinet Door",
+        "result_names": [], "errors": [],
+    }))
+    store = ProjectStore(persist_dir=tmp_path)
+    project = store.get("legacy01")
+    assert project is not None
+    assert project.base_image_id is not None  # approvable without re-learn
+    store.save("legacy01")
+    reloaded = ProjectStore(persist_dir=tmp_path).get("legacy01")
+    assert reloaded.base_image_id == project.base_image_id  # stable once saved

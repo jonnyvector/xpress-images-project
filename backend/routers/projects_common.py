@@ -8,6 +8,7 @@ from fastapi import HTTPException, Request
 
 from backend.materials import MIME_MAP as MIME_TYPES
 from backend.models import ErrorItem, GenerationStatusResponse, ProjectResponse, ResultItem
+from backend.qa.approvals import get_approval_store
 from backend.state import ProjectState, ProjectStore
 from backend.styles.catalog import STYLES
 
@@ -26,6 +27,14 @@ def get_project_or_404(store: ProjectStore, project_id: str) -> ProjectState:
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
+
+
+def replica_approved(project: ProjectState) -> bool:
+    """Stage A gate state: the CURRENT replica has an operator approval."""
+    return (
+        project.base_image_id is not None
+        and project.base_image_id in get_approval_store().approved_ids()
+    )
 
 
 def to_project_response(project: ProjectState) -> ProjectResponse:
@@ -53,6 +62,7 @@ def to_project_response(project: ProjectState) -> ProjectResponse:
         signature_version=project.signature_version,
         version_count=project.version_count,
         truncated_runs=project.truncated_runs,
+        replica_approved=replica_approved(project),
     )
 
 
@@ -64,6 +74,7 @@ def to_generation_status(project: ProjectState) -> GenerationStatusResponse:
         results=[ResultItem(index=i, wood_name=r.wood_name) for i, r in enumerate(project.results)],
         errors=[ErrorItem(wood_name=wn, error=err) for wn, err in project.errors],
         retrying_indices=project.retrying_indices,
+        replica_approved=replica_approved(project),
     )
 
 

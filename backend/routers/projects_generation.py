@@ -1,14 +1,25 @@
-"""Project learning/generation endpoints."""
+"""Project learning/generation endpoints.
+
+Owns the graduated-trust gates on POST /generate (D-004): Stage A — the
+current replica MUST be operator-approved (GT-001, 409); Stage B — resolved
+selections MUST fit the small-batch limit while bulk is locked (GT-002, 422);
+empty resolution is rejected (GT-006, 400). Gates count RESOLVED selections
+via the same resolver the worker uses, so the gate can never disagree with
+what would actually be generated.
+"""
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
 from backend.models import GenerationStatusResponse, ProjectResponse
+from backend.qa.trust_config import bulk_unlocked_for, load_trust_config
 from backend.routers.projects_common import (
     get_project_or_404,
     get_store,
+    replica_approved,
     to_generation_status,
     to_project_response,
 )
+from backend.selections import build_selections
 from backend.styles.catalog import STYLES
 from backend.worker import start_generation, start_learning, start_retry
 
@@ -49,6 +60,36 @@ def trigger_generation(
         raise HTTPException(status_code=400, detail="No swatches selected")
     if project.generation_status == "running":
         raise HTTPException(status_code=409, detail="Generation already running")
+
+    # Stage A: variants of an unreviewed replica never generate (GT-001).
+    if not replica_approved(project):
+        raise HTTPException(
+            status_code=409,
+            detail="GT-001: replica not approved — approve the replica before "
+            "generating variants",
+        )
+
+    # Stage B: gate on RESOLVED selections, same resolver the worker uses.
+    config = load_trust_config()
+    resolved = build_selections(
+        project.selected_swatches,
+        door_style=project.door_style,
+        material_type=project.material_type,
+    )
+    if not resolved:
+        raise HTTPException(
+            status_code=400,
+            detail="GT-006: no selections resolve to generatable materials",
+        )
+    if (
+        len(resolved) > config.small_batch_limit
+        and not bulk_unlocked_for(config, project.door_style)
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail=f"GT-002: {len(resolved)} resolved selections exceed the "
+            f"small-batch limit of {config.small_batch_limit} while bulk is locked",
+        )
 
     start_generation(store, project, x_api_key)
     return to_generation_status(get_project_or_404(store, project_id))

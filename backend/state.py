@@ -166,6 +166,10 @@ class ProjectStore:
                     project.base_door_image = base_path.read_bytes()
 
                 project.base_image_id = data.get("base_image_id")
+                # Migration: a replica without an identity can't be approved —
+                # assign one at load (persisted on the next save).
+                if project.base_image_id is None and project.base_door_image is not None:
+                    project.base_image_id = new_image_id()
                 project.qa_verdicts = data.get("qa_verdicts", {})
 
                 # Load results. New format: "result_records" metadata aligned

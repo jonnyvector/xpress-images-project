@@ -54,6 +54,7 @@ class ProjectResponse(BaseModel):
     signature_version: int = 0
     version_count: int = 0
     truncated_runs: list[str] = []  # runs cut short by a crash — never silent
+    replica_approved: bool = False  # Stage A gate state (GT-001)
 
 
 class VersionSummary(BaseModel):
@@ -89,6 +90,24 @@ class GenerationStatusResponse(BaseModel):
     results: list[ResultItem]
     errors: list[ErrorItem]
     retrying_indices: list[int] = []
+    replica_approved: bool = False
+
+
+class ApprovalRequest(BaseModel):
+    image_id: str
+    verdict: str  # "approved" | "rejected"
+    reasons: list[str] = []
+    note: str = ""
+
+
+class ApprovalResponse(BaseModel):
+    image_id: str
+    project_id: str
+    kind: str
+    verdict: str
+    reasons: list[str] = []
+    note: str = ""
+    decided_at: str = ""
 
 
 class SaveToFolderResponse(BaseModel):

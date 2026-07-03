@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from backend.generator import DoorGenerator
+from backend.qa.trust_config import load_trust_config, snapshot
 from backend.runs import RunManifest
 from backend.selections import build_selections
 from backend.state import new_image_id
@@ -442,7 +443,9 @@ def start_generation(
     run = RunManifest.create(
         OUTPUT_DIR / ".projects" / project.id,
         planned=[(sel["wood_name"], sel["image_id"]) for sel in selections],
-        config={},  # trust-config snapshot wired in when gates land (M5)
+        # Snapshot at run start (D-009): mid-run config edits never change
+        # a running run's retry/cap rules.
+        config=snapshot(load_trust_config()),
     )
 
     # Keep all existing results — new ones append alongside them

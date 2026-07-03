@@ -59,16 +59,17 @@ Source: Interface Specifications § Data models; new `backend/qa/approvals.py`
 ### M5: Gates + endpoints
 Source: Interface Specifications § Gate order, § API surface, § Error codes; `backend/routers/projects_generation.py`, new `backend/routers/qa.py`
 
-- [ ] Feature: `POST /generate` with unapproved replica → 409 GT-001
-- [ ] Feature: resolved selections > `small_batch_limit` while bulk locked → 422 GT-002
-- [ ] Feature: empty resolved selections → 400 GT-006
-- [ ] Feature: approved replica + within limit → run starts (existing behavior preserved)
-- [ ] Feature: `trust_config.json` parse error → conservative fallback (bulk locked, $10 cap)
-- [ ] Feature: `POST /projects/{id}/approvals` validates image-belongs-to-project (GT-005)
-- [ ] Feature: `POST /projects/{id}/approvals` persists and returns updated state
-- [ ] Feature: `GET /projects/{id}/approvals` lists the project's approvals
-- [ ] Feature: replica rejection mid-run does not cancel the run; next `POST /generate` is gated
-- [ ] Feature: `replica_approved` exposed on `ProjectResponse`/`GenerationStatusResponse`
+- [x] Feature: `POST /generate` with unapproved replica → 409 GT-001
+- [x] Feature: resolved selections > `small_batch_limit` while bulk locked → 422 GT-002
+- [x] Feature: empty resolved selections → 400 GT-006
+- [x] Feature: approved replica + within limit → run starts (existing behavior preserved)
+- [x] Feature: `trust_config.json` parse error → conservative fallback (bulk locked, $10 cap)
+- [x] Feature: `POST /projects/{id}/approvals` validates image-belongs-to-project (GT-005)
+- [x] Feature: `POST /projects/{id}/approvals` persists and returns updated state
+- [x] Feature: `GET /projects/{id}/approvals` lists the project's approvals
+- [x] Feature: replica rejection mid-run does not cancel the run; next `POST /generate` is gated
+- [x] Feature: `replica_approved` exposed on `ProjectResponse`/`GenerationStatusResponse`
+- [x] Feature: migrated project (base_door.bin, no base_image_id) gets a replica id at load — approvable without re-learn
 
 ### M6: Minimal approval UI
 Source: `implementation.md` (M6); `frontend/src/` (types.ts, api.ts, UploadStep/ProjectTab, SwatchGrid)
@@ -172,9 +173,9 @@ Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, 
 (none)
 
 ## Summary
-- Total features: 94
-- Completed: 30
-- Remaining: 64
-- Current cutoff blockers: 64
+- Total features: 95
+- Completed: 41
+- Remaining: 54
+- Current cutoff blockers: 54
 - Accepted/deferred follow-up: 4
 - Superseded/obsolete checklist debt: 0
