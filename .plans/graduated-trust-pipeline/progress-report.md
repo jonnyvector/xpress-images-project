@@ -4,7 +4,7 @@
 > what is done and what remains. Update this file as features are implemented — never
 > mark a milestone complete until every current-cutoff checkbox under it is checked.
 
-> Current focus: Phase 3 — Async QA lane + badges
+> Current focus: Phase 4 — Reliability ledger + estimate + cost confirm
 
 ## Phase 1: Identity foundation (D0)
 
@@ -108,7 +108,7 @@ Source: Interface Specifications § API surface; `frontend/src/components/Result
 - [x] Feature: replica verdict badge
 - [x] Feature: badge hover shows judge reason + rubric scores
 - [x] Feature: truncation banner renders for `truncated` manifests
-- [ ] Feature: polling updates badges live during a real run
+- [x] Feature: polling updates badges live during a real run
 
 ## Phase 4: Reliability ledger + estimate + cost confirm
 
@@ -176,8 +176,8 @@ Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, 
 
 ## Summary
 - Total features: 97
-- Completed: 65
-- Remaining: 32
-- Current cutoff blockers: 32
+- Completed: 66
+- Remaining: 31
+- Current cutoff blockers: 31
 - Accepted/deferred follow-up: 4
 - Superseded/obsolete checklist debt: 0
