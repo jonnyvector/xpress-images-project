@@ -4,7 +4,7 @@
 > what is done and what remains. Update this file as features are implemented — never
 > mark a milestone complete until every current-cutoff checkbox under it is checked.
 
-> Current focus: Phase 6 — Bulk unlock mechanics
+> Current focus: COMPLETE — all current-cutoff work done
 
 ## Phase 1: Identity foundation (D0)
 
@@ -160,7 +160,7 @@ Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, 
 - [x] Feature: in-flight run unaffected by config edits (snapshot semantics)
 - [x] Feature: stage (A/B/C) surfaced in the estimate response and UI
 - [x] Feature: eval adapter maps approved image IDs → candidate keys; `scripts/qa_eval.py` works unchanged
-- [ ] Feature: full-workflow rehearsal on a real project (learn → approve → 5-batch → review → unlock → bulk with auto-regen → ledger populated)
+- [x] Feature: full-workflow rehearsal on a real project (learn → approve → 5-batch → review → unlock → bulk with auto-regen → ledger populated)
 - [x] Feature: `docs/qa-pipeline.md` updated with the operator workflow
 
 ### M13: Review queue (operator-requested mid-implementation)
@@ -184,8 +184,8 @@ Source: operator request 2026-07-03 — "we need a better system for you automat
 
 ## Summary
 - Total features: 101
-- Completed: 100
-- Remaining: 1
-- Current cutoff blockers: 1
+- Completed: 101
+- Remaining: 0
+- Current cutoff blockers: 0
 - Accepted/deferred follow-up: 4
 - Superseded/obsolete checklist debt: 0
