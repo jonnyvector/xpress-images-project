@@ -9,6 +9,7 @@ from fastapi import HTTPException, Request
 from backend.materials import MIME_MAP as MIME_TYPES
 from backend.models import ErrorItem, GenerationStatusResponse, ProjectResponse, ResultItem
 from backend.qa.approvals import get_approval_store
+from backend.runs import latest_run_summary
 from backend.state import ProjectState, ProjectStore
 from backend.styles.catalog import STYLES
 
@@ -67,6 +68,12 @@ def to_project_response(project: ProjectState) -> ProjectResponse:
         truncated_runs=project.truncated_runs,
         replica_approved=replica_approved(project),
         base_image_id=project.base_image_id,
+        qa_verdicts=project.qa_verdicts,
+        latest_run=(
+            latest_run_summary(project.project_dir)
+            if project.project_dir is not None
+            else None
+        ),
     )
 
 
@@ -82,6 +89,7 @@ def to_generation_status(project: ProjectState) -> GenerationStatusResponse:
         errors=[ErrorItem(wood_name=wn, error=err) for wn, err in project.errors],
         retrying_indices=project.retrying_indices,
         replica_approved=replica_approved(project),
+        qa_verdicts=project.qa_verdicts,
     )
 
 

@@ -57,6 +57,8 @@ class ProjectResponse(BaseModel):
     truncated_runs: list[str] = []  # runs cut short by a crash — never silent
     replica_approved: bool = False  # Stage A gate state (GT-001)
     base_image_id: str | None = None  # the current replica's stable identity
+    qa_verdicts: dict[str, dict] = {}  # image_id -> QA verdict (lane schema)
+    latest_run: dict | None = None  # newest run manifest summary
 
 
 class VersionSummary(BaseModel):
@@ -93,6 +95,7 @@ class GenerationStatusResponse(BaseModel):
     errors: list[ErrorItem]
     retrying_indices: list[int] = []
     replica_approved: bool = False
+    qa_verdicts: dict[str, dict] = {}
 
 
 class ApprovalRequest(BaseModel):

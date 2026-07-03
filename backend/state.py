@@ -72,6 +72,7 @@ class ProjectState:
     signature_version: int = 0
     version_count: int = 0
     truncated_runs: list[str] = field(default_factory=list)  # crash-orphaned run_ids
+    project_dir: Path | None = None  # transient, stamped by the store (not persisted)
 
 
 def _record_meta(record: ResultRecord) -> dict:
@@ -194,6 +195,7 @@ class ProjectStore:
                 # A run manifest still "running" at load means the process
                 # died mid-run — flip to truncated and surface it (D-009).
                 project.truncated_runs = sweep_truncated(d)
+                project.project_dir = d
 
                 self._projects[project.id] = project
             except (json.JSONDecodeError, KeyError, OSError):
@@ -270,6 +272,7 @@ class ProjectStore:
             product_type=product_type,
             material_type=material_type,
         )
+        project.project_dir = self._project_dir(project.id)
         with self._lock:
             self._projects[project.id] = project
             self._save_project(project)

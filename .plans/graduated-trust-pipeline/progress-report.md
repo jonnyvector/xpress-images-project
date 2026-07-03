@@ -103,11 +103,11 @@ Source: Interface Specifications § Data models (QaVerdict), § Invariants; new 
 ### M8: Verdict surfacing
 Source: Interface Specifications § API surface; `frontend/src/components/ResultsGrid.tsx`, polling hooks
 
-- [ ] Feature: `ProjectResponse`/`GenerationStatusResponse` carry `qa_verdicts` + run manifest summary
-- [ ] Feature: variant badges: pass / regenerate / needs-human / error / judging…
-- [ ] Feature: replica verdict badge
-- [ ] Feature: badge hover shows judge reason + rubric scores
-- [ ] Feature: truncation banner renders for `truncated` manifests
+- [x] Feature: `ProjectResponse`/`GenerationStatusResponse` carry `qa_verdicts` + run manifest summary
+- [x] Feature: variant badges: pass / regenerate / needs-human / error / judging…
+- [x] Feature: replica verdict badge
+- [x] Feature: badge hover shows judge reason + rubric scores
+- [x] Feature: truncation banner renders for `truncated` manifests
 - [ ] Feature: polling updates badges live during a real run
 
 ## Phase 4: Reliability ledger + estimate + cost confirm
@@ -176,8 +176,8 @@ Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, 
 
 ## Summary
 - Total features: 97
-- Completed: 60
-- Remaining: 37
-- Current cutoff blockers: 37
+- Completed: 65
+- Remaining: 32
+- Current cutoff blockers: 32
 - Accepted/deferred follow-up: 4
 - Superseded/obsolete checklist debt: 0

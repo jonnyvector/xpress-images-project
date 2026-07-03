@@ -31,15 +31,18 @@ export default function GenerateStep({ project, apiKey }: Props) {
       setCompleted(genStatus.completed);
       setTotal(genStatus.total);
 
+      // Refresh the project every poll so results and QA badges land live,
+      // not only when the run finishes.
+      try {
+        const updated = await api.getProject(projectIdRef.current);
+        dispatch({ type: 'UPDATE_PROJECT', project: updated });
+      } catch {
+        // transient — next poll will sync
+      }
+
       if (genStatus.status !== 'running') {
         setGenerating(false);
         stop();
-        try {
-          const updated = await api.getProject(projectIdRef.current);
-          dispatch({ type: 'UPDATE_PROJECT', project: updated });
-        } catch {
-          // generation is done — context will sync on next interaction or refresh
-        }
         return false;
       }
 

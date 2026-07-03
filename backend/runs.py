@@ -154,3 +154,30 @@ def sweep_truncated(project_dir: Path) -> list[str]:
         if data.get("status") == "truncated":
             truncated.append(data.get("run_id", path.stem))
     return truncated
+
+
+def latest_run_summary(project_dir: Path) -> dict | None:
+    """Newest run's manifest summary for the UI (status, counters)."""
+    runs_dir = project_dir / "runs"
+    if not runs_dir.exists():
+        return None
+    newest: dict | None = None
+    newest_key = ""
+    for path in runs_dir.glob("*.json"):
+        try:
+            data = json.loads(path.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        key = str(data.get("started_at", ""))
+        if key >= newest_key:
+            newest_key, newest = key, data
+    if newest is None:
+        return None
+    return {
+        "run_id": newest.get("run_id"),
+        "status": newest.get("status"),
+        "started_at": newest.get("started_at"),
+        "images_submitted": newest.get("images_submitted", 0),
+        "unconsented_images": newest.get("unconsented_images", 0),
+        "planned": len(newest.get("planned", [])),
+    }

@@ -812,3 +812,19 @@ label {
   background: rgba(198, 40, 40, 0.18);
   color: #ef5350;
 }
+
+/* Pipeline verdict badges (QA lane) */
+.qa-badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  vertical-align: middle;
+  cursor: help;
+}
+.qa-badge.qa-pass { background: rgba(46, 125, 50, 0.18); color: #66bb6a; }
+.qa-badge.qa-regenerate { background: rgba(230, 126, 34, 0.18); color: #ffa94d; }
+.qa-badge.qa-needs-human { background: rgba(181, 159, 59, 0.2); color: #d4b942; }
+.qa-badge.qa-error { background: rgba(198, 40, 40, 0.18); color: #ef5350; }
+.qa-badge.qa-judging { background: rgba(120, 120, 120, 0.2); color: #aaa; }

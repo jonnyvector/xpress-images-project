@@ -24,6 +24,27 @@ export interface Project {
   truncated_runs: string[];
   replica_approved: boolean;
   base_image_id: string | null;
+  qa_verdicts: Record<string, QaVerdict>;
+  latest_run: RunSummary | null;
+}
+
+export interface QaVerdict {
+  verdict: 'pass' | 'regenerate' | 'needs_human' | 'error' | null;
+  gates_as?: string;
+  reason?: string;
+  scores?: Record<string, number>;
+  geometry?: string | null;
+  qa_status: 'pending' | 'judging' | 'done';
+  judged_at?: string;
+}
+
+export interface RunSummary {
+  run_id: string;
+  status: 'running' | 'done' | 'truncated';
+  started_at: string;
+  images_submitted: number;
+  unconsented_images: number;
+  planned: number;
 }
 
 export interface SignatureVersion {
@@ -55,6 +76,7 @@ export interface GenerationStatus {
   errors: ProjectError[];
   retrying_indices: number[];
   replica_approved: boolean;
+  qa_verdicts: Record<string, QaVerdict>;
 }
 
 // Fixed reject-reason vocabulary — mirrors backend/qa/labels.py REASONS.

@@ -4,6 +4,7 @@ import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 import { usePollingTask } from '../hooks/usePollingTask';
 import ApprovalControls from './ApprovalControls';
+import QaBadge from './QaBadge';
 
 interface Props {
   project: Project;
@@ -33,6 +34,25 @@ export default function ResultsGrid({ project }: Props) {
   useEffect(() => {
     refreshApprovals();
   }, [refreshApprovals]);
+
+  // Verdicts land asynchronously after generation — keep polling while any
+  // QA task is visibly in flight so badges flip from judging… to done.
+  const hasPendingQa = Object.values(project.qa_verdicts ?? {}).some(
+    (v) => v.qa_status !== 'done',
+  );
+  const { start: startQaPoll } = usePollingTask({
+    enabled: false,
+    onPoll: async () => {
+      const updated = await api.getProject(project.id);
+      dispatch({ type: 'UPDATE_PROJECT', project: updated });
+      return Object.values(updated.qa_verdicts ?? {}).some(
+        (v) => v.qa_status !== 'done',
+      );
+    },
+  });
+  useEffect(() => {
+    if (hasPendingQa) startQaPoll();
+  }, [hasPendingQa, startQaPoll]);
 
   const [retryingIndices, setRetryingIndices] = useState<Set<number>>(
     () => new Set(project.retrying_indices ?? []),
@@ -172,6 +192,13 @@ export default function ResultsGrid({ project }: Props) {
 
   return (
     <section style={{ marginTop: '1rem' }}>
+      {project.truncated_runs.length > 0 && (
+        <div className="status-error" style={{ marginBottom: '0.75rem' }}>
+          ⚠ {project.truncated_runs.length} generation run
+          {project.truncated_runs.length > 1 ? 's were' : ' was'} cut short by a
+          crash — this batch may be incomplete. Review before shipping.
+        </div>
+      )}
       {project.has_base_image && (
         <>
           <h3>Base {project.product_type === 'Drawer Front' ? 'Drawer Front' : 'Door'} (Learned Style)</h3>
@@ -181,6 +208,9 @@ export default function ResultsGrid({ project }: Props) {
               alt="Base door"
               style={{ maxWidth: '60%', borderRadius: 'var(--radius)' }}
             />
+            {project.base_image_id && (
+              <QaBadge verdict={project.qa_verdicts?.[project.base_image_id]} />
+            )}
             {project.base_image_id && (
               <ApprovalControls
                 project={project}
@@ -334,7 +364,10 @@ export default function ResultsGrid({ project }: Props) {
                     src={`/api/projects/${project.id}/results/${result.index}/image?v=${project.results.length}&watermark_offset=${watermarkOffset}&image_scale=${imageScale}&wmv=${watermarkCacheBust}`}
                     alt={result.wood_name}
                   />
-                  <div className="caption">{result.wood_name}</div>
+                  <div className="caption">
+                    {result.wood_name}{' '}
+                    <QaBadge verdict={project.qa_verdicts?.[result.image_id]} />
+                  </div>
                   <ApprovalControls
                     project={project}
                     imageId={result.image_id}
