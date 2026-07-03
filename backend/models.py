@@ -131,6 +131,7 @@ class CoverageProduct(BaseModel):
     net_sales: float
     quantity: int
     covered: bool
+    manual: bool = False  # covered by operator override, not a project match
     matched_project_ids: list[str]
 
 

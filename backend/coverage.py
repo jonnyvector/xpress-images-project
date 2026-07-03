@@ -111,10 +111,29 @@ def project_matches(project: ProjectState, tokens: set[str]) -> bool:
     return bool(tokens & set(_words(project.name)))
 
 
+def load_overrides(data_dir: Path) -> set[str]:
+    """Product titles manually marked covered (work done outside the app).
+
+    Read from ``coverage_overrides.json`` next to the CSVs; missing or
+    malformed file just means no overrides.
+    """
+    path = data_dir / "coverage_overrides.json"
+    if not path.exists():
+        return set()
+    try:
+        import json
+
+        data = json.loads(path.read_text())
+        return {str(t) for t in data.get("covered", [])}
+    except (ValueError, OSError):
+        return set()
+
+
 def compute_coverage(
     projects: list[ProjectState], data_dir: Path = DATA_DIR
 ) -> list[dict]:
     """Build per-category coverage data joining the CSVs with projects."""
+    overrides = load_overrides(data_dir)
     categories: list[dict] = []
     for cat in CATEGORIES:
         candidates = [
@@ -129,7 +148,8 @@ def compute_coverage(
             tokens = extract_match_tokens(title)
             matched = [p for p in candidates if project_matches(p, tokens)]
             matched.sort(key=lambda p: 0 if p.results else 1)  # results-bearing first
-            is_covered = any(p.results for p in matched)
+            manual = title in overrides
+            is_covered = manual or any(p.results for p in matched)
             if is_covered:
                 covered_count += 1
             products.append(
@@ -138,6 +158,7 @@ def compute_coverage(
                     "net_sales": net_sales,
                     "quantity": quantity,
                     "covered": is_covered,
+                    "manual": manual,
                     "matched_project_ids": [p.id for p in matched],
                 }
             )

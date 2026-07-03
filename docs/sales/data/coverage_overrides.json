@@ -1,0 +1,8 @@
+{
+  "_comment": "Product titles (exact, as in the CSVs) manually marked covered — work done outside the app's projects. Read by backend/coverage.py.",
+  "covered": [
+    "FS842 Thermofoil Cabinet Door",
+    "DR1 Thermofoil Cabinet Door (Artesia Style)",
+    "Thermofoil Plank (Tacoma Style) Cabinet Door (DBQ)"
+  ]
+}
