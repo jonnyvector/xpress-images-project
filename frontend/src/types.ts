@@ -21,6 +21,9 @@ export interface Project {
   retrying_indices: number[];
   signature_version: number;
   version_count: number;
+  truncated_runs: string[];
+  replica_approved: boolean;
+  base_image_id: string | null;
 }
 
 export interface SignatureVersion {
@@ -36,6 +39,7 @@ export interface SignatureVersion {
 export interface ProjectResult {
   index: number;
   wood_name: string;
+  image_id: string;
 }
 
 export interface ProjectError {
@@ -47,9 +51,29 @@ export interface GenerationStatus {
   status: 'idle' | 'running' | 'done';
   completed: number;
   total: number;
-  results: { index: number; wood_name: string }[];
+  results: { index: number; wood_name: string; image_id: string }[];
   errors: ProjectError[];
   retrying_indices: number[];
+  replica_approved: boolean;
+}
+
+// Fixed reject-reason vocabulary — mirrors backend/qa/labels.py REASONS.
+export const REJECT_REASONS = [
+  'geometry_drift',
+  'profile_character',
+  'material_realism',
+  'artifacts',
+  'other',
+] as const;
+
+export interface Approval {
+  image_id: string;
+  project_id: string;
+  kind: 'replica' | 'variant';
+  verdict: 'approved' | 'rejected';
+  reasons: string[];
+  note: string;
+  decided_at: string;
 }
 
 export interface Swatch {

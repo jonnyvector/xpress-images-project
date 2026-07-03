@@ -796,3 +796,19 @@ label {
     margin-top: 0;
   }
 }
+
+/* Graduated-trust pipeline: operator approval state */
+.approval-badge {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.approval-badge.approved {
+  background: rgba(46, 125, 50, 0.18);
+  color: #66bb6a;
+}
+.approval-badge.rejected {
+  background: rgba(198, 40, 40, 0.18);
+  color: #ef5350;
+}

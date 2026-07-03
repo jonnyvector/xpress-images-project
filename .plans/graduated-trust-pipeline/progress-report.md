@@ -74,12 +74,14 @@ Source: Interface Specifications § Gate order, § API surface, § Error codes; 
 ### M6: Minimal approval UI
 Source: `implementation.md` (M6); `frontend/src/` (types.ts, api.ts, UploadStep/ProjectTab, SwatchGrid)
 
-- [ ] Feature: `types.ts` + `api.ts` support approvals and typed gate errors
-- [ ] Feature: replica Approve / Reject buttons render with current approval state
-- [ ] Feature: Reject opens the REASONS-vocabulary checklist
-- [ ] Feature: blocking banner "Variants locked — approve the replica first" while unapproved
-- [ ] Feature: GT-001 / GT-002 / GT-006 messages surface on the generate flow
-- [ ] Feature: `SwatchGrid` warns beyond 5 selections in Stage B (server stays authoritative)
+- [x] Feature: `types.ts` + `api.ts` support approvals and typed gate errors
+- [x] Feature: replica Approve / Reject buttons render with current approval state
+- [x] Feature: Reject opens the REASONS-vocabulary checklist
+- [x] Feature: blocking banner "Variants locked — approve the replica first" while unapproved
+- [x] Feature: GT-001 / GT-002 / GT-006 messages surface on the generate flow
+- [x] Feature: `SwatchGrid` warns beyond 5 selections in Stage B (server stays authoritative)
+- [x] Feature: variant Approve/Reject controls on each result card (Stage B review)
+- [x] Feature: `base_image_id` + per-result `image_id` exposed on API responses
 - [ ] Feature: manual flow verified end-to-end: learn → blocked generate → approve → generate
 
 ## Phase 3: Async QA lane + badges
@@ -173,9 +175,9 @@ Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, 
 (none)
 
 ## Summary
-- Total features: 95
-- Completed: 41
-- Remaining: 54
-- Current cutoff blockers: 54
+- Total features: 97
+- Completed: 49
+- Remaining: 48
+- Current cutoff blockers: 48
 - Accepted/deferred follow-up: 4
 - Superseded/obsolete checklist debt: 0

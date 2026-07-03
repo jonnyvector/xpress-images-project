@@ -23,6 +23,7 @@ class ProjectUpdate(BaseModel):
 class ResultItem(BaseModel):
     index: int
     wood_name: str
+    image_id: str = ""  # stable identity — approvals/verdicts key off this
 
 
 class ErrorItem(BaseModel):
@@ -55,6 +56,7 @@ class ProjectResponse(BaseModel):
     version_count: int = 0
     truncated_runs: list[str] = []  # runs cut short by a crash — never silent
     replica_approved: bool = False  # Stage A gate state (GT-001)
+    base_image_id: str | None = None  # the current replica's stable identity
 
 
 class VersionSummary(BaseModel):

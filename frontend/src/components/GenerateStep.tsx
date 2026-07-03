@@ -75,7 +75,8 @@ export default function GenerateStep({ project, apiKey }: Props) {
 
   const hasSignature = project.has_signature;
   const hasSwatches = project.selected_swatches.length > 0;
-  const canGenerate = Boolean(apiKey) && hasSignature && hasSwatches && !generating;
+  const replicaApproved = project.replica_approved;
+  const canGenerate = Boolean(apiKey) && hasSignature && hasSwatches && replicaApproved && !generating;
 
   return (
     <section>
@@ -83,7 +84,14 @@ export default function GenerateStep({ project, apiKey }: Props) {
 
       {!apiKey && <div className="status-info">Enter your API key in the sidebar</div>}
       {apiKey && !hasSignature && <div className="status-info">Learn a style first (Step 1)</div>}
-      {apiKey && hasSignature && !hasSwatches && <div className="status-info">Select at least one wood type (Step 2)</div>}
+      {apiKey && hasSignature && !replicaApproved && (
+        <div className="status-error">
+          Variants locked — approve the replica first (Stage A gate)
+        </div>
+      )}
+      {apiKey && hasSignature && replicaApproved && !hasSwatches && (
+        <div className="status-info">Select at least one wood type (Step 2)</div>
+      )}
 
       <button
         className="primary"

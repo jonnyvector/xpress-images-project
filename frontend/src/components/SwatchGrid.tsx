@@ -125,6 +125,11 @@ export default function SwatchGrid({ project }: Props) {
 
       <div style={{ marginTop: '0.75rem', fontSize: '0.875rem', fontWeight: 600 }}>
         Selected: {selected.size} / {swatches.length}
+        {selected.size > 5 && (
+          <div style={{ color: '#b59f3b', fontWeight: 400 }}>
+            Stage B limit: batches over 5 are blocked until bulk is unlocked
+          </div>
+        )}
       </div>
     </section>
   );

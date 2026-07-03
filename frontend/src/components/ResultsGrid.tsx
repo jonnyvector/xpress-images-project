@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Project } from '../types';
+import type { Approval, Project } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 import { usePollingTask } from '../hooks/usePollingTask';
+import ApprovalControls from './ApprovalControls';
 
 interface Props {
   project: Project;
@@ -21,6 +22,17 @@ export default function ResultsGrid({ project }: Props) {
       setBaseImageCacheBust(Date.now());
     }
   }, [project.learning_status]);
+
+  // Per-image operator verdicts (approvals keyed by stable image_id).
+  const [verdicts, setVerdicts] = useState<Map<string, Approval['verdict']>>(new Map());
+  const refreshApprovals = useCallback(() => {
+    api.listApprovals(project.id)
+      .then((items) => setVerdicts(new Map(items.map((a) => [a.image_id, a.verdict]))))
+      .catch(console.error);
+  }, [project.id]);
+  useEffect(() => {
+    refreshApprovals();
+  }, [refreshApprovals]);
 
   const [retryingIndices, setRetryingIndices] = useState<Set<number>>(
     () => new Set(project.retrying_indices ?? []),
@@ -163,12 +175,29 @@ export default function ResultsGrid({ project }: Props) {
       {project.has_base_image && (
         <>
           <h3>Base {project.product_type === 'Drawer Front' ? 'Drawer Front' : 'Door'} (Learned Style)</h3>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '1rem' }}>
             <img
               src={`/api/projects/${project.id}/base-image?v=${baseImageCacheBust}`}
               alt="Base door"
               style={{ maxWidth: '60%', borderRadius: 'var(--radius)' }}
             />
+            {project.base_image_id && (
+              <ApprovalControls
+                project={project}
+                imageId={project.base_image_id}
+                verdict={
+                  project.replica_approved
+                    ? 'approved'
+                    : verdicts.get(project.base_image_id) ?? null
+                }
+                onChanged={refreshApprovals}
+              />
+            )}
+            {!project.replica_approved && (
+              <div className="status-error" style={{ marginTop: '0.5rem', textAlign: 'center' }}>
+                Variants locked — approve the replica first
+              </div>
+            )}
           </div>
         </>
       )}
@@ -306,6 +335,13 @@ export default function ResultsGrid({ project }: Props) {
                     alt={result.wood_name}
                   />
                   <div className="caption">{result.wood_name}</div>
+                  <ApprovalControls
+                    project={project}
+                    imageId={result.image_id}
+                    verdict={verdicts.get(result.image_id) ?? null}
+                    onChanged={refreshApprovals}
+                    compact
+                  />
                   <div className="actions">
                     <a
                       href={`/api/projects/${project.id}/results/${result.index}/image?watermark=false&v=${project.results.length}`}

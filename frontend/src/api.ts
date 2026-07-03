@@ -1,4 +1,4 @@
-import type { Project, Swatch, Style, GenerationStatus, SignatureVersion, CoverageResponse } from './types';
+import type { Project, Swatch, Style, GenerationStatus, SignatureVersion, CoverageResponse, Approval } from './types';
 
 function getApiKey(): string {
   return localStorage.getItem('gemini_api_key') ?? '';
@@ -24,6 +24,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(path, { ...options, headers });
   if (!res.ok) {
     const text = await res.text();
+    // Surface FastAPI's {"detail": "..."} as the message (e.g. GT-001 gate errors).
+    try {
+      const detail = (JSON.parse(text) as { detail?: string }).detail;
+      if (detail) throw new Error(detail);
+    } catch (e) {
+      if (e instanceof Error && !(e instanceof SyntaxError)) throw e;
+    }
     throw new Error(`${res.status}: ${text}`);
   }
   return res.json() as Promise<T>;
@@ -125,6 +132,24 @@ export function importResultsFromFolder(id: string, folder: string): Promise<{ i
     `/api/projects/${id}/results/import?folder=${encodeURIComponent(folder)}`,
     { method: 'POST' },
   );
+}
+
+// Approvals (graduated-trust pipeline)
+export function setApproval(
+  id: string,
+  imageId: string,
+  verdict: 'approved' | 'rejected',
+  reasons: string[] = [],
+  note: string = '',
+): Promise<Project> {
+  return request<Project>(`/api/projects/${id}/approvals`, {
+    method: 'POST',
+    body: JSON.stringify({ image_id: imageId, verdict, reasons, note }),
+  });
+}
+
+export function listApprovals(id: string): Promise<Approval[]> {
+  return request<Approval[]>(`/api/projects/${id}/approvals`);
 }
 
 // Versions
