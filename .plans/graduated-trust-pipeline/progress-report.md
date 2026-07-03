@@ -49,12 +49,12 @@ Source: `implementation.md` (M3); `backend/worker.py::_build_selections` → new
 ### M4: ApprovalStore
 Source: Interface Specifications § Data models; new `backend/qa/approvals.py`
 
-- [ ] Feature: `Approval` dataclass persists to `output/.qa/approvals.json` on every write
-- [ ] Feature: `set()` rejects verdicts outside approved|rejected
-- [ ] Feature: `set()` rejects reasons outside the REASONS vocabulary
-- [ ] Feature: `decided_at` stamped by the store (ISO 8601)
-- [ ] Feature: `get(image_id)` / `for_project(project_id)` / `approved_ids()` work after reload
-- [ ] Feature: internal lock proven by a concurrent reader-vs-writer test
+- [x] Feature: `Approval` dataclass persists to `output/.qa/approvals.json` on every write
+- [x] Feature: `set()` rejects verdicts outside approved|rejected
+- [x] Feature: `set()` rejects reasons outside the REASONS vocabulary
+- [x] Feature: `decided_at` stamped by the store (ISO 8601)
+- [x] Feature: `get(image_id)` / `for_project(project_id)` / `approved_ids()` work after reload
+- [x] Feature: internal lock proven by a concurrent reader-vs-writer test
 
 ### M5: Gates + endpoints
 Source: Interface Specifications § Gate order, § API surface, § Error codes; `backend/routers/projects_generation.py`, new `backend/routers/qa.py`
@@ -173,8 +173,8 @@ Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, 
 
 ## Summary
 - Total features: 94
-- Completed: 24
-- Remaining: 70
-- Current cutoff blockers: 70
+- Completed: 30
+- Remaining: 64
+- Current cutoff blockers: 64
 - Accepted/deferred follow-up: 4
 - Superseded/obsolete checklist debt: 0
