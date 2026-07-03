@@ -32,7 +32,7 @@ DEFERRAL = ("needs_human", "error")
 
 
 def append_record(
-    path: Path = DEFAULT_LEDGER_PATH,
+    path: Path | None = None,
     *,
     image_id: str,
     project_id: str,
@@ -42,6 +42,8 @@ def append_record(
     human_verdict: str,
     reasons: list[str],
 ) -> None:
+    if path is None:
+        path = DEFAULT_LEDGER_PATH  # resolved at call time — tests repoint it
     record = {
         "image_id": image_id,
         "project_id": project_id,
@@ -78,8 +80,10 @@ def _rates(b: dict) -> dict:
     }
 
 
-def aggregate(path: Path = DEFAULT_LEDGER_PATH) -> dict:
+def aggregate(path: Path | None = None) -> dict:
     """Recompute agreement stats from the JSONL file (no hidden state)."""
+    if path is None:
+        path = DEFAULT_LEDGER_PATH  # resolved at call time — tests repoint it
     total = _bucket()
     by_kind: dict[str, dict] = {}
     by_style: dict[str, dict] = {}
