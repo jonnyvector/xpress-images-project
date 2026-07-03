@@ -53,6 +53,7 @@ class ProjectResponse(BaseModel):
     retrying_indices: list[int] = []
     signature_version: int = 0
     version_count: int = 0
+    truncated_runs: list[str] = []  # runs cut short by a crash — never silent
 
 
 class VersionSummary(BaseModel):

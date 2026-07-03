@@ -25,15 +25,15 @@ Source: `implementation.md` (M1), Interface Specifications § Data models; `back
 ### M2: Run manifest module
 Source: `implementation.md` (M2), Interface Specifications § Run manifest; new `backend/runs.py`
 
-- [ ] Feature: manifest created at run start with planned selections and config snapshot
-- [ ] Feature: attempt entries appended with image_id/wood_name/attempt/verdict/active
-- [ ] Feature: `images_submitted` incremented under the store lock before each API submission
-- [ ] Feature: `unconsented_images` counted separately from consented submissions
-- [ ] Feature: status transitions `running→done` when the run completes
-- [ ] Feature: manifest left `running` flips to `truncated` on store load
-- [ ] Feature: truncated state exposed on the project response
-- [ ] Feature: `_run_generation` creates, updates, and closes manifests
-- [ ] Feature: config snapshot is immutable for the run's duration (mid-run config edits don't apply)
+- [x] Feature: manifest created at run start with planned selections and config snapshot
+- [x] Feature: attempt entries appended with image_id/wood_name/attempt/verdict/active
+- [x] Feature: `images_submitted` incremented under the store lock before each API submission
+- [x] Feature: `unconsented_images` counted separately from consented submissions
+- [x] Feature: status transitions `running→done` when the run completes
+- [x] Feature: manifest left `running` flips to `truncated` on store load
+- [x] Feature: truncated state exposed on the project response
+- [x] Feature: `_run_generation` creates, updates, and closes manifests
+- [x] Feature: config snapshot is immutable for the run's duration (mid-run config edits don't apply)
 
 ### M3: Shared selection resolver
 Source: `implementation.md` (M3); `backend/worker.py::_build_selections` → new `backend/selections.py`
@@ -173,8 +173,8 @@ Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, 
 
 ## Summary
 - Total features: 94
-- Completed: 10
-- Remaining: 84
-- Current cutoff blockers: 84
+- Completed: 19
+- Remaining: 75
+- Current cutoff blockers: 75
 - Accepted/deferred follow-up: 4
 - Superseded/obsolete checklist debt: 0

@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+from backend.runs import sweep_truncated
+
 
 def new_image_id() -> str:
     """Stable identity for one generated image (uuid4 hex)."""
@@ -69,6 +71,7 @@ class ProjectState:
     retrying_indices: list[int] = field(default_factory=list)
     signature_version: int = 0
     version_count: int = 0
+    truncated_runs: list[str] = field(default_factory=list)  # crash-orphaned run_ids
 
 
 def _record_meta(record: ResultRecord) -> dict:
@@ -179,6 +182,10 @@ class ProjectStore:
                     project.generation_status = "done"
                     project.generation_completed = len(project.results)
                     project.generation_total = len(project.results) + len(project.errors)
+
+                # A run manifest still "running" at load means the process
+                # died mid-run — flip to truncated and surface it (D-009).
+                project.truncated_runs = sweep_truncated(d)
 
                 self._projects[project.id] = project
             except (json.JSONDecodeError, KeyError, OSError):
@@ -506,6 +513,7 @@ class ProjectStore:
         error: str | None = None,
         advance: bool = True,
         attempt: int = 0,
+        image_id: str | None = None,
     ) -> ResultRecord | bool:
         """Append a generation result or error and persist, atomically.
 
@@ -525,7 +533,9 @@ class ProjectStore:
             record: ResultRecord | bool = True
             if image_data is not None:
                 record = ResultRecord(
-                    image_id=new_image_id(),
+                    # Prefer the submission-time id (from the run manifest's
+                    # planned entries) so identity binds before the API call.
+                    image_id=image_id or new_image_id(),
                     wood_name=wood_name,
                     attempt=attempt,
                     created_at=_now(),

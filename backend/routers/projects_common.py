@@ -52,6 +52,7 @@ def to_project_response(project: ProjectState) -> ProjectResponse:
         retrying_indices=project.retrying_indices,
         signature_version=project.signature_version,
         version_count=project.version_count,
+        truncated_runs=project.truncated_runs,
     )
 
 

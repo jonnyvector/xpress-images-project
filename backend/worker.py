@@ -15,6 +15,7 @@ from backend.materials import (
     resolve_swatch_path,
     swatch_name_from_path,
 )
+from backend.runs import RunManifest
 from backend.state import new_image_id
 from backend.styles.catalog import STYLES
 
@@ -202,14 +203,22 @@ def _run_generation(
     material_type: str = "wood",
     gemini_model: str | None = None,
     use_base_door_reference: bool = False,
+    run: RunManifest | None = None,
 ) -> None:
-    """Run generation in background thread, updating ProjectState incrementally."""
+    """Run generation in background thread, updating ProjectState incrementally.
+
+    Identity binds at submission: each selection carries a pre-assigned
+    ``image_id`` (from the run manifest's planned entries), so results and
+    verdicts reference the right image regardless of completion order.
+    """
     try:
         generator = DoorGenerator(api_key=api_key, model=gemini_model)
         style = STYLES.get(door_style, {})
         variation_hint = style.get("variation_hint", "")
 
         def _generate_one(sel: dict) -> tuple[str, object]:
+            if run is not None:
+                run.submit()  # counted before the API call — cap authority
             with _api_semaphore:
                 result = _generate_for_selection(
                     generator,
@@ -229,17 +238,26 @@ def _run_generation(
         with ThreadPoolExecutor(max_workers=max_parallel) as pool:
             futures = {pool.submit(_generate_one, sel): sel for sel in selections}
             for future in as_completed(futures):
+                sel = futures[future]
+                image_id = sel.get("image_id")
                 try:
                     wood_name, result = future.result()
-                    if not store.record_result(
+                    record = store.record_result(
                         project_id,
                         wood_name,
                         image_data=result.image_data,
                         error=result.error,
-                    ):
+                        image_id=image_id,
+                    )
+                    if not record:
                         return
+                    if run is not None and result.image_data is not None:
+                        run.record_attempt(
+                            image_id=image_id or getattr(record, "image_id", ""),
+                            wood_name=wood_name,
+                            attempt=0,
+                        )
                 except Exception as exc:
-                    sel = futures[future]
                     if not store.record_result(
                         project_id, sel["wood_name"], error=str(exc)
                     ):
@@ -249,6 +267,8 @@ def _run_generation(
         store.record_result(project_id, "Generation", error=str(exc), advance=False)
     finally:
         # Always mark done, even on crash
+        if run is not None:
+            run.finish("done")
         store.update(project_id, generation_status="done")
 
 
@@ -529,6 +549,16 @@ def start_generation(
         for sel in selections:
             sel["reference_image"] = base_door_path
 
+    # Identity at submission (D-006): every planned image gets its id before
+    # any API call, recorded in the run manifest for crash-safe accounting.
+    for sel in selections:
+        sel["image_id"] = new_image_id()
+    run = RunManifest.create(
+        OUTPUT_DIR / ".projects" / project.id,
+        planned=[(sel["wood_name"], sel["image_id"]) for sel in selections],
+        config={},  # trust-config snapshot wired in when gates land (M5)
+    )
+
     # Keep all existing results — new ones append alongside them
     project.errors = []
     project.generation_status = "running"
@@ -550,4 +580,5 @@ def start_generation(
         project.material_type,
         project.gemini_model,
         use_ref,
+        run,
     )
