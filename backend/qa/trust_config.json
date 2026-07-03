@@ -1,7 +1,9 @@
 {
   "small_batch_limit": 5,
   "bulk_unlocked": false,
-  "bulk_unlocked_style_classes": [],
+  "bulk_unlocked_style_classes": [
+    "frame_standard"
+  ],
   "max_auto_retries": 2,
   "run_cost_cap_usd": 10.0,
   "image_cost_usd": 0.134
