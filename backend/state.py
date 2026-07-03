@@ -475,6 +475,92 @@ class ProjectStore:
             self._save_project(project)
             return True
 
+    def replace_result_attempt(
+        self,
+        project_id: str,
+        active_image_id: str,
+        *,
+        image_id: str,
+        wood_name: str,
+        attempt: int,
+        image_data: bytes,
+    ) -> ResultRecord | None:
+        """Swap in a new auto-regen attempt for a wood slot, atomically.
+
+        The current active bytes are demoted to ``result_{idx}_attempt_{K}.bin``
+        (attempts are retained for audit, D-012 — an image is never lost).
+        Slot located by the ACTIVE image_id, never by index (indices shift).
+        """
+        with self._lock:
+            project = self._projects.get(project_id)
+            if project is None:
+                return None
+            idx = next(
+                (i for i, r in enumerate(project.results)
+                 if r.image_id == active_image_id),
+                None,
+            )
+            if idx is None:
+                return None
+            current = project.results[idx]
+            d = self._project_dir(project_id)
+            (d / f"result_{idx}_attempt_{current.attempt}.bin").write_bytes(
+                current.image_data
+            )
+            record = ResultRecord(
+                image_id=image_id,
+                wood_name=wood_name,
+                attempt=attempt,
+                created_at=_now(),
+                image_data=image_data,
+            )
+            project.results[idx] = record
+            self._save_project(project)
+            return record
+
+    def promote_attempt(
+        self,
+        project_id: str,
+        active_image_id: str,
+        *,
+        promote_image_id: str,
+        promote_attempt: int,
+    ) -> bool:
+        """Make a previously demoted attempt the active record (best-attempt
+        selection, D-012). The displaced active bytes are demoted to their own
+        attempt file; the promoted bytes move into ``result_{idx}.bin``."""
+        with self._lock:
+            project = self._projects.get(project_id)
+            if project is None:
+                return False
+            idx = next(
+                (i for i, r in enumerate(project.results)
+                 if r.image_id == active_image_id),
+                None,
+            )
+            if idx is None:
+                return False
+            d = self._project_dir(project_id)
+            src = d / f"result_{idx}_attempt_{promote_attempt}.bin"
+            if not src.exists():
+                return False
+            current = project.results[idx]
+            (d / f"result_{idx}_attempt_{current.attempt}.bin").write_bytes(
+                current.image_data
+            )
+            promoted_bytes = src.read_bytes()
+            project.results[idx] = ResultRecord(
+                image_id=promote_image_id,
+                wood_name=current.wood_name,
+                attempt=promote_attempt,
+                created_at=_now(),
+                image_data=promoted_bytes,
+            )
+            # Bytes now live in result_{idx}.bin — drop the duplicate file.
+            src.unlink()
+            self._save_project(project)
+            return True
+
     def clear_qa_verdict(self, project_id: str, image_id: str) -> None:
         """Drop a verdict entry (stale QA task for a vanished image)."""
         with self._lock:

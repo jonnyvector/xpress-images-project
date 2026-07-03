@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from backend.generator import DoorGenerator
-from backend.qa.qa_lane import get_qa_lane
+from backend.qa.qa_lane import RegenContext, get_qa_lane
 from backend.qa.trust_config import load_trust_config, snapshot
 from backend.runs import RunManifest
 from backend.selections import build_selections
@@ -141,13 +141,38 @@ def _run_generation(
                         return
                     if result.image_data is not None:
                         stored_id = image_id or getattr(record, "image_id", "")
+                        regen = None
                         if run is not None:
                             run.record_attempt(
                                 image_id=stored_id, wood_name=wood_name, attempt=0,
                             )
+                            # Regen closure owns generator params + semaphore,
+                            # so the QA lane never learns generation internals.
+                            def _attempt(sel=sel):
+                                with _api_semaphore:
+                                    return _generate_for_selection(
+                                        generator,
+                                        sel,
+                                        base_signature=base_signature,
+                                        door_style=door_style,
+                                        variation_hint=variation_hint,
+                                        aspect_ratio=aspect_ratio,
+                                        style_notes=style_notes,
+                                        corner_style=corner_style,
+                                        material_type=material_type,
+                                        use_base_door_reference=use_base_door_reference,
+                                    )
+
+                            regen = RegenContext(
+                                run=run,
+                                generate=_attempt,
+                                wood_name=wood_name,
+                                attempt_ids=[stored_id],
+                            )
                         get_qa_lane().enqueue(
                             store, project_id, stored_id, api_key,
                             kind="variant", swatch_path=sel.get("swatch_path"),
+                            regen=regen,
                         )
                 except Exception as exc:
                     if not store.record_result(

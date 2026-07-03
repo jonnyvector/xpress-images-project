@@ -4,7 +4,7 @@
 > what is done and what remains. Update this file as features are implemented — never
 > mark a milestone complete until every current-cutoff checkbox under it is checked.
 
-> Current focus: Phase 5 — Auto-regeneration loop
+> Current focus: Phase 6 — Bulk unlock mechanics
 
 ## Phase 1: Identity foundation (D0)
 
@@ -139,16 +139,16 @@ Source: Interface Specifications § API surface; generate flow + new reliability
 ### M11: Auto-regen
 Source: `implementation.md` (M11), Interface Specifications § Run manifest, § Error codes; `backend/qa/qa_lane.py` + `backend/runs.py`
 
-- [ ] Feature: `regenerate` verdict submits a new attempt (fresh image_id, attempt K+1)
-- [ ] Feature: new attempts are QA'd in turn; chain stops on `pass`
-- [ ] Feature: max 2 auto-retries per wood slot enforced
-- [ ] Feature: `needs_human` and `error` verdicts never auto-retry
-- [ ] Feature: increment-before-submit cap check on `unconsented_images` with rollback on breach
-- [ ] Feature: cap breach cancels remaining retries and records GT-003 on the manifest (never in `project.errors`)
-- [ ] Feature: best attempt = highest judge score sum; tie → highest attempt number
-- [ ] Feature: best-attempt pointer update under the store lock; all attempt files retained (`result_N_attempt_K.bin`)
-- [ ] Feature: concurrent retries across wood slots neither misbind verdicts nor starve the 4-way pool
-- [ ] Feature: attempt count visible on the variant badge
+- [x] Feature: `regenerate` verdict submits a new attempt (fresh image_id, attempt K+1)
+- [x] Feature: new attempts are QA'd in turn; chain stops on `pass`
+- [x] Feature: max 2 auto-retries per wood slot enforced
+- [x] Feature: `needs_human` and `error` verdicts never auto-retry
+- [x] Feature: increment-before-submit cap check on `unconsented_images` with rollback on breach
+- [x] Feature: cap breach cancels remaining retries and records GT-003 on the manifest (never in `project.errors`)
+- [x] Feature: best attempt = highest judge score sum; tie → highest attempt number
+- [x] Feature: best-attempt pointer update under the store lock; all attempt files retained (`result_N_attempt_K.bin`)
+- [x] Feature: concurrent retries across wood slots neither misbind verdicts nor starve the 4-way pool
+- [x] Feature: attempt count visible on the variant badge
 
 ## Phase 6: Bulk unlock mechanics
 
@@ -176,8 +176,8 @@ Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, 
 
 ## Summary
 - Total features: 97
-- Completed: 80
-- Remaining: 17
-- Current cutoff blockers: 17
+- Completed: 90
+- Remaining: 7
+- Current cutoff blockers: 7
 - Accepted/deferred follow-up: 4
 - Superseded/obsolete checklist debt: 0

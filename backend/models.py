@@ -24,6 +24,7 @@ class ResultItem(BaseModel):
     index: int
     wood_name: str
     image_id: str = ""  # stable identity — approvals/verdicts key off this
+    attempt: int = 0  # >0 = auto-regeneration attempt
 
 
 class ErrorItem(BaseModel):

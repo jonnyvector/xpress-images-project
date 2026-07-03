@@ -216,7 +216,8 @@ class RecordingLane:
     def __init__(self) -> None:
         self.enqueued: list[dict] = []
 
-    def enqueue(self, store, project_id, image_id, api_key, *, kind, swatch_path=None):
+    def enqueue(self, store, project_id, image_id, api_key, *, kind,
+                swatch_path=None, regen=None):
         self.enqueued.append({"image_id": image_id, "kind": kind})
 
 

@@ -123,6 +123,16 @@ class RunManifest:
     def config_snapshot(self) -> dict:
         return json.loads(json.dumps(self._data["config_snapshot"]))
 
+    def record_event(self, code: str, detail: str = "") -> None:
+        """Run-level event (e.g. GT-003 cap breach) — NEVER project.errors,
+        which is reserved for per-variant generation failures."""
+        with self._lock:
+            self._data.setdefault("events", []).append(
+                {"code": code, "detail": detail,
+                 "at": datetime.now(UTC).isoformat()}
+            )
+            self._save()
+
     def finish(self, status: str = "done") -> None:
         with self._lock:
             self._data["status"] = status

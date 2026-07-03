@@ -21,8 +21,10 @@ later, but bounded and cap-checked by the run manifest).
 from __future__ import annotations
 
 import logging
+import threading
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -33,9 +35,26 @@ from backend.qa.geometry import GeometryReport, measure_cached
 from backend.qa.judge import VisionJudge
 from backend.qa.policy import PolicyConfig, decide, load_policy
 from backend.qa.styles_classes import style_class
+from backend.state import new_image_id
 
 if TYPE_CHECKING:
+    from backend.runs import RunManifest
     from backend.state import ProjectStore
+
+
+@dataclass
+class RegenContext:
+    """One wood slot's auto-regeneration chain (D-005/D-009/D-012).
+
+    ``generate`` is a worker-built closure that produces one new attempt
+    (it owns generator params and semaphore use). ``attempt_ids`` is the
+    identity chain, index == attempt number, first entry = the initial image.
+    """
+
+    run: RunManifest
+    generate: Callable[[], object]
+    wood_name: str
+    attempt_ids: list[str] = field(default_factory=list)
 
 logger = logging.getLogger(__name__)
 
@@ -89,9 +108,15 @@ class QaLane:
             lambda api_key: VisionJudge(api_key=api_key, cache_dir=QA_DIR / "verdicts")
         )
         self._semaphore = semaphore if semaphore is not None else _WorkerSemaphore()
+        self._active = 0
+        self._active_lock = threading.Lock()
         self._approvals = approvals
         self._measure_fn = measure_fn or _default_measure
         self._policy = policy
+
+    def idle(self) -> bool:
+        with self._active_lock:
+            return self._active == 0
 
     def _get_approvals(self) -> ApprovalStore:
         return self._approvals if self._approvals is not None else get_approval_store()
@@ -109,6 +134,7 @@ class QaLane:
         *,
         kind: str,
         swatch_path: Path | None = None,
+        regen: RegenContext | None = None,
     ) -> Future:
         """Queue one image for QA. Returns the Future (verdict dict or None)."""
         # Pending is visible immediately — the UI shows "judging…" states
@@ -116,9 +142,11 @@ class QaLane:
         store.set_qa_verdict(
             project_id, image_id, {"qa_status": "pending", "verdict": None}
         )
+        with self._active_lock:
+            self._active += 1
         return self._executor.submit(
             self._run_task, store, project_id, image_id, api_key,
-            kind=kind, swatch_path=swatch_path,
+            kind=kind, swatch_path=swatch_path, regen=regen,
         )
 
     # ---- task ------------------------------------------------------------
@@ -132,11 +160,17 @@ class QaLane:
         *,
         kind: str,
         swatch_path: Path | None,
+        regen: RegenContext | None = None,
     ) -> dict | None:
         try:
-            return self._judge_image(
+            verdict = self._judge_image(
                 store, project_id, image_id, api_key, kind=kind, swatch_path=swatch_path
             )
+            if verdict is not None and regen is not None:
+                self._continue_chain(
+                    store, project_id, api_key, regen, verdict, swatch_path=swatch_path
+                )
+            return verdict
         except Exception:
             # A lane bug must never take down the executor thread silently.
             logger.exception("QA task failed for %s:%s", project_id, image_id)
@@ -146,6 +180,9 @@ class QaLane:
             )
             store.set_qa_verdict(project_id, image_id, verdict)
             return verdict
+        finally:
+            with self._active_lock:
+                self._active -= 1
 
     def _judge_image(
         self,
@@ -299,6 +336,100 @@ class QaLane:
             style_cls=cls,
             reference=reference,
         )
+
+    # ---- auto-regeneration chain (D-005/D-009/D-012) -----------------------
+
+    def _continue_chain(
+        self,
+        store: ProjectStore,
+        project_id: str,
+        api_key: str,
+        regen: RegenContext,
+        verdict: dict,
+        *,
+        swatch_path: Path | None,
+    ) -> None:
+        """Verdict landed for the chain's newest attempt — retry or finalize.
+
+        Only ``regenerate`` retries (needs_human/error never do, D-007), each
+        retry is counted as UNCONSENTED spend before submission and refused
+        with GT-003 on the manifest when the cap would be exceeded (D-009).
+        """
+        config = regen.run.config_snapshot()
+        max_retries = int(config.get("max_auto_retries", 2))
+        image_cost = float(config.get("image_cost_usd", 0.134))
+        cap = float(config.get("run_cost_cap_usd", 10.0))
+        attempts_used = len(regen.attempt_ids) - 1
+
+        if verdict.get("gates_as") == "regenerate" and attempts_used < max_retries:
+            regen.run.submit(unconsented=True)  # increment-before-submit
+            _, unconsented = regen.run.counters()
+            if unconsented * image_cost > cap + 1e-9:
+                regen.run.unsubmit(unconsented=True)  # rollback: no API call
+                regen.run.record_event(
+                    "GT-003",
+                    f"unconsented-spend cap ${cap:.2f} reached; auto-retries "
+                    f"cancelled for {regen.wood_name}",
+                )
+                self._finalize_best(store, project_id, regen)
+                return
+            result = regen.generate()
+            image_data = getattr(result, "image_data", None)
+            if getattr(result, "error", None) or image_data is None:
+                logger.warning(
+                    "auto-regen attempt failed for %s:%s", project_id, regen.wood_name
+                )
+                self._finalize_best(store, project_id, regen)
+                return
+            attempt_no = attempts_used + 1
+            record = store.replace_result_attempt(
+                project_id,
+                regen.attempt_ids[-1],
+                image_id=new_image_id(),
+                wood_name=regen.wood_name,
+                attempt=attempt_no,
+                image_data=image_data,
+            )
+            if record is None:  # slot vanished (discard/re-learn) — stop
+                return
+            regen.run.record_attempt(
+                image_id=record.image_id, wood_name=regen.wood_name,
+                attempt=attempt_no, verdict=None,
+            )
+            regen.attempt_ids.append(record.image_id)
+            self.enqueue(
+                store, project_id, record.image_id, api_key,
+                kind="variant", swatch_path=swatch_path, regen=regen,
+            )
+            return
+
+        self._finalize_best(store, project_id, regen)
+
+    def _finalize_best(
+        self, store: ProjectStore, project_id: str, regen: RegenContext
+    ) -> None:
+        """Best attempt by judge score sum becomes active; ties break to the
+        HIGHEST attempt number (deterministic, D-012)."""
+        if len(regen.attempt_ids) < 2:
+            return
+        project = store.get(project_id)
+        if project is None:
+            return
+
+        def score(image_id: str) -> int:
+            v = project.qa_verdicts.get(image_id) or {}
+            return sum((v.get("scores") or {}).values())
+
+        best_attempt, best_id = max(
+            enumerate(regen.attempt_ids), key=lambda t: (score(t[1]), t[0])
+        )
+        if best_id != regen.attempt_ids[-1]:
+            store.promote_attempt(
+                project_id,
+                regen.attempt_ids[-1],
+                promote_image_id=best_id,
+                promote_attempt=best_attempt,
+            )
 
 
 def _verdict_dict(

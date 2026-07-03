@@ -58,7 +58,7 @@ def to_project_response(project: ProjectState) -> ProjectResponse:
         generation_completed=project.generation_completed,
         generation_total=project.generation_total,
         results=[
-            ResultItem(index=i, wood_name=r.wood_name, image_id=r.image_id)
+            ResultItem(index=i, wood_name=r.wood_name, image_id=r.image_id, attempt=r.attempt)
             for i, r in enumerate(project.results)
         ],
         errors=[ErrorItem(wood_name=wn, error=err) for wn, err in project.errors],
@@ -83,7 +83,7 @@ def to_generation_status(project: ProjectState) -> GenerationStatusResponse:
         completed=project.generation_completed,
         total=project.generation_total,
         results=[
-            ResultItem(index=i, wood_name=r.wood_name, image_id=r.image_id)
+            ResultItem(index=i, wood_name=r.wood_name, image_id=r.image_id, attempt=r.attempt)
             for i, r in enumerate(project.results)
         ],
         errors=[ErrorItem(wood_name=wn, error=err) for wn, err in project.errors],

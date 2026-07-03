@@ -365,7 +365,10 @@ export default function ResultsGrid({ project }: Props) {
                     alt={result.wood_name}
                   />
                   <div className="caption">
-                    {result.wood_name}{' '}
+                    {result.wood_name}
+                    {result.attempt > 0 && (
+                      <span style={{ color: '#888', fontSize: '0.75rem' }}> (attempt {result.attempt})</span>
+                    )}{' '}
                     <QaBadge verdict={project.qa_verdicts?.[result.image_id]} />
                   </div>
                   <ApprovalControls

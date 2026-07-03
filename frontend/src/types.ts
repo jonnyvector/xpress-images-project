@@ -61,6 +61,7 @@ export interface ProjectResult {
   index: number;
   wood_name: string;
   image_id: string;
+  attempt: number;
 }
 
 export interface ProjectError {
