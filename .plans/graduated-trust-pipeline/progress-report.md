@@ -4,7 +4,7 @@
 > what is done and what remains. Update this file as features are implemented — never
 > mark a milestone complete until every current-cutoff checkbox under it is checked.
 
-> Current focus: Phase 2 — Approval store + gates
+> Current focus: Phase 3 — Async QA lane + badges
 
 ## Phase 1: Identity foundation (D0)
 
@@ -82,7 +82,7 @@ Source: `implementation.md` (M6); `frontend/src/` (types.ts, api.ts, UploadStep/
 - [x] Feature: `SwatchGrid` warns beyond 5 selections in Stage B (server stays authoritative)
 - [x] Feature: variant Approve/Reject controls on each result card (Stage B review)
 - [x] Feature: `base_image_id` + per-result `image_id` exposed on API responses
-- [ ] Feature: manual flow verified end-to-end: learn → blocked generate → approve → generate
+- [x] Feature: manual flow verified end-to-end: learn → blocked generate → approve → generate
 
 ## Phase 3: Async QA lane + badges
 
@@ -176,8 +176,8 @@ Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, 
 
 ## Summary
 - Total features: 97
-- Completed: 49
-- Remaining: 48
-- Current cutoff blockers: 48
+- Completed: 50
+- Remaining: 47
+- Current cutoff blockers: 47
 - Accepted/deferred follow-up: 4
 - Superseded/obsolete checklist debt: 0
