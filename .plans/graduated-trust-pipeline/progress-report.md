@@ -4,7 +4,7 @@
 > what is done and what remains. Update this file as features are implemented — never
 > mark a milestone complete until every current-cutoff checkbox under it is checked.
 
-> Current focus: Phase 1 — Identity foundation (D0)
+> Current focus: Phase 2 — Approval store + gates
 
 ## Phase 1: Identity foundation (D0)
 
@@ -38,11 +38,11 @@ Source: `implementation.md` (M2), Interface Specifications § Run manifest; new 
 ### M3: Shared selection resolver
 Source: `implementation.md` (M3); `backend/worker.py::_build_selections` → new `backend/selections.py`
 
-- [ ] Feature: `build_selections` moved to `backend/selections.py` with module-level comment
-- [ ] Feature: virtual swatch (`virtual:` prefix) resolution behavior preserved
-- [ ] Feature: silent drop of unresolvable swatches preserved
-- [ ] Feature: flat-panel description handling preserved
-- [ ] Feature: worker imports the shared resolver; private copy deleted; suite green
+- [x] Feature: `build_selections` moved to `backend/selections.py` with module-level comment
+- [x] Feature: virtual swatch (`virtual:` prefix) resolution behavior preserved
+- [x] Feature: silent drop of unresolvable swatches preserved
+- [x] Feature: flat-panel description handling preserved
+- [x] Feature: worker imports the shared resolver; private copy deleted; suite green
 
 ## Phase 2: Approval store + gates
 
@@ -173,8 +173,8 @@ Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, 
 
 ## Summary
 - Total features: 94
-- Completed: 19
-- Remaining: 75
-- Current cutoff blockers: 75
+- Completed: 24
+- Remaining: 70
+- Current cutoff blockers: 70
 - Accepted/deferred follow-up: 4
 - Superseded/obsolete checklist debt: 0
