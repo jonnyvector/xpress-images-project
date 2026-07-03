@@ -296,3 +296,35 @@ def test_reliability_endpoint_returns_aggregates(client) -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert "total" in body and "by_kind" in body and "by_style_class" in body
+
+
+def test_estimate_reports_gate_and_costs(client, monkeypatch) -> None:
+    project = _learned_project(client)
+    monkeypatch.setattr(gen_mod, "build_selections", _fake_resolver(3))
+
+    # Stage A: replica unapproved
+    est = client.get(f"/api/projects/{project.id}/generate/estimate").json()
+    assert est["gate_ok"] is False
+    assert "GT-001" in est["gate_reason"]
+    assert est["stage"] == "A"
+
+    # Stage B: approved, within limit
+    _approve_replica(client, project)
+    est = client.get(f"/api/projects/{project.id}/generate/estimate").json()
+    assert est["gate_ok"] is True
+    assert est["stage"] == "B"
+    assert est["images"] == 3
+    assert abs(est["est_cost_usd"] - 3 * 0.134) < 1e-9
+    assert abs(est["worst_case_usd"] - (3 * 0.134 + 10.0)) < 1e-9
+
+    # Over limit while bulk locked
+    monkeypatch.setattr(gen_mod, "build_selections", _fake_resolver(7))
+    est = client.get(f"/api/projects/{project.id}/generate/estimate").json()
+    assert est["gate_ok"] is False
+    assert "GT-002" in est["gate_reason"]
+
+    # Empty resolution
+    monkeypatch.setattr(gen_mod, "build_selections", _fake_resolver(0))
+    est = client.get(f"/api/projects/{project.id}/generate/estimate").json()
+    assert est["gate_ok"] is False
+    assert "GT-006" in est["gate_reason"]

@@ -62,8 +62,24 @@ export default function GenerateStep({ project, apiKey }: Props) {
   }, [project.generation_status, project.selected_swatches.length, start, stop]);
 
   const handleGenerate = useCallback(async () => {
-    setGenerating(true);
     setError(null);
+    try {
+      // Consent with honest numbers: estimate mirrors the server gates and
+      // includes the worst-case auto-retry band — it can never under-quote.
+      const est = await api.getGenerateEstimate(project.id);
+      if (!est.gate_ok) {
+        setError(est.gate_reason ?? 'Generation is gated');
+        return;
+      }
+      const msg =
+        `${est.images} image${est.images === 1 ? '' : 's'} ≈ $${est.est_cost_usd.toFixed(2)}` +
+        ` (worst case $${est.worst_case_usd.toFixed(2)} with auto-retries) — proceed?`;
+      if (!window.confirm(msg)) return;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Estimate failed');
+      return;
+    }
+    setGenerating(true);
     resetErrors();
     setCompleted(0);
     try {

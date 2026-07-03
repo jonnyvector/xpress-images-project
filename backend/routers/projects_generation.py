@@ -95,6 +95,45 @@ def trigger_generation(
     return to_generation_status(get_project_or_404(store, project_id))
 
 
+@router.get("/projects/{project_id}/generate/estimate")
+def generation_estimate(project_id: str, request: Request) -> dict:
+    """Pre-spend consent numbers + gate state — mirrors the /generate gates
+    without side effects, so the confirm dialog can never under-quote (D-009)."""
+    store = get_store(request)
+    project = get_project_or_404(store, project_id)
+    config = load_trust_config()
+    resolved = build_selections(
+        project.selected_swatches,
+        door_style=project.door_style,
+        material_type=project.material_type,
+    )
+    n = len(resolved)
+    bulk = bulk_unlocked_for(config, project.door_style)
+    approved = replica_approved(project)
+
+    gate_ok, gate_reason = True, None
+    if not approved:
+        gate_ok, gate_reason = False, "GT-001: replica not approved"
+    elif n == 0:
+        gate_ok, gate_reason = False, "GT-006: no selections resolve"
+    elif n > config.small_batch_limit and not bulk:
+        gate_ok, gate_reason = (
+            False,
+            f"GT-002: {n} resolved selections exceed the small-batch limit "
+            f"of {config.small_batch_limit} while bulk is locked",
+        )
+
+    return {
+        "images": n,
+        "est_cost_usd": round(n * config.image_cost_usd, 4),
+        # Consented spend plus the full unconsented cap — never under-quotes.
+        "worst_case_usd": round(n * config.image_cost_usd + config.run_cost_cap_usd, 4),
+        "stage": "A" if not approved else ("C" if bulk else "B"),
+        "gate_ok": gate_ok,
+        "gate_reason": gate_reason,
+    }
+
+
 @router.get("/projects/{project_id}/generate/status", response_model=GenerationStatusResponse)
 def generation_status(project_id: str, request: Request) -> GenerationStatusResponse:
     store = get_store(request)

@@ -828,3 +828,10 @@ label {
 .qa-badge.qa-needs-human { background: rgba(181, 159, 59, 0.2); color: #d4b942; }
 .qa-badge.qa-error { background: rgba(198, 40, 40, 0.18); color: #ef5350; }
 .qa-badge.qa-judging { background: rgba(120, 120, 120, 0.2); color: #aaa; }
+
+/* Reliability panel (sidebar) */
+.reliability-panel { margin-top: 1rem; font-size: 0.8rem; }
+.reliability-panel summary { cursor: pointer; font-weight: 600; font-size: 0.85rem; }
+.reliability-row { display: flex; gap: 0.6rem; justify-content: space-between; padding: 0.15rem 0; }
+.reliability-label { font-weight: 600; }
+.reliability-note { margin-top: 0.5rem; color: #888; font-size: 0.72rem; }

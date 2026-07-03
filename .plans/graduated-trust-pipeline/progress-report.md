@@ -4,7 +4,7 @@
 > what is done and what remains. Update this file as features are implemented — never
 > mark a milestone complete until every current-cutoff checkbox under it is checked.
 
-> Current focus: Phase 4 — Reliability ledger + estimate + cost confirm
+> Current focus: Phase 5 — Auto-regeneration loop
 
 ## Phase 1: Identity foundation (D0)
 
@@ -127,12 +127,12 @@ Source: Interface Specifications § Reliability ledger record; new `backend/qa/r
 ### M10: Estimate + confirm + panel
 Source: Interface Specifications § API surface; generate flow + new reliability panel in frontend
 
-- [ ] Feature: estimate returns resolved-selection count, stage (A/B/C), gate_ok, gate_reason
-- [ ] Feature: `est_cost_usd = N × image_cost`; `worst_case_usd = N × image_cost + run_cost_cap`
-- [ ] Feature: confirm dialog shows both numbers before `POST /generate`
-- [ ] Feature: `gate_ok: false` disables generation and renders the reason
-- [ ] Feature: reliability panel renders agreement %, deferral %, counts per kind/style-class
-- [ ] Feature: flow verified against a real run (dialog numbers match manifest afterward)
+- [x] Feature: estimate returns resolved-selection count, stage (A/B/C), gate_ok, gate_reason
+- [x] Feature: `est_cost_usd = N × image_cost`; `worst_case_usd = N × image_cost + run_cost_cap`
+- [x] Feature: confirm dialog shows both numbers before `POST /generate`
+- [x] Feature: `gate_ok: false` disables generation and renders the reason
+- [x] Feature: reliability panel renders agreement %, deferral %, counts per kind/style-class
+- [x] Feature: flow verified against a real run (dialog numbers match manifest afterward)
 
 ## Phase 5: Auto-regeneration loop
 
@@ -176,8 +176,8 @@ Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, 
 
 ## Summary
 - Total features: 97
-- Completed: 74
-- Remaining: 23
-- Current cutoff blockers: 23
+- Completed: 80
+- Remaining: 17
+- Current cutoff blockers: 17
 - Accepted/deferred follow-up: 4
 - Superseded/obsolete checklist debt: 0

@@ -135,6 +135,19 @@ export function importResultsFromFolder(id: string, folder: string): Promise<{ i
 }
 
 // Approvals (graduated-trust pipeline)
+export interface GenerateEstimate {
+  images: number;
+  est_cost_usd: number;
+  worst_case_usd: number;
+  stage: 'A' | 'B' | 'C';
+  gate_ok: boolean;
+  gate_reason: string | null;
+}
+
+export function getGenerateEstimate(id: string): Promise<GenerateEstimate> {
+  return request<GenerateEstimate>(`/api/projects/${id}/generate/estimate`);
+}
+
 export function setApproval(
   id: string,
   imageId: string,

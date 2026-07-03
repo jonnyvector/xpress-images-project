@@ -3,6 +3,7 @@ import type { ActiveView } from '../types';
 import { useProjects, useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 import TabBar from './TabBar';
+import ReliabilityPanel from './ReliabilityPanel';
 import ProjectTab from './ProjectTab';
 import DoorLibrary from './DoorLibrary';
 import CoveragePage from './CoveragePage';
@@ -112,6 +113,7 @@ export default function Layout() {
             {!apiKey && (
               <div className="status-info">Enter your API key to enable generation</div>
             )}
+            <ReliabilityPanel />
             <div style={{ marginTop: 'auto' }}>
               <button className="danger" onClick={handleResetAll} style={{ width: '100%' }}>
                 Reset All
