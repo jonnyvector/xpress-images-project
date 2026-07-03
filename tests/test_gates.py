@@ -248,3 +248,51 @@ def test_rejudge_endpoint_validates_and_enqueues(client, monkeypatch) -> None:
     )
     assert bad.status_code == 400
     assert "GT-005" in bad.json()["detail"]
+
+
+def test_approval_appends_ledger_record(client, monkeypatch, tmp_path) -> None:
+    import backend.qa.reliability as rel
+    import backend.routers.qa as qa_router
+
+    ledger = tmp_path / "ledger.jsonl"
+    monkeypatch.setattr(
+        qa_router, "append_record",
+        lambda **kw: rel.append_record(ledger, **kw),
+    )
+    project = _learned_project(client)
+    store = client.app.state.project_store
+    # A done pipeline verdict exists for the replica at decision time.
+    store.set_qa_verdict(
+        project.id, project.base_image_id,
+        {"verdict": "pass", "qa_status": "done", "reason": "ok"},
+    )
+    _approve_replica(client, project)
+
+    records = [json.loads(line) for line in ledger.read_text().splitlines()]
+    assert len(records) == 1
+    assert records[0]["pipeline_verdict"] == "pass"
+    assert records[0]["human_verdict"] == "approved"
+    assert records[0]["kind"] == "replica"
+
+
+def test_ledger_failure_never_blocks_approval(client, monkeypatch) -> None:
+    import backend.routers.qa as qa_router
+
+    def boom(**kw):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(qa_router, "append_record", boom)
+    project = _learned_project(client)
+    resp = client.post(
+        f"/api/projects/{project.id}/approvals",
+        json={"image_id": project.base_image_id, "verdict": "approved"},
+    )
+    assert resp.status_code == 200  # approval persisted despite ledger failure
+    assert resp.json()["replica_approved"] is True
+
+
+def test_reliability_endpoint_returns_aggregates(client) -> None:
+    resp = client.get("/api/qa/reliability")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "total" in body and "by_kind" in body and "by_style_class" in body

@@ -115,14 +115,14 @@ Source: Interface Specifications § API surface; `frontend/src/components/Result
 ### M9: Ledger
 Source: Interface Specifications § Reliability ledger record; new `backend/qa/reliability.py`
 
-- [ ] Feature: ledger record appended on every approval-store write
-- [ ] Feature: pipeline verdict captured at decision time; `null` when QA incomplete
-- [ ] Feature: `null` verdicts excluded from rates
-- [ ] Feature: agreement computed over decisive verdicts only (pass+approved / regenerate+rejected)
-- [ ] Feature: deferral rate (needs_human/error) reported separately
-- [ ] Feature: aggregates split by kind (replica/variant) and by style_class
-- [ ] Feature: `GET /qa/reliability` recomputes from the JSONL file
-- [ ] Feature: ledger-append failure is logged and never blocks the approval write
+- [x] Feature: ledger record appended on every approval-store write
+- [x] Feature: pipeline verdict captured at decision time; `null` when QA incomplete
+- [x] Feature: `null` verdicts excluded from rates
+- [x] Feature: agreement computed over decisive verdicts only (pass+approved / regenerate+rejected)
+- [x] Feature: deferral rate (needs_human/error) reported separately
+- [x] Feature: aggregates split by kind (replica/variant) and by style_class
+- [x] Feature: `GET /qa/reliability` recomputes from the JSONL file
+- [x] Feature: ledger-append failure is logged and never blocks the approval write
 
 ### M10: Estimate + confirm + panel
 Source: Interface Specifications § API surface; generate flow + new reliability panel in frontend
@@ -176,8 +176,8 @@ Source: `implementation.md` (M12); `backend/qa/styles_classes.py::style_class`, 
 
 ## Summary
 - Total features: 97
-- Completed: 66
-- Remaining: 31
-- Current cutoff blockers: 31
+- Completed: 74
+- Remaining: 23
+- Current cutoff blockers: 23
 - Accepted/deferred follow-up: 4
 - Superseded/obsolete checklist debt: 0
