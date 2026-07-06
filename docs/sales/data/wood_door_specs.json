@@ -1,0 +1,7 @@
+{
+  "Newbury": {"door_style": "shaker", "panel": "flat", "frame_width_in": 2.0, "joint": "miter", "arched": false, "notes": "skinny shaker, solid panel"},
+  "Tacoma": {"door_style": "solid_plank", "panel": "slab", "frame_width_in": null, "joint": null, "arched": false, "notes": "solid plank"},
+  "Talbot": {"door_style": "louver", "panel": "louver", "frame_width_in": 2.25, "joint": null, "arched": false, "notes": "louver-look on solid panel"},
+  "Camden": {"door_style": "recessed_panel", "panel": "beadboard", "frame_width_in": null, "joint": "butt", "arched": false, "notes": "beaded panel, butt-joint frame"},
+  "Sheffield": {"door_style": "raised_panel", "panel": "raised", "frame_width_in": null, "joint": "miter", "arched": false, "notes": "miter joint, raised panel"}
+}
