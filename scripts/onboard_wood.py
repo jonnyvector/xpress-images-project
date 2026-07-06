@@ -35,10 +35,30 @@ DEFAULT_SUMMARY = Path("output/.onboard/wood_replicas_summary.json")
 DOORS = [
     "Tacoma", "Journey", "Camden", "Newbury", "Chapman",       # batch 1
     "Talbot", "Tuscany", "Cabrillo", "Laredo", "Terracina",    # batch 2
+    "Dylan", "Sheffield", "Sullivan", "Executive", "Fiesta",   # batch 3
 ]
 
 # Catalog profile folder -> door_style.
 _PROFILE_STYLE = [("raised-panel", "raised_panel"), ("inset-panel", "recessed_panel")]
+
+# Skinny-shaker note: the model widens a narrow shaker frame to standard
+# proportions unless told, emphatically and specifically, not to.
+_NARROW_SHAKER_NOTE = (
+    "CRITICAL FRAME WIDTH: the frame is VERY NARROW — the stiles and rails are "
+    "thin, only about one-sixth of a standard shaker frame width; the flat center "
+    "panel is LARGE and fills most of the door face. Do NOT widen the frame to "
+    "standard shaker proportions; reproduce the skinny frame exactly as in the sample."
+)
+
+# Per-door overrides for doors the catalog folder mislabels. The Decore
+# "raised-panel" folder groups by frame construction, not panel raise, so flat
+# shakers land there and must be corrected to (style, notes) by hand.
+OVERRIDES = {
+    "Journey": ("shaker", _NARROW_SHAKER_NOTE),
+    "Newbury": ("shaker", _NARROW_SHAKER_NOTE),
+    "Dylan": ("shaker", _NARROW_SHAKER_NOTE),
+    "Sullivan": ("shaker_bevel", _NARROW_SHAKER_NOTE),
+}
 
 
 def resolve(name: str):
@@ -95,6 +115,10 @@ def main() -> None:
             print(f"[{name}] SKIP — no source folder found in the wood catalog")
             summary.append({"code": name, "status": "skipped_no_source"})
             continue
+        # Correct folder-derived style for mislabeled doors (skinny shakers).
+        notes = ""
+        if name in OVERRIDES:
+            style, notes = OVERRIDES[name]
 
         existing = already_onboarded(store, name)
         if existing and not args.force:
@@ -111,7 +135,7 @@ def main() -> None:
             proj = store.create(name=f"{name} Cabinet Door", product_type="Cabinet Door",
                                 material_type="wood")
         store.update(proj.id, door_style=style, corner_style="sharp",
-                     style_notes="", selected_swatches=palette)
+                     style_notes=notes, selected_swatches=palette)
         store.save_upload(proj.id, f"{name}.jpg", upload)
 
         res = onboard_replica(store, proj.id, key, upload, attempt_cap=args.cap,
