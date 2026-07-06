@@ -570,6 +570,53 @@ class ProjectStore:
             if project.qa_verdicts.pop(image_id, None) is not None:
                 self._save_project(project)
 
+    def set_active_replica(
+        self,
+        project_id: str,
+        *,
+        image: bytes | None,
+        signature: bytes | None,
+        base_image_id: str,
+        verdict: dict | None,
+    ) -> bool:
+        """Make a specific replica (bytes + signature + identity + verdict) the
+        active one, atomically. Used by the onboarding loop to restore its
+        best-scoring attempt after later attempts overwrote it.
+        """
+        with self._lock:
+            project = self._projects.get(project_id)
+            if project is None:
+                return False
+            project.base_door_image = image
+            project.learned_signature = signature
+            project.has_signature = bool(signature)
+            project.base_image_id = base_image_id
+            project.qa_verdicts = {base_image_id: verdict} if verdict else {}
+            self._save_project(project)
+            return True
+
+    def reset_variant_results(
+        self, project_id: str, *, keep_replica_verdict: bool = True
+    ) -> bool:
+        """Clear all variant results (and their verdicts), atomically, so a
+        re-run replaces rather than appends. The replica verdict is preserved by
+        default."""
+        with self._lock:
+            project = self._projects.get(project_id)
+            if project is None:
+                return False
+            replica_v = (
+                project.qa_verdicts.get(project.base_image_id)
+                if keep_replica_verdict and project.base_image_id
+                else None
+            )
+            project.results = []
+            project.qa_verdicts = (
+                {project.base_image_id: replica_v} if replica_v else {}
+            )
+            self._save_project(project)
+            return True
+
     def get_version_base_image(self, project_id: str, version: int) -> bytes | None:
         """Read base_door.bin from a specific version."""
         vdir = self._project_dir(project_id) / "versions" / f"v{version}"
