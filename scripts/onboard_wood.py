@@ -61,10 +61,15 @@ def select_doors(spec_names, only=None, doors=None, all_=False) -> list[str]:
     if sum([bool(only), bool(doors), all_]) != 1:
         raise SystemExit("choose exactly one of --only, --doors, or --all")
     if all_:
-        return sorted(spec_names)
-    if only:
-        return [only]
-    return [d.strip() for d in doors.split(",") if d.strip()]
+        names = sorted(spec_names)
+    elif only:
+        names = [only]
+    else:
+        names = [d.strip() for d in doors.split(",") if d.strip()]
+    names = list(dict.fromkeys(names))  # dedupe, keep order — never onboard a door twice per run
+    if not names:
+        raise SystemExit("no doors selected")
+    return names
 
 
 def resolve(name: str) -> Path | None:

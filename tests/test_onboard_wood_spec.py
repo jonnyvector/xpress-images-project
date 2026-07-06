@@ -43,3 +43,13 @@ def test_select_doors_requires_exactly_one_selector():
         onboard_wood.select_doors(["A"])                       # none given
     with pytest.raises(SystemExit):
         onboard_wood.select_doors(["A"], only="A", all_=True)  # two given
+
+
+def test_select_doors_dedupes_preserving_order():
+    assert onboard_wood.select_doors([], doors="A, B, A") == ["A", "B"]
+
+
+def test_select_doors_empty_after_split_errors():
+    import pytest
+    with pytest.raises(SystemExit):
+        onboard_wood.select_doors([], doors=" , ")  # non-empty but no real names
