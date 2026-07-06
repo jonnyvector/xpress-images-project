@@ -83,6 +83,13 @@ DOORS = [
             "outer corners."
         ),
     },
+    # Batch 2 — minimal notes on purpose (the style prompt + sample carry it).
+    # JL7 cathedral-arch raised; FC716/LR981/AL757 arched recessed; FS742 square raised.
+    {"code": "JL7", "door_style": "raised_panel", "notes": ""},
+    {"code": "FC716", "door_style": "recessed_panel_arched", "notes": ""},
+    {"code": "LR981", "door_style": "recessed_panel_arched", "notes": ""},
+    {"code": "AL757", "door_style": "recessed_panel_arched", "notes": ""},
+    {"code": "FS742", "door_style": "raised_panel", "notes": ""},
 ]
 
 

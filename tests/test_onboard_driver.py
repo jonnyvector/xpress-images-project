@@ -10,9 +10,10 @@ onboard_rtf = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(onboard_rtf)
 
 
-def test_door_spec_covers_the_five_and_is_well_formed():
+def test_door_spec_is_well_formed():
     codes = [d["code"] for d in onboard_rtf.DOORS]
-    assert codes == ["FR556", "KB732", "DT223", "DP8", "AP768"]
+    assert set(["FR556", "KB732", "DT223", "DP8", "AP768"]).issubset(codes)
+    assert len(codes) == len(set(codes))  # no duplicate door codes
     valid_styles = {"raised_panel", "solid_plank", "recessed_panel",
                     "recessed_panel_arched", "shaker_bevel"}
     for d in onboard_rtf.DOORS:
