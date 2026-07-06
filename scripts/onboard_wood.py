@@ -3,8 +3,10 @@
 
 Wood mirrors the RTF onboarding flow, with three differences:
 - material_type="wood" and the 38 wood swatches;
-- the catalog is organized by profile (raised-panel/ vs inset-panel/), so the
-  door STYLE is derived from the source folder rather than hand-specified;
+- door_style + conditioning notes come from docs/sales/data/wood_door_specs.json
+  (see backend/wood_specs.py), not from the catalog folder — the Decore
+  "raised-panel" folder groups by frame construction, not panel raise, so it
+  can't be trusted as a style signal on its own;
 - the maple-learn rung is re-enabled (a real wood-grain anchor trick for wood,
   unlike RTF where it wrongly rendered wood).
 
@@ -26,6 +28,17 @@ from _onboard_common import read_api_key  # noqa: E402
 from backend.materials import get_swatch_files  # noqa: E402
 from backend.onboarding import QUEUED_READY, Spend, onboard_replica  # noqa: E402
 from backend.state import ProjectStore  # noqa: E402
+from backend.wood_specs import WoodSpec, learn_notes, load_wood_specs  # noqa: E402
+
+
+def door_spec(name: str, specs: dict[str, "WoodSpec"]) -> tuple[str | None, str]:
+    """(door_style, conditioning notes) for a door from the spec file.
+    Returns (None, "") when the door isn't in the spec — caller skips it."""
+    spec = specs.get(name)
+    if spec is None:
+        return None, ""
+    return spec.door_style, learn_notes(spec)
+
 
 CATALOG = Path.home() / "Desktop" / "Xpress" / "Decore Catalog" / "wood"
 DEFAULT_SUMMARY = Path("output/.onboard/wood_replicas_summary.json")
@@ -38,45 +51,25 @@ DOORS = [
     "Dylan", "Sheffield", "Sullivan", "Executive", "Fiesta",   # batch 3
 ]
 
-# Catalog profile folder -> door_style.
+# Catalog profile folders to search for a door's hero image.
 _PROFILE_STYLE = [("raised-panel", "raised_panel"), ("inset-panel", "recessed_panel")]
 
-# Skinny-shaker note: the model widens a narrow shaker frame to standard
-# proportions unless told, emphatically and specifically, not to.
-_NARROW_SHAKER_NOTE = (
-    "CRITICAL FRAME WIDTH: the frame is VERY NARROW — the stiles and rails are "
-    "thin, only about one-sixth of a standard shaker frame width; the flat center "
-    "panel is LARGE and fills most of the door face. Do NOT widen the frame to "
-    "standard shaker proportions; reproduce the skinny frame exactly as in the sample."
-)
 
-# Per-door overrides for doors the catalog folder mislabels. The Decore
-# "raised-panel" folder groups by frame construction, not panel raise, so flat
-# shakers land there and must be corrected to (style, notes) by hand.
-OVERRIDES = {
-    "Journey": ("shaker", _NARROW_SHAKER_NOTE),
-    "Newbury": ("shaker", _NARROW_SHAKER_NOTE),
-    "Dylan": ("shaker", _NARROW_SHAKER_NOTE),
-    "Sullivan": ("shaker_bevel", _NARROW_SHAKER_NOTE),
-}
-
-
-def resolve(name: str):
-    """Locate a wood door in the catalog. Returns (source_path, door_style)."""
+def resolve(name: str) -> Path | None:
+    """Locate a wood door's hero image in the catalog (either profile folder)."""
     lname = name.lower()
-    for sub, style in _PROFILE_STYLE:
+    for sub, _ in _PROFILE_STYLE:
         base = CATALOG / sub
         if not base.exists():
             continue
         for d in sorted(base.iterdir()):
-            if not d.is_dir():
-                continue
-            dn = d.name.lower()
-            if dn == lname or dn.startswith(lname + "-") or dn.startswith(lname + " "):
-                door = d / "hero" / "door.jpg"
-                if door.exists():
-                    return door, style
-    return None, None
+            if d.is_dir():
+                dn = d.name.lower()
+                if dn == lname or dn.startswith(lname + "-") or dn.startswith(lname + " "):
+                    door = d / "hero" / "door.jpg"
+                    if door.exists():
+                        return door
+    return None
 
 
 def already_onboarded(store: ProjectStore, name: str):
@@ -105,20 +98,22 @@ def main() -> None:
     store = ProjectStore(persist_dir=Path("output/.projects"))
     palette = [str(p) for p in get_swatch_files("wood")]  # full wood palette for later variants
     spend = Spend(ceiling_usd=args.ceiling)
+    specs = load_wood_specs()
 
     summary = []
     for name in DOORS:
         if args.only and name != args.only:
             continue
-        src, style = resolve(name)
+        src = resolve(name)
         if src is None:
-            print(f"[{name}] SKIP — no source folder found in the wood catalog")
+            print(f"[{name}] SKIP — no source image in the wood catalog")
             summary.append({"code": name, "status": "skipped_no_source"})
             continue
-        # Correct folder-derived style for mislabeled doors (skinny shakers).
-        notes = ""
-        if name in OVERRIDES:
-            style, notes = OVERRIDES[name]
+        style, notes = door_spec(name, specs)
+        if style is None:
+            print(f"[{name}] SKIP — no entry in wood_door_specs.json (classify first)")
+            summary.append({"code": name, "status": "skipped_no_spec"})
+            continue
 
         existing = already_onboarded(store, name)
         if existing and not args.force:
