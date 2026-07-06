@@ -11,6 +11,12 @@ from pathlib import Path
 
 DEFAULT_WOOD_SPECS_PATH = Path("docs/sales/data/wood_door_specs.json")
 
+# stiles at/under this read as a thin "skinny shaker" frame; standard shaker
+# stiles run ~2.25-3"
+THIN_FRAME_MAX_IN = 2.25
+
+_PANELS = {"flat", "raised", "slab", "louver", "beadboard"}
+
 
 @dataclass
 class WoodSpec:
@@ -28,9 +34,19 @@ def load_wood_specs(path: Path = DEFAULT_WOOD_SPECS_PATH) -> dict[str, WoodSpec]
     data = json.loads(path.read_text())
     out: dict[str, WoodSpec] = {}
     for name, row in data.items():
+        door_style = row.get("door_style")
+        if not door_style or not isinstance(door_style, str):
+            raise ValueError(
+                f"wood_door_specs.json: {name!r} has invalid door_style: {door_style!r}"
+            )
+        panel = row.get("panel")
+        if panel not in _PANELS:
+            raise ValueError(
+                f"wood_door_specs.json: {name!r} has invalid panel: {panel!r}"
+            )
         out[name] = WoodSpec(
-            door_style=row["door_style"],
-            panel=row["panel"],
+            door_style=door_style,
+            panel=panel,
             frame_width_in=row.get("frame_width_in"),
             joint=row.get("joint"),
             arched=bool(row.get("arched", False)),
@@ -44,8 +60,14 @@ def learn_notes(spec: WoodSpec) -> str:
     beats the model's fatten-the-frame prior. No marketing prose."""
     parts: list[str] = []
     if spec.frame_width_in is not None:
-        parts.append(
-            f"The frame is exactly {spec.frame_width_in:g} inches wide — thin; "
-            "reproduce the frame at that exact width and do NOT widen it."
-        )
+        if spec.frame_width_in <= THIN_FRAME_MAX_IN:
+            parts.append(
+                f"The frame is exactly {spec.frame_width_in:g} inches wide — thin; "
+                "reproduce the frame at that exact width and do NOT widen it."
+            )
+        else:
+            parts.append(
+                f"The frame is exactly {spec.frame_width_in:g} inches wide — "
+                "reproduce the frame at that exact width, neither wider nor narrower."
+            )
     return " ".join(parts)

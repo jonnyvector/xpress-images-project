@@ -22,7 +22,11 @@ from backend.styles.catalog import STYLES  # noqa: E402
 from backend.wood_specs import DEFAULT_WOOD_SPECS_PATH  # noqa: E402
 
 CATALOG = Path.home() / "Desktop" / "Xpress" / "Decore Catalog" / "wood"
-DOOR_STYLES = sorted(k for k, v in STYLES.items() if v.get("category") == "door")
+_TEST_STYLES = {"minimal", "rtf_minimal"}
+DOOR_STYLES = sorted(
+    k for k, v in STYLES.items()
+    if v.get("category") == "door" and k not in _TEST_STYLES
+)
 PANELS = ["flat", "raised", "slab", "louver", "beadboard"]
 MODEL = "gemini-3.1-pro-preview"
 
@@ -80,8 +84,14 @@ def classify_door(client, name: str, description: str, image_path: Path) -> dict
             return parse_spec(resp.text or "")
         except Exception as exc:  # noqa: BLE001 - retry then re-raise
             last = str(exc)
-            time.sleep(2 ** attempt)
+            if attempt < 2:
+                time.sleep(2 ** attempt)
     raise RuntimeError(f"classify failed for {name}: {last}")
+
+
+def should_skip(name: str, existing: dict, force: bool) -> bool:
+    """Preserve operator-edited rows on re-run unless --force is passed."""
+    return name in existing and not force
 
 
 def _iter_catalog():
@@ -101,6 +111,10 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", help="classify just this door name")
     ap.add_argument("--out", type=Path, default=DEFAULT_WOOD_SPECS_PATH)
+    ap.add_argument(
+        "--force", action="store_true",
+        help="re-classify doors already present in the spec file (default: preserve them)",
+    )
     args = ap.parse_args()
 
     client = genai.Client(api_key=read_api_key())
@@ -109,6 +123,9 @@ def main() -> None:
         out = json.loads(args.out.read_text())
     for name, desc, door in _iter_catalog():
         if args.only and name != args.only:
+            continue
+        if should_skip(name, out, args.force):
+            print(f"{name}: skip (already in spec; --force to reclassify)")
             continue
         try:
             out[name] = classify_door(client, name, desc, door)

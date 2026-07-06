@@ -31,3 +31,22 @@ def test_parse_rejects_bad_style():
 def test_parse_rejects_bad_panel():
     with pytest.raises(ValueError):
         cwd.parse_spec('{"door_style":"shaker","panel":"weird","arched":false,"notes":""}')
+
+
+def test_door_styles_excludes_test_styles():
+    assert "minimal" not in cwd.DOOR_STYLES
+    assert "rtf_minimal" not in cwd.DOOR_STYLES
+    assert "shaker" in cwd.DOOR_STYLES
+
+
+def test_should_skip_preserves_existing_row_by_default():
+    assert cwd.should_skip("Newbury", {"Newbury": {}}, force=False) is True
+
+
+def test_should_skip_reclassifies_with_force():
+    assert cwd.should_skip("Newbury", {"Newbury": {}}, force=True) is False
+
+
+def test_should_skip_new_door_is_never_skipped():
+    assert cwd.should_skip("Newbury", {}, force=False) is False
+    assert cwd.should_skip("Newbury", {}, force=True) is False
