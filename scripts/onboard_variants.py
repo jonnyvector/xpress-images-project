@@ -32,6 +32,7 @@ APPROVED = [
     ("FR556", "78d4105b"),
     ("DP8", "5597d56d"),
     ("AP768", "abdf99a1"),
+    ("DT223", "fd85daeb"),
 ]
 
 # A diverse 5-color reliability probe: pure white (geometry-anchor case), a mid
