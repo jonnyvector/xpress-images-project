@@ -159,6 +159,10 @@ def _build_rtf_prompt(
                 "The grain flows continuously from the very top edge to the very bottom edge "
                 "without interruption across the entire surface. "
                 "Monolithic vertical wood texture — do NOT break the grain direction for any part of the door. "
+                "CRITICAL: the TOP RAIL and BOTTOM RAIL also have VERTICAL grain, NOT horizontal. "
+                "This is a printed thermofoil film, NOT real wood joinery — the grain does NOT turn "
+                "sideways at the rails the way a real 5-piece wood door would. Every part of the door — "
+                "top rail, bottom rail, stiles, and center panel — has the SAME uninterrupted vertical grain. "
             )
     else:
         grain_override = ""
@@ -438,11 +442,13 @@ class DoorGenerator:
         # Inject material type instruction
         if material_type == "rtf":
             prompt += (
-                " MATERIAL: This is an RTF (Rigid Thermofoil) door — the surface "
-                "is a smooth, uniform vinyl/thermofoil wrap over MDF substrate. "
-                "The finish is NOT natural wood. It has a consistent, uniform color "
-                "with no natural wood grain variation. The surface may be matte, "
-                "satin, or have a subtle embossed texture pattern."
+                " MATERIAL: This is an RTF (Rigid Thermofoil) door — a smooth "
+                "vinyl/thermofoil wrap over MDF substrate. Reproduce the EXACT "
+                "surface finish shown in the reference image: if it is a solid "
+                "uniform color, keep it perfectly smooth and uniform with no grain; "
+                "if it shows a printed WOODGRAIN, faithfully reproduce that "
+                "woodgrain pattern and its direction. Do NOT flatten a woodgrain "
+                "finish into a solid color."
             )
 
         # Inject dimension preservation instruction
