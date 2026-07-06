@@ -398,6 +398,8 @@ class DoorGenerator:
         corner_style: str = "sharp",
         material_type: str = "wood",
         learn_in_maple: bool = False,
+        temperature: float = 0.0,
+        style_notes: str = "",
     ) -> GenerationResult:
         """
         Have Gemini generate its own version of the door to capture its understanding.
@@ -468,6 +470,11 @@ class DoorGenerator:
             )
             maple_swatch_path = Path("swatches/wood/maple_select.jpg")
 
+        # Corrective structural notes (onboarding re-learn ladder targets the
+        # sample's weakest-scoring dimension).
+        if style_notes:
+            prompt += f" STRUCTURAL DETAILS: {style_notes}"
+
         # Load the reference image with HIGH media resolution so Gemini uses
         # ~1120 tokens to analyze it (vs default 256) — critical for reading
         # fine details like exact stile/rail widths from the input image.
@@ -499,7 +506,10 @@ class DoorGenerator:
 
         config = types.GenerateContentConfig(
             response_modalities=["image", "text"],
-            temperature=0.0,  # Deterministic for style consistency
+            # Deterministic (0.0) by default for style consistency; the
+            # onboarding re-learn loop bumps this to vary otherwise-identical
+            # retries (temp-0.0 reproduces the same replica).
+            temperature=temperature,
             image_config=types.ImageConfig(aspect_ratio=aspect_ratio),
         )
         response, error_result = self._call_with_retry(

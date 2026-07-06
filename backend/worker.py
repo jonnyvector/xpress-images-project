@@ -248,6 +248,8 @@ def _run_learn(
     material_type: str = "wood",
     gemini_model: str | None = None,
     learn_in_maple: bool = False,
+    temperature: float = 0.0,
+    style_notes: str = "",
 ) -> None:
     """Run learn_door_style in background thread."""
     temp_path = OUTPUT_DIR / f"temp_learn_{project_id}.png"
@@ -265,6 +267,8 @@ def _run_learn(
                 corner_style=corner_style,
                 material_type=material_type,
                 learn_in_maple=learn_in_maple,
+                temperature=temperature,
+                style_notes=style_notes,
             )
 
         project = store.get(project_id)
@@ -321,11 +325,15 @@ def start_learning(
     *,
     learn_in_maple: bool = False,
     aspect_ratio: str | None = None,
+    temperature: float = 0.0,
+    style_notes: str = "",
 ) -> None:
     """Kick off background learning for a project.
 
     ``aspect_ratio`` overrides the product-type default for doors that
     aren't the usual 9:16 shape (operator finding: FC712 is ~2:3).
+    ``temperature``/``style_notes`` let the onboarding re-learn loop vary
+    otherwise-deterministic retries (temp-0.0 reproduces the same replica).
     """
     is_drawer = _is_drawer_product(project)
     if aspect_ratio is None:
@@ -349,6 +357,8 @@ def start_learning(
         project.material_type,
         project.gemini_model,
         learn_in_maple,
+        temperature,
+        style_notes,
     )
 
 
@@ -459,12 +469,10 @@ def start_retry(
             "reference_image": None,
         }
 
-    # Inject base door reference for opted-in styles
-    if use_ref:
-        selection["reference_image"] = base_door_path
-    # Near-white RTF: anchor geometry on the replica (signature path, not the
-    # temp-0.0 from-reference path) so white-on-white keeps the recessed profile.
-    elif (
+    # Inject base door reference: for opted-in styles, or for near-white RTF
+    # (anchor geometry on the replica via the signature path — not the temp-0.0
+    # from-reference path — so white-on-white keeps the recessed profile).
+    if use_ref or (
         selection.get("reference_image") is None
         and base_door_path.exists()
         and _needs_geometry_anchor(selection, project.material_type)
