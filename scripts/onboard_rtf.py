@@ -76,7 +76,7 @@ DOORS = [
     },
     {
         "code": "AP768",
-        "door_style": "recessed_panel",
+        "door_style": "recessed_panel_arched",  # arched → geometry-excluded
         "notes": (
             "Recessed routed center panel with an ARCHED (cathedral) top; ogee "
             "inner profile around the panel opening; arched top rail; square "

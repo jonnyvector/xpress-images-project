@@ -1022,3 +1022,13 @@ STYLES: dict[str, dict[str, Any]] = {
         ),
     },
 }
+
+# Arched (cathedral-top) recessed panel. Same prompts as recessed_panel — the
+# replica signature and the door's style_notes carry the arch — but it is
+# geometry-EXCLUDED (see qa/styles_classes): an arched panel is not a
+# measurable rectangle, so the rectangular box check would false-flag every
+# variant as unmeasurable/drift.
+STYLES["recessed_panel_arched"] = {
+    **STYLES["recessed_panel"],
+    "name": "Recessed Panel (Arched)",
+}
