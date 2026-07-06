@@ -23,3 +23,23 @@ def test_door_spec_uses_spec_file_not_folder():
 def test_door_spec_missing_entry_returns_none_style():
     style, notes = onboard_wood.door_spec("Unlisted", {})
     assert style is None and notes == ""
+
+
+def test_select_doors_only_returns_single():
+    assert onboard_wood.select_doors(["A", "B"], only="A") == ["A"]
+
+
+def test_select_doors_list_splits_and_trims():
+    assert onboard_wood.select_doors(["A", "B", "C"], doors="A, C") == ["A", "C"]
+
+
+def test_select_doors_all_returns_every_spec_name_sorted():
+    assert onboard_wood.select_doors(["B", "A", "C"], all_=True) == ["A", "B", "C"]
+
+
+def test_select_doors_requires_exactly_one_selector():
+    import pytest
+    with pytest.raises(SystemExit):
+        onboard_wood.select_doors(["A"])                       # none given
+    with pytest.raises(SystemExit):
+        onboard_wood.select_doors(["A"], only="A", all_=True)  # two given

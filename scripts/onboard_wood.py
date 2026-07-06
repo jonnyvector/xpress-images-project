@@ -10,8 +10,14 @@ Wood mirrors the RTF onboarding flow, with three differences:
 - the maple-learn rung is re-enabled (a real wood-grain anchor trick for wood,
   unlike RTF where it wrongly rendered wood).
 
+Doors to onboard are selected from the spec file, not a hardcoded list:
+--only NAME (one door), --doors "A,B,C" (an explicit set), or --all (every
+door in wood_door_specs.json). A door still needs a resolvable catalog image.
+
 Usage:
-    uv run python scripts/onboard_wood.py [--only NAME] [--cap 5] [--ceiling 6.0]
+    uv run python scripts/onboard_wood.py --only NAME   [--force] [--cap 5]
+    uv run python scripts/onboard_wood.py --doors "Tacoma,Talbot,Cabrillo" --force
+    uv run python scripts/onboard_wood.py --all --ceiling 40
 """
 
 import argparse
@@ -43,16 +49,22 @@ def door_spec(name: str, specs: dict[str, "WoodSpec"]) -> tuple[str | None, str]
 CATALOG = Path.home() / "Desktop" / "Xpress" / "Decore Catalog" / "wood"
 DEFAULT_SUMMARY = Path("output/.onboard/wood_replicas_summary.json")
 
-# First batch — top uncovered wood cabinet doors by sales.
-# ("Custom Cabinet Door" is skipped: it's a catch-all, not an onboardable profile.)
-DOORS = [
-    "Tacoma", "Journey", "Camden", "Newbury", "Chapman",       # batch 1
-    "Talbot", "Tuscany", "Cabrillo", "Laredo", "Terracina",    # batch 2
-    "Dylan", "Sheffield", "Sullivan", "Executive", "Fiesta",   # batch 3
-]
-
 # Catalog profile folders to search for a door's hero image.
 _PROFILE_STYLE = [("raised-panel", "raised_panel"), ("inset-panel", "recessed_panel")]
+
+
+def select_doors(spec_names, only=None, doors=None, all_=False) -> list[str]:
+    """Which doors to onboard this run — exactly one selector must be given.
+    --only NAME -> [NAME]; --doors "A, B" -> ["A","B"]; --all -> every spec
+    name (sorted). Names needn't be in the spec here; main() skips ones without
+    a spec entry or a source image."""
+    if sum([bool(only), bool(doors), all_]) != 1:
+        raise SystemExit("choose exactly one of --only, --doors, or --all")
+    if all_:
+        return sorted(spec_names)
+    if only:
+        return [only]
+    return [d.strip() for d in doors.split(",") if d.strip()]
 
 
 def resolve(name: str) -> Path | None:
@@ -88,6 +100,8 @@ def already_onboarded(store: ProjectStore, name: str):
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", help="onboard just this door name")
+    ap.add_argument("--doors", help="comma-separated door names to onboard")
+    ap.add_argument("--all", action="store_true", help="onboard every door in the spec file")
     ap.add_argument("--cap", type=int, default=5, help="max re-learn attempts per door")
     ap.add_argument("--ceiling", type=float, default=6.0, help="run spend ceiling (USD)")
     ap.add_argument("--force", action="store_true", help="re-onboard even if already done")
@@ -99,11 +113,10 @@ def main() -> None:
     palette = [str(p) for p in get_swatch_files("wood")]  # full wood palette for later variants
     spend = Spend(ceiling_usd=args.ceiling)
     specs = load_wood_specs()
+    names = select_doors(list(specs), only=args.only, doors=args.doors, all_=args.all)
 
     summary = []
-    for name in DOORS:
-        if args.only and name != args.only:
-            continue
+    for name in names:
         src = resolve(name)
         if src is None:
             print(f"[{name}] SKIP — no source image in the wood catalog")
