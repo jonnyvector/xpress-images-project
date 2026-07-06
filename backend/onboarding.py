@@ -1,0 +1,441 @@
+"""Autonomous onboarding policy — pure decisions for the replica/variant loops.
+
+No I/O. These functions take stored ``qa_verdict`` dicts (the schema written by
+``backend.qa.qa_lane._verdict_dict``) and return decisions; the driver
+(``scripts/onboard_rtf.py``) and ``onboard_replica`` own all side effects.
+
+Key fact (Explore, D-005): a replica's ``verdict``/``gates_as`` string is always
+``needs_human`` by policy, so it carries no quality signal — quality is read off
+the numeric ``scores`` dict plus the advisory ``geometry`` field.
+"""
+
+import time
+from dataclasses import dataclass, field
+
+# The five judge dimensions stored under qa_verdict["scores"].
+SCORE_KEYS = (
+    "panel_layout_match",
+    "proportions_match",
+    "profile_character_match",
+    "material_realism",
+    "swatch_fidelity",
+)
+
+# Variant-phase actions (D-003).
+VARIANT_AUTO_ACCEPT = "auto_accept"
+VARIANT_REGENERATE = "regenerate"
+VARIANT_ESCALATE = "escalate"
+
+# Corrective note per lowest-scoring dimension, appended to style_notes on a
+# re-learn attempt (D-006). Empty string = no useful corrective for that dim.
+_LOW_DIM_NOTE = {
+    "profile_character_match": (
+        "Match the sample's edge and frame profile EXACTLY — reproduce every "
+        "step, cove and bevel of the profile shown in the sample photo."
+    ),
+    "panel_layout_match": (
+        "Match the sample's panel layout EXACTLY — same recessed-vs-raised "
+        "state and the same frame-to-panel proportions as the sample."
+    ),
+    "proportions_match": (
+        "Match the sample's stile and rail widths and overall door proportions "
+        "EXACTLY; do not stretch, compress or thin any member."
+    ),
+    "material_realism": (
+        "Render a clean, realistic smooth thermofoil surface — no banding, "
+        "seams or artifacts."
+    ),
+    "swatch_fidelity": "",
+}
+
+
+def _scores(verdict: dict) -> dict:
+    return verdict.get("scores") or {}
+
+
+def is_done(verdict: dict) -> bool:
+    """A verdict is usable only once QA finished and wrote scores."""
+    return bool(verdict) and verdict.get("qa_status") == "done" and bool(_scores(verdict))
+
+
+def replica_queue_ready(verdict: dict, min_score: int) -> bool:
+    """True when a judged replica is good enough to queue for operator approval.
+
+    Every dimension must be >= ``min_score`` and geometry must not be measured
+    as ``drift``. Unmeasurable / None geometry (raised, slab, arched styles)
+    passes the geometry check — the gate is scores-only there.
+    """
+    if not is_done(verdict):
+        return False
+    if verdict.get("geometry") == "drift":
+        return False
+    scores = _scores(verdict)
+    return min(scores.get(k, 0) for k in SCORE_KEYS) >= min_score
+
+
+def score_sum(verdict: dict) -> int:
+    scores = _scores(verdict)
+    return sum(scores.get(k, 0) for k in SCORE_KEYS)
+
+
+def best_attempt_index(verdicts: list[dict]) -> int:
+    """Index of the strongest attempt by sum(scores); ties → latest attempt.
+
+    Mirrors qa_lane._finalize_best. Returns -1 for an empty list.
+    """
+    best_i, best_s = -1, -1
+    for i, v in enumerate(verdicts):
+        s = score_sum(v)
+        if s >= best_s:  # >= so a tie keeps the later attempt
+            best_i, best_s = i, s
+    return best_i
+
+
+def lowest_dim(verdict: dict) -> str | None:
+    """The lowest-scoring dimension, to target the next re-learn's corrective note."""
+    scores = _scores(verdict)
+    if not scores:
+        return None
+    return min(SCORE_KEYS, key=lambda k: scores.get(k, 0))
+
+
+def variant_action(verdict: dict) -> str:
+    """Map a variant verdict to an action (D-003).
+
+    pass → auto-accept; regenerate → regenerate (under cap); anything unsure
+    (needs_human, error, None) → escalate to the operator.
+    """
+    gate = verdict.get("gates_as") or verdict.get("verdict")
+    if gate == "pass":
+        return VARIANT_AUTO_ACCEPT
+    if gate == "regenerate":
+        return VARIANT_REGENERATE
+    return VARIANT_ESCALATE
+
+
+@dataclass
+class LearnConditioning:
+    """How to condition one learn attempt so retries vary (D-006).
+
+    learn runs at temperature 0.0, so identical inputs reproduce the same
+    replica — variety must come from these knobs, not from re-rolling.
+    """
+
+    learn_in_maple: bool = False
+    temperature: float = 0.0
+    extra_note: str = ""
+
+
+def learn_conditioning(
+    attempt: int, low_dim: str | None = None, *, allow_maple: bool = True
+) -> LearnConditioning:
+    """The per-attempt escalation ladder (D-006).
+
+    With maple (wood doors): 0 native · 1 maple · 2 native+corrective ·
+    3 maple+corrective · 4+ corrective + rising temperature.
+
+    Without maple (``allow_maple=False``, RTF doors — a maple render would make
+    an RTF replica look like wood, D-009): variety comes from the corrective
+    note and a rising temperature instead. 0 native · 1 native+corrective ·
+    2+ corrective + rising temperature.
+    """
+    note = _LOW_DIM_NOTE.get(low_dim or "", "")
+    if attempt <= 0:
+        return LearnConditioning(learn_in_maple=False, temperature=0.0, extra_note="")
+
+    if not allow_maple:
+        if attempt == 1:
+            return LearnConditioning(learn_in_maple=False, temperature=0.0, extra_note=note)
+        temp = min(0.25 + 0.1 * (attempt - 2), 0.6)
+        return LearnConditioning(learn_in_maple=False, temperature=temp, extra_note=note)
+
+    if attempt == 1:
+        return LearnConditioning(learn_in_maple=True, temperature=0.0, extra_note="")
+    if attempt == 2:
+        return LearnConditioning(learn_in_maple=False, temperature=0.0, extra_note=note)
+    if attempt == 3:
+        return LearnConditioning(learn_in_maple=True, temperature=0.0, extra_note=note)
+    temp = min(0.2 + 0.1 * (attempt - 4), 0.6)
+    return LearnConditioning(learn_in_maple=False, temperature=temp, extra_note=note)
+
+
+# ---------------------------------------------------------------------------
+# Replica onboarding loop (side-effecting: learns, judges, re-learns ≤ cap)
+# ---------------------------------------------------------------------------
+
+# Status values for OnboardResult.
+QUEUED_READY = "queued_ready"          # judge-clean replica queued for approval
+QUEUED_NEEDS_HUMAN = "queued_needs_human"  # best attempt queued, flagged for a look
+ONBOARD_ERROR = "error"                # learn/judge failed or timed out
+CEILING_HIT = "ceiling"               # run spend ceiling reached first
+
+
+def _default_image_cost() -> float:
+    from backend.qa.trust_config import load_trust_config
+
+    return load_trust_config().image_cost_usd
+
+
+@dataclass
+class Spend:
+    """Per-run spend guard (increment-before-submit, like the QA lane)."""
+
+    ceiling_usd: float
+    image_cost_usd: float = field(default_factory=_default_image_cost)
+    spent_usd: float = 0.0
+
+    def can_charge(self) -> bool:
+        return self.spent_usd + self.image_cost_usd <= self.ceiling_usd + 1e-9
+
+    def charge(self) -> None:
+        self.spent_usd += self.image_cost_usd
+
+
+@dataclass
+class OnboardResult:
+    code: str
+    status: str
+    attempts: int = 0
+    best_min_score: int = 0
+    best_sum: int = 0
+    base_image_id: str | None = None
+    reason: str = ""
+
+
+@dataclass
+class _Attempt:
+    verdict: dict
+    base_id: str
+    image: bytes | None
+    signature: bytes | None
+
+
+def _wait_until(predicate, timeout: float, poll: float = 0.5):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        value = predicate()
+        if value is not None:
+            return value
+        time.sleep(poll)
+    return None
+
+
+def wait_for_replica_verdict(store, project_id: str, timeout: float = 240.0):
+    """Wait for learning then the replica judge to finish.
+
+    Returns (base_image_id, verdict) once ``qa_status=="done"``, or (None, None)
+    on learn error or timeout.
+    """
+
+    def learn_done():
+        p = store.get(project_id)
+        if p is None:
+            return None
+        if p.learning_status == "error":
+            return ("error", None)
+        if p.learning_status == "done" and p.base_image_id:
+            return ("done", p.base_image_id)
+        return None
+
+    got = _wait_until(learn_done, timeout)
+    if got is None or got[0] == "error":
+        return (None, None)
+    base_id = got[1]
+
+    def verdict_done():
+        p = store.get(project_id)
+        if p is None:
+            return None
+        v = p.qa_verdicts.get(base_id)
+        if v and v.get("qa_status") == "done":
+            return v
+        return None
+
+    return (base_id, _wait_until(verdict_done, timeout))
+
+
+def onboard_replica(
+    store,
+    project_id: str,
+    api_key: str,
+    upload_bytes: bytes,
+    *,
+    attempt_cap: int = 5,
+    min_score: int = 3,
+    aspect_ratio: str = "9:16",
+    allow_maple: bool = True,
+    spend: Spend | None = None,
+    timeout: float = 240.0,
+    learn_fn=None,
+) -> OnboardResult:
+    """Learn → judge → re-learn (varying conditioning) until the replica is
+    queue-ready or the attempt cap is hit. Never approves the replica (Stage-A
+    stays human, D-001). On cap without a clean replica, restores the best
+    attempt (by score sum) and flags it needs_human.
+
+    The project's persisted ``style_notes`` is the base prompt for every
+    attempt (single source of truth, shared with the generation phase); the
+    ladder's per-attempt corrective is appended transiently.
+    """
+    if learn_fn is None:
+        from backend.worker import start_learning as learn_fn  # lazy: avoid import cycle
+
+    project = store.get(project_id)
+    code = getattr(project, "name", project_id)
+    base_notes = getattr(project, "style_notes", "") or ""
+    low_dim: str | None = None
+    attempts: list[_Attempt] = []
+
+    for attempt in range(attempt_cap + 1):
+        if spend is not None and not spend.can_charge():
+            best = _finalize(store, project_id, attempts, min_score)
+            if best.status != ONBOARD_ERROR:
+                best.status = CEILING_HIT
+                best.reason = "run spend ceiling reached"
+            return best
+
+        cond = learn_conditioning(attempt, low_dim, allow_maple=allow_maple)
+        notes = f"{base_notes} {cond.extra_note}".strip() if cond.extra_note else base_notes
+
+        learn_fn(
+            store, store.get(project_id), api_key, upload_bytes,
+            learn_in_maple=cond.learn_in_maple,
+            aspect_ratio=aspect_ratio,
+            temperature=cond.temperature,
+            style_notes=notes,
+        )
+        if spend is not None:
+            spend.charge()
+
+        base_id, verdict = wait_for_replica_verdict(store, project_id, timeout)
+        if verdict is None:
+            return OnboardResult(code=code, status=ONBOARD_ERROR, attempts=attempt + 1,
+                                 reason="learn or judge failed/timed out")
+
+        p = store.get(project_id)
+        attempts.append(_Attempt(verdict=verdict, base_id=base_id,
+                                 image=p.base_door_image, signature=p.learned_signature))
+
+        if replica_queue_ready(verdict, min_score):
+            s = verdict["scores"]
+            return OnboardResult(code=code, status=QUEUED_READY, attempts=attempt + 1,
+                                 best_min_score=min(s[k] for k in SCORE_KEYS),
+                                 best_sum=score_sum(verdict), base_image_id=base_id)
+        low_dim = lowest_dim(verdict)
+
+    return _finalize(store, project_id, attempts, min_score)
+
+
+def _finalize(store, project_id: str, attempts: list[_Attempt], min_score: int) -> OnboardResult:
+    """Cap reached without a clean replica: make the best attempt active and flag it."""
+    code = getattr(store.get(project_id), "name", project_id)
+    if not attempts:
+        return OnboardResult(code=code, status=ONBOARD_ERROR, reason="no attempts produced")
+
+    best_i = best_attempt_index([a.verdict for a in attempts])
+    best = attempts[best_i]
+    # Restore the best replica if a later attempt overwrote it (each re-learn
+    # replaces the active replica).
+    if best_i != len(attempts) - 1 and best.image is not None:
+        store.set_active_replica(
+            project_id, image=best.image, signature=best.signature,
+            base_image_id=best.base_id, verdict=best.verdict,
+        )
+
+    s = best.verdict.get("scores", {})
+    return OnboardResult(
+        code=code, status=QUEUED_NEEDS_HUMAN, attempts=len(attempts),
+        best_min_score=min((s.get(k, 0) for k in SCORE_KEYS), default=0),
+        best_sum=score_sum(best.verdict), base_image_id=best.base_id,
+        reason="no attempt reached the quality bar within the cap",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Variant phase (post-approval): generate a batch, auto-accept judge passes
+# ---------------------------------------------------------------------------
+
+
+def _variant_signature(project) -> tuple:
+    """Stable snapshot of (image_id, terminal-gate) for settle detection."""
+    return tuple(sorted(
+        (r.image_id, (project.qa_verdicts.get(r.image_id) or {}).get("gates_as"))
+        for r in project.results
+    ))
+
+
+def onboard_variants(
+    store,
+    project_id: str,
+    api_key: str,
+    swatch_paths: list,
+    *,
+    timeout: float = 300.0,
+    poll: float = 3.0,
+    stable_polls: int = 2,
+    reset_existing: bool = True,
+    auto_accept: bool = True,
+    generate_fn=None,
+) -> dict:
+    """Generate a variant batch for an APPROVED replica, let the QA lane judge
+    and auto-regenerate, then (if ``auto_accept``) approve judge passes (D-003).
+    Unsure variants (needs_human / regenerate-at-cap / error / still-judging at
+    timeout) always stay queued for the operator.
+
+    With ``auto_accept=False`` nothing is approved automatically — every variant
+    lands in the operator Review tab (the "show me all" mode for the reliability
+    phase). The returned ``accepted`` list then reflects what *would* auto-accept.
+
+    The replica must already be operator-approved — this never approves a
+    replica, only variants the judge passed. ``reset_existing`` clears prior
+    variant results first so a re-run replaces rather than appends. The wait is
+    bounded by ``timeout``; a variant whose judge never finishes is queued, not
+    waited on forever.
+    """
+    if generate_fn is None:
+        from backend.worker import start_generation as generate_fn  # lazy
+
+    if reset_existing:
+        store.reset_variant_results(project_id)
+
+    store.update(project_id, selected_swatches=[str(p) for p in swatch_paths])
+    generate_fn(store, store.get(project_id), api_key)
+
+    deadline = time.monotonic() + timeout
+    last_sig, stable = None, 0
+    while time.monotonic() < deadline:
+        p = store.get(project_id)
+        gen_done = p is not None and p.generation_status == "done"
+        results = p.results if p else []
+        all_judged = bool(results) and all(
+            (p.qa_verdicts.get(r.image_id) or {}).get("qa_status") == "done"
+            for r in results
+        )
+        if gen_done and all_judged:
+            sig = _variant_signature(p)
+            stable = stable + 1 if sig == last_sig else 0
+            last_sig = sig
+            if stable >= stable_polls:
+                break
+        else:
+            stable = 0
+        time.sleep(poll)
+
+    from backend.qa.approvals import Approval, get_approval_store
+
+    approvals = get_approval_store()
+    p = store.get(project_id)
+    accepted, queued = [], []
+    for r in p.results:
+        verdict = p.qa_verdicts.get(r.image_id) or {}
+        if variant_action(verdict) == VARIANT_AUTO_ACCEPT:
+            if auto_accept:
+                approvals.set(Approval(
+                    image_id=r.image_id, project_id=project_id, kind="variant",
+                    verdict="approved", note="onboarding auto-accept (judge pass)",
+                ))
+            accepted.append(r.wood_name)
+        else:
+            queued.append((r.wood_name, verdict.get("gates_as") or verdict.get("verdict")))
+    return {"total": len(p.results), "accepted": accepted, "queued": queued,
+            "auto_accepted": auto_accept}
