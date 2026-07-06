@@ -90,6 +90,8 @@ DOORS = [
     {"code": "LR981", "door_style": "recessed_panel_arched", "notes": ""},
     {"code": "AL757", "door_style": "recessed_panel_arched", "notes": ""},
     {"code": "FS742", "door_style": "raised_panel", "notes": ""},
+    {"code": "FS744", "door_style": "raised_panel", "notes": ""},  # arched raised (woodgrain)
+    {"code": "FS746", "door_style": "raised_panel", "notes": ""},  # arched raised (white)
 ]
 
 

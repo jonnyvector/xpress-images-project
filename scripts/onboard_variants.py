@@ -37,6 +37,7 @@ APPROVED = [
     ("FC716", "9e4ef372"),
     ("LR981", "d578fc17"),
     ("AL757", "b4e9f6c8"),
+    ("FS742", "bf30a34f"),
 ]
 
 # A diverse 5-color reliability probe: pure white (geometry-anchor case), a mid
