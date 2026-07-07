@@ -9,6 +9,24 @@ from backend.onboarding import (
     Spend,
     onboard_replica,
 )
+from backend.qa.judge import IdentityResult
+
+# These tests exercise the score/geometry gate (replica_queue_ready) and the
+# best-of-cap tie-break, not the identity judge (Task 4) — stub identity_fn to
+# always "error" so onboard_replica falls back to the pre-Task-4 gate exactly,
+# and stub extract_fn to a no-op. Without these, onboard_replica's identity_fn
+# is None/extract_fn is None default path builds a REAL google.genai client and
+# calls the live Gemini API with the literal string "key" as an API key —
+# hitting the network and burning ~10s/test in retry backoff on every run.
+_NO_IDENTITY = IdentityResult(key="k", verdict="error", reason="stubbed out in this test")
+
+
+def _stub_identity_fn(*_a, **_kw):
+    return _NO_IDENTITY
+
+
+def _stub_extract_fn(_src):
+    return []
 
 
 class FakeProject:
@@ -21,6 +39,7 @@ class FakeProject:
         self.learned_signature = None
         self.has_signature = False
         self.qa_verdicts = {}
+        self.profile_spec = None
 
 
 class FakeStore:
@@ -34,6 +53,11 @@ class FakeStore:
 
     def save(self, _pid):
         pass
+
+    def update(self, _pid, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self._p, key, value)
+        return self._p
 
     def set_active_replica(self, _pid, *, image, signature, base_image_id, verdict):
         self._p.base_door_image = image
@@ -74,6 +98,8 @@ def _make_learn_fn(script):
 
 def _run(script, **kw):
     store = FakeStore(FakeProject("TESTDOOR"))
+    kw.setdefault("identity_fn", _stub_identity_fn)
+    kw.setdefault("extract_fn", _stub_extract_fn)
     return onboard_replica(store, "pid", "key", b"upload",
                            learn_fn=_make_learn_fn(script), timeout=1, **kw), store
 
@@ -122,5 +148,6 @@ def test_learn_failure_escalates():
         project.learning_status = "error"
 
     store = FakeStore(FakeProject("D"))
-    res = onboard_replica(store, "pid", "key", b"u", learn_fn=broken_learn, timeout=1)
+    res = onboard_replica(store, "pid", "key", b"u", learn_fn=broken_learn, timeout=1,
+                          identity_fn=_stub_identity_fn, extract_fn=_stub_extract_fn)
     assert res.status == ONBOARD_ERROR

@@ -159,6 +159,21 @@ def learn_conditioning(
     return LearnConditioning(learn_in_maple=False, temperature=temp, extra_note=note)
 
 
+_MAX_DEFECT_LINES = 5
+
+
+def defect_note(defects: list[str]) -> str:
+    """Corrective block for the next learn attempt, built from named defects.
+
+    One line per defect (cap 5), minimal prose — specific facts beat verbose notes.
+    """
+    if not defects:
+        return ""
+    lines = "; ".join(f"({i + 1}) {d}" for i, d in enumerate(defects[:_MAX_DEFECT_LINES]))
+    return ("Your previous attempt differed from the sample. Fix each of these "
+            f"EXACTLY: {lines}.")
+
+
 # ---------------------------------------------------------------------------
 # Replica onboarding loop (side-effecting: learns, judges, re-learns ≤ cap)
 # ---------------------------------------------------------------------------
@@ -200,6 +215,7 @@ class OnboardResult:
     best_sum: int = 0
     base_image_id: str | None = None
     reason: str = ""
+    defects: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -208,6 +224,7 @@ class _Attempt:
     base_id: str
     image: bytes | None
     signature: bytes | None
+    identity: object | None = None  # IdentityResult | None
 
 
 def _wait_until(predicate, timeout: float, poll: float = 0.5):
@@ -267,23 +284,57 @@ def onboard_replica(
     spend: Spend | None = None,
     timeout: float = 240.0,
     learn_fn=None,
+    identity_fn=None,
+    extract_fn=None,
 ) -> OnboardResult:
-    """Learn → judge → re-learn (varying conditioning) until the replica is
-    queue-ready or the attempt cap is hit. Never approves the replica (Stage-A
-    stays human, D-001). On cap without a clean replica, restores the best
-    attempt (by score sum) and flags it needs_human.
+    """Learn → identity-judge → defect-guided re-learn until no disqualifier or the
+    attempt cap. Never approves the replica (Stage-A stays human, D-001).
 
-    The project's persisted ``style_notes`` is the base prompt for every
-    attempt (single source of truth, shared with the generation phase); the
-    ladder's per-attempt corrective is appended transiently.
+    The profile spec (verifiable geometry facts) is extracted once per project and
+    guides every attempt's conditioning; the identity judge verifies the replica
+    against it fact-by-fact plus a 7-region sweep. Named defects become the next
+    attempt's corrective. The old min-score judge still runs in the QA lane; an
+    attempt gates on it only when the identity judge errors.
     """
     if learn_fn is None:
         from backend.worker import start_learning as learn_fn  # lazy: avoid import cycle
+    if identity_fn is None or extract_fn is None:
+        from google import genai
+
+        from backend.qa.judge import judge_replica_identity
+        from backend.qa.profile_spec import extract_profile_spec
+
+        _client = genai.Client(api_key=api_key)
+        if identity_fn is None:
+            def identity_fn(src, rep, facts):  # closure mirrors learn_fn's lazy import
+                return judge_replica_identity(_client, src, rep, facts,
+                                              key=f"{project_id}:identity")
+        if extract_fn is None:
+            def extract_fn(src):
+                return extract_profile_spec(_client, src)
+
+    from backend.qa.profile_spec import profile_facts_note
 
     project = store.get(project_id)
     code = getattr(project, "name", project_id)
     base_notes = getattr(project, "style_notes", "") or ""
+
+    # Profile spec: reuse a stored one; extract once otherwise. Extraction failure
+    # falls back to today's behavior (no facts) — logged, never fatal.
+    facts = getattr(project, "profile_spec", None)
+    if facts is None:
+        try:
+            facts = extract_fn(upload_bytes)
+            store.update(project_id, profile_spec=facts)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[{code}] profile spec extraction failed ({exc}) — proceeding without")
+            facts = None
+    facts_note = profile_facts_note(facts or [])
+    if facts_note:
+        base_notes = f"{base_notes} {facts_note}".strip()
+
     low_dim: str | None = None
+    defects: list[str] = []
     attempts: list[_Attempt] = []
 
     for attempt in range(attempt_cap + 1):
@@ -295,7 +346,8 @@ def onboard_replica(
             return best
 
         cond = learn_conditioning(attempt, low_dim, allow_maple=allow_maple)
-        notes = f"{base_notes} {cond.extra_note}".strip() if cond.extra_note else base_notes
+        corrective = defect_note(defects) or cond.extra_note
+        notes = f"{base_notes} {corrective}".strip() if corrective else base_notes
 
         learn_fn(
             store, store.get(project_id), api_key, upload_bytes,
@@ -313,17 +365,38 @@ def onboard_replica(
                                  reason="learn or judge failed/timed out")
 
         p = store.get(project_id)
+        identity = identity_fn(upload_bytes, p.base_door_image, facts or [])
         attempts.append(_Attempt(verdict=verdict, base_id=base_id,
-                                 image=p.base_door_image, signature=p.learned_signature))
+                                 image=p.base_door_image, signature=p.learned_signature,
+                                 identity=identity))
 
-        if replica_queue_ready(verdict, min_score):
-            s = verdict["scores"]
-            return OnboardResult(code=code, status=QUEUED_READY, attempts=attempt + 1,
-                                 best_min_score=min(s[k] for k in SCORE_KEYS),
-                                 best_sum=score_sum(verdict), base_image_id=base_id)
+        identity_ok = getattr(identity, "verdict", "error") == "ok"
+        if identity_ok:
+            clean = (not identity.disqualified) and verdict.get("geometry") != "drift"
+        else:
+            clean = replica_queue_ready(verdict, min_score)  # identity errored: old gate
+
+        if clean:
+            s = _scores(verdict)
+            return OnboardResult(
+                code=code, status=QUEUED_READY, attempts=attempt + 1,
+                best_min_score=min((s.get(k, 0) for k in SCORE_KEYS), default=0),
+                best_sum=score_sum(verdict), base_image_id=base_id,
+                defects=list(getattr(identity, "defects", []) or []),
+            )
+        defects = list(getattr(identity, "defects", []) or []) if identity_ok else []
         low_dim = lowest_dim(verdict)
 
     return _finalize(store, project_id, attempts, min_score)
+
+
+def _attempt_rank(a: "_Attempt") -> tuple:
+    """Sort key: fewest defects (identity-ok), then highest score sum. Attempts
+    whose identity errored rank as 99 defects."""
+    ident = a.identity
+    n_def = (len(getattr(ident, "defects", []) or [])
+             if getattr(ident, "verdict", "error") == "ok" else 99)
+    return (n_def, -score_sum(a.verdict))
 
 
 def _finalize(store, project_id: str, attempts: list[_Attempt], min_score: int) -> OnboardResult:
@@ -332,10 +405,9 @@ def _finalize(store, project_id: str, attempts: list[_Attempt], min_score: int) 
     if not attempts:
         return OnboardResult(code=code, status=ONBOARD_ERROR, reason="no attempts produced")
 
-    best_i = best_attempt_index([a.verdict for a in attempts])
+    best_i = min(range(len(attempts)),
+                 key=lambda i: (_attempt_rank(attempts[i]), -i))  # ties → later attempt
     best = attempts[best_i]
-    # Restore the best replica if a later attempt overwrote it (each re-learn
-    # replaces the active replica).
     if best_i != len(attempts) - 1 and best.image is not None:
         store.set_active_replica(
             project_id, image=best.image, signature=best.signature,
@@ -348,6 +420,7 @@ def _finalize(store, project_id: str, attempts: list[_Attempt], min_score: int) 
         best_min_score=min((s.get(k, 0) for k in SCORE_KEYS), default=0),
         best_sum=score_sum(best.verdict), base_image_id=best.base_id,
         reason="no attempt reached the quality bar within the cap",
+        defects=list(getattr(best.identity, "defects", []) or []),
     )
 
 

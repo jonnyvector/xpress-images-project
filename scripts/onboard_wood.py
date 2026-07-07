@@ -110,6 +110,8 @@ def main() -> None:
     ap.add_argument("--cap", type=int, default=5, help="max re-learn attempts per door")
     ap.add_argument("--ceiling", type=float, default=6.0, help="run spend ceiling (USD)")
     ap.add_argument("--force", action="store_true", help="re-onboard even if already done")
+    ap.add_argument("--respec", action="store_true",
+                    help="re-extract the profile spec even if one is stored")
     ap.add_argument("--summary", type=Path, default=DEFAULT_SUMMARY)
     args = ap.parse_args()
 
@@ -151,6 +153,9 @@ def main() -> None:
                      style_notes=notes, selected_swatches=palette)
         store.save_upload(proj.id, f"{name}.jpg", upload)
 
+        if args.respec:
+            store.update(proj.id, profile_spec=None)
+
         res = onboard_replica(store, proj.id, key, upload, attempt_cap=args.cap,
                               min_score=3, spend=spend, allow_maple=True)
         row = asdict(res)
@@ -160,6 +165,8 @@ def main() -> None:
         tag = "READY" if res.status == QUEUED_READY else res.status.upper()
         print(f"[{name}] {tag} — {res.attempts} attempt(s), best min-score "
               f"{res.best_min_score}, project {proj.id} (spent ${spend.spent_usd:.2f})", flush=True)
+        if res.defects:
+            print(f"[{name}]   defects: {'; '.join(res.defects[:5])}", flush=True)
 
     args.summary.parent.mkdir(parents=True, exist_ok=True)
     args.summary.write_text(json.dumps(summary, indent=2))
