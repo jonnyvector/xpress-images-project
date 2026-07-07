@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from backend.qa.profile_spec import (
@@ -33,7 +35,7 @@ def test_parse_facts_rejects_empty_and_oversized():
     with pytest.raises(ValueError):
         parse_facts('{"facts": [""]}')
     with pytest.raises(ValueError):
-        parse_facts('{"facts": %s}' % (["f"] * 13))
+        parse_facts(json.dumps({"facts": ["f"] * 13}))  # valid JSON, >12 facts
     with pytest.raises(ValueError):
         parse_facts('{"nope": 1}')
 

@@ -156,7 +156,7 @@ signal during rollout).
 ### 5. Calibration gate — `scripts/qa_replica_eval.py` (new)
 
 The 2026-07-06/07 review session produced a real calibration set: **29
-operator-rejected + ~33 operator-approved wood replicas** (verdicts in
+operator-rejected + 68 operator-approved replicas** (verdicts in
 `output/.qa/approvals.json`, images in the projects). Before the identity judge
 replaces the gate in the onboarding loop:
 
