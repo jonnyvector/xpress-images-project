@@ -156,3 +156,103 @@ class VisionJudge:
             confidence=data.get("confidence", "low"),
             reason=str(data.get("reason", "")),
         )
+
+
+# --- Replica identity judging (profile-spec pipeline) -----------------------
+# The similarity rubric above still governs variants; replicas gate on THIS.
+
+from backend.qa.profile_spec import REGIONS  # noqa: E402  (grouped with its feature)
+
+IDENTITY_PROMPT = """You are comparing two cabinet door photos for GEOMETRIC IDENTITY.
+The FIRST image is the SAMPLE photo of the real door. The LAST image is an
+AI-generated replica rendered at 9:16 — it may be TALLER than the sample. Repeating
+elements (louver slats, grooves, planks) continuing at the same pitch on a taller door
+is CORRECT; a different pitch, spacing ratio, or element profile IS a defect.
+
+The replica must be the IDENTICAL door design. Wood grain figure, color, lighting,
+shadows and camera angle are NEVER defects. Any nameable geometric difference IS.
+
+Step 1 — verify each stated fact against the replica:
+{facts}
+
+Step 2 — region sweep. For EACH region below, compare sample vs replica and answer
+"matches" or state the difference in one sentence:
+- outside_edge: the door's outer edge profile
+- stiles_rails: frame member widths and proportions
+- joints_corners: miter 45-degree lines vs cope-and-stick vs butt
+- inside_edge: the frame-to-panel transition profile (step, bevel, ogee, routing)
+- panel: type, raise profile or recess depth, surface texture geometry
+- trim_molding: applied molding present/absent and its profile
+- top_rail_arch: square vs cathedral vs radius geometry
+
+Reply with ONLY a JSON object, no markdown fences:
+{{"fact_checks": [{{"fact": "...", "holds": true, "observed": "..."}}, ...],
+"region_sweep": {{"outside_edge": "matches", "stiles_rails": "...", "joints_corners": "...",
+"inside_edge": "...", "panel": "...", "trim_molding": "...", "top_rail_arch": "..."}},
+"defects": ["one-line geometric difference", ...],
+"disqualified": true/false}}"""
+
+
+@dataclass
+class IdentityResult:
+    key: str
+    fact_checks: list[dict] = field(default_factory=list)
+    region_sweep: dict = field(default_factory=dict)
+    defects: list[str] = field(default_factory=list)
+    disqualified: bool = True
+    verdict: str = "ok"  # "ok" | "error"
+    reason: str = ""
+
+
+def parse_identity(key: str, text: str) -> IdentityResult:
+    cleaned = re.sub(r"^```(json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
+    data = json.loads(cleaned)
+    sweep = data.get("region_sweep") or {}
+    missing = [r for r in REGIONS if r not in sweep]
+    if missing:
+        raise ValueError(f"region_sweep missing regions: {missing}")
+    checks = [
+        {"fact": str(c.get("fact", "")), "holds": bool(c.get("holds")),
+         "observed": str(c.get("observed", ""))}
+        for c in data.get("fact_checks") or []
+    ]
+    defects = [str(d) for d in data.get("defects") or []]
+    # Derive disqualification — the model's flag alone is not trusted. A failed
+    # fact or a non-matching region always disqualifies and always yields a defect.
+    for c in checks:
+        if not c["holds"]:
+            line = f"fact failed — {c['fact']} (observed: {c['observed']})"
+            if not any(c["fact"] in d for d in defects):
+                defects.append(line)
+    for region in REGIONS:
+        answer = str(sweep[region]).strip()
+        if answer.lower() != "matches" and not any(answer in d for d in defects):
+            defects.append(f"{region}: {answer}")
+    disqualified = bool(data.get("disqualified")) or bool(defects)
+    return IdentityResult(key=key, fact_checks=checks, region_sweep=sweep,
+                          defects=defects, disqualified=disqualified)
+
+
+def judge_replica_identity(
+    client, source_bytes: bytes, replica_bytes: bytes, facts: list[str],
+    *, model: str = DEFAULT_MODEL, key: str = "",
+) -> IdentityResult:
+    fallback = "- (no stated facts; rely on the region sweep)"
+    fact_lines = "\n".join(f"- {f}" for f in facts) if facts else fallback
+    prompt = IDENTITY_PROMPT.format(facts=fact_lines)
+    parts = [
+        types.Part.from_bytes(data=source_bytes, mime_type=_mime(source_bytes)),
+        types.Part.from_bytes(data=replica_bytes, mime_type=_mime(replica_bytes)),
+        types.Part.from_text(text=prompt),
+    ]
+    contents = [types.Content(role="user", parts=parts)]
+    last = ""
+    for attempt in range(3):
+        try:
+            resp = client.models.generate_content(model=model, contents=contents)
+            return parse_identity(key, resp.text or "")
+        except Exception as exc:  # noqa: BLE001 - retry then error result
+            last = str(exc)
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+    return IdentityResult(key=key, verdict="error", reason=last)
