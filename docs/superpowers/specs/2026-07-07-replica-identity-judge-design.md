@@ -58,6 +58,18 @@ only. Output = a JSON list of short, individually verifiable geometric facts:
 ```
 
 Extraction-prompt rules:
+- **Walk the full door anatomy — one fact (or explicit "none/plain") per region:**
+  1. **Outside edge** — the door's outer edge profile (square, eased, roundover, bevel)
+  2. **Stiles & rails** — widths, equal or not, grain direction through them
+  3. **Joints/corners** — miter (45° lines) vs cope-and-stick vs butt
+  4. **Inside edge** — the frame-to-panel transition profile (sharp step, bevel, ogee,
+     routed sticking)
+  5. **Panel** — type (flat/raised/beadboard/plank/louver), raise profile or recess
+     depth, surface texture
+  6. **Trim / applied molding** — present or absent; profile if present
+  7. **Top-rail / arch geometry** — square, cathedral, radius
+  No region may be skipped: an unremarkable region gets a "plain/none" fact, which is
+  itself verifiable (added trim where the source has none = defect).
 - Countable/checkable facts only: structural counts, pitch/spacing ratios, widths (in
   inches where stated by the door spec, else relative to a repeating element),
   edge/bevel shapes, panel type and recess depth, joint type, arch geometry.
@@ -87,7 +99,11 @@ The old rubric (`RUBRIC_PROMPT`, min-score) is untouched — it still governs va
 
 Input = source photo + replica + the facts list. One call, two-step procedure:
 1. **Verify each fact** against the replica → `{fact, holds, observed}` per fact.
-2. **Free hunt:** "name any other geometric difference between the two doors."
+2. **Region sweep (structured free hunt):** walk the same seven anatomy regions —
+   outside edge, stiles & rails, joints/corners, inside edge, panel, trim/molding,
+   top-rail/arch — and for EACH region state "matches" or name the difference. The
+   sweep runs even where a region has a fact, so a difference the extraction missed
+   still gets caught.
 
 Verify-prompt rules:
 - "The generated door is 9:16 and may be taller than the sample — repeating elements
@@ -95,9 +111,9 @@ Verify-prompt rules:
   pitch, spacing ratio, or element profile IS a defect."
 - Explicit carve-out: grain figure, lighting, shadow, camera angle never disqualify.
 
-Output JSON: `{"fact_checks": [...], "extra_differences": [...],
-"disqualified": bool, "defects": ["one-line defect", ...]}`. Any failed fact or named
-geometric difference disqualifies.
+Output JSON: `{"fact_checks": [...], "region_sweep": {"outside_edge": "matches" |
+"<difference>", ...}, "disqualified": bool, "defects": ["one-line defect", ...]}`.
+Any failed fact or any region-sweep difference disqualifies.
 
 ### 4. Defect-guided re-learn — change in the `onboard_replica` loop
 
