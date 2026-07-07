@@ -34,6 +34,11 @@ VERIFIABLE facts, one per region, prefixed with the region name:
 Rules:
 - No region may be skipped. An unremarkable region gets an explicit plain/none fact
   (e.g. "trim_molding: none").
+- EDGES FIRST. The outside_edge fact MUST name the precise profile: square, eased,
+  chamfered, or BULLNOSE (fully rounded). The stiles_rails fact MUST state whether the
+  door has left/right side stiles at all — some doors have only top/bottom rails and
+  their planks/panels RUN OFF the left and right door edges, with the outermost
+  elements cut by the edge. Say which construction this door is.
 - Facts must be checkable by looking: structural counts, pitch/spacing ratios, widths
   (relative to a repeating element unless an absolute width is visually obvious),
   edge/bevel shapes, panel type and recess depth, joint type, arch geometry.
@@ -41,6 +46,16 @@ Rules:
 - The replica will be rendered at 9:16, likely taller than this sample. For repeating
   elements (louver slats, beadboard grooves, plank boards) state pitch/spacing/profile
   relative to the elements themselves, never an absolute count.
+- State ONLY what is visually certain. Construction details that are hard to read at
+  photo scale — joint type (miter vs cope-and-stick), a hairline edge roundover — go in
+  a fact ONLY when unmistakable (e.g. clearly visible 45-degree corner lines); when in
+  doubt, describe the region without that detail.
+- Describe PROFILE GEOMETRY with its CHARACTER, not just its type: a raise is sharp/
+  steep or gradual/shallow; molding is fat or fine, standing proud with a deep reveal
+  or flat; grooves are deep chamfered V's or faint lines; reeds/flutes are half-round
+  (state if their ends are rounded); state raise border width relative to the panel and
+  arch curve shape (how far it drops, radius vs cathedral) — character carries the
+  door's identity.
 - Never mention wood species, color, grain figure, lighting, or photo quality.
 - 7 to 12 facts total, each one line.
 

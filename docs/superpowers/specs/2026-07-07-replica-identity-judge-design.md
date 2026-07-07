@@ -1,10 +1,39 @@
 # Replica Identity Judge (Profile-Spec Pipeline)
 
 **Date:** 2026-07-07
-**Status:** Design — approved, ready for implementation planning
+**Status:** SHIPPED as a re-roll ASSIST — the replace-the-gate calibration bar was
+NOT met (see Calibration outcome below); operator approved shipping as assist.
 **Relates to:** `2026-07-06-wood-onboarding-foundation-design.md` (Pillar 1 shipped;
 this replaces the replica-phase quality gate that Pillar 1's onboarding runs exposed
 as too loose).
+
+## Calibration outcome (2026-07-07, operator sign-off)
+
+Three full eval passes against 97 operator verdicts (29 rejects / 68 approves), plus
+an ensemble simulation across all three runs:
+
+| Pass | Catch | False-fail |
+|---|---|---|
+| Run 1 (baseline prompts) | 62% | 19% |
+| Run 2 (+certainty rule) | 55% | 18% |
+| Run 3 (+operator-calibrated edges-first + characterize-then-compare) | 52% | 10% |
+| Union of 3 runs (simulated) | 74% | 36% |
+| Majority 2-of-3 (simulated) | 37% | 14% |
+
+Findings:
+- Each run catches a different, weakly-overlapping subset — per-door detection is at
+  the model's visual-discrimination limit; no vote scheme reaches 80/20.
+- Operator adjudication of the never-caught 8 identified the dominant failure mode:
+  **9:16 side-cropping** (the model narrows a door by cropping side stiles/molding
+  instead of narrowing members — Apache, Rhode Island, Ambassador) plus outer-edge
+  profile misses (bullnose) and profile-CHARACTER misses (sharp-vs-gradual raise,
+  fat-vs-fine molding). These are now named in both prompts (edges-first discipline),
+  which lifted hard-8 catches from 0 to 3 and halved false-fails.
+- Decision: the identity judge ships as built inside `onboard_replica` — facts guide
+  generation from attempt 1, defects guide retries, disqualification triggers re-rolls
+  — but it is an ASSIST, not an approval oracle. Stage-A (operator reviews every
+  replica) remains the identity gate. Re-run `scripts/qa_replica_eval.py` against the
+  frozen verdict window when a stronger vision model ships.
 
 ## Problem
 

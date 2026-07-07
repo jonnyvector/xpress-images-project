@@ -170,19 +170,46 @@ elements (louver slats, grooves, planks) continuing at the same pitch on a talle
 is CORRECT; a different pitch, spacing ratio, or element profile IS a defect.
 
 The replica must be the IDENTICAL door design. Wood grain figure, color, lighting,
-shadows and camera angle are NEVER defects. Any nameable geometric difference IS.
+shadows and camera angle are NEVER defects. Any geometric difference you are VISUALLY
+CERTAIN of IS a defect. Certainty rule: construction details that are hard to read at
+photo scale — joint type (miter vs cope-and-stick vs butt), a hairline edge roundover —
+count as a difference ONLY when unmistakable in BOTH images (e.g. clearly visible
+45-degree corner lines in one and clearly absent in the other); when in doubt, answer
+"matches". A fact about such a detail holds unless clearly contradicted.
+
+CHECK THE DOOR'S EDGES FIRST — the most common replica failure is at the perimeter,
+not the interior. Compare the LEFT and RIGHT edges of both doors: does the sample have
+side stiles, and does the replica? Does frame molding run down BOTH sides in both? Do
+planks/panels run off the door edge (outermost elements cut by the edge) in one but
+not the other? A replica that CROPS AWAY side stiles or side molding, or ADDS side
+stiles where the sample's elements run off the edge, is disqualified — this is a known
+failure when adapting to 9:16: the door gets narrowed by cropping its sides instead of
+narrowing its members. Also compare the OUTER EDGE profile precisely: square vs eased
+vs chamfered vs bullnose (fully rounded).
+
+Profile geometry is where the remaining near-misses fail. For outside_edge,
+inside_edge, panel and trim_molding, CHARACTERIZE THEN COMPARE: first describe the
+sample's profile character in a few words (e.g. "sharp steep raise" vs "gradual
+shallow raise"; "fat quarter-round molding standing proud, deep reveal" vs "slim flat
+molding"; "deep chamfered V-grooves" vs "faint scratched lines"; "half-round reeds
+with rounded ends" vs "flat boards"), then describe the replica's the same way, then
+compare. A different CHARACTER is a defect even when the type matches — name it
+precisely.
 
 Step 1 — verify each stated fact against the replica:
 {facts}
 
 Step 2 — region sweep. For EACH region below, compare sample vs replica and answer
 "matches" or state the difference in one sentence:
-- outside_edge: the door's outer edge profile
-- stiles_rails: frame member widths and proportions
-- joints_corners: miter 45-degree lines vs cope-and-stick vs butt
-- inside_edge: the frame-to-panel transition profile (step, bevel, ogee, routing)
-- panel: type, raise profile or recess depth, surface texture geometry
-- trim_molding: applied molding present/absent and its profile
+- outside_edge: precise outer edge profile (square / eased / chamfered / bullnose)
+- stiles_rails: side stiles present or absent; elements cut off at the door's left and
+  right edges; member widths and proportions
+- joints_corners: miter 45-degree lines vs cope-and-stick vs butt (certainty rule applies)
+- inside_edge: the frame-to-panel transition profile (step, bevel, ogee, routing) and
+  its character (soft wide bevel vs crisp narrow step)
+- panel: type, raise character (sharp vs gradual), recess depth, surface texture
+  geometry (groove depth, reed profile)
+- trim_molding: applied molding present/absent, its weight (fat vs fine) and reveal depth
 - top_rail_arch: square vs cathedral vs radius geometry
 
 Reply with ONLY a JSON object, no markdown fences:
