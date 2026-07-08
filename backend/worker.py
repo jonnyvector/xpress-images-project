@@ -250,12 +250,16 @@ def _run_learn(
     learn_in_maple: bool = False,
     temperature: float = 0.0,
     style_notes: str = "",
+    profile_bytes: bytes | None = None,
 ) -> None:
     """Run learn_door_style in background thread."""
     temp_path = OUTPUT_DIR / f"temp_learn_{project_id}.png"
+    profile_path = OUTPUT_DIR / f"temp_profile_{project_id}.jpg"
     try:
         temp_path.parent.mkdir(parents=True, exist_ok=True)
         temp_path.write_bytes(upload_bytes)
+        if profile_bytes:
+            profile_path.write_bytes(profile_bytes)
 
         generator = DoorGenerator(api_key=api_key, model=gemini_model)
         with _api_semaphore:
@@ -269,6 +273,7 @@ def _run_learn(
                 learn_in_maple=learn_in_maple,
                 temperature=temperature,
                 style_notes=style_notes,
+                profile_image_path=profile_path if profile_bytes else None,
             )
 
         project = store.get(project_id)
@@ -315,6 +320,7 @@ def _run_learn(
             store.save(project_id)
     finally:
         temp_path.unlink(missing_ok=True)
+        profile_path.unlink(missing_ok=True)
 
 
 def start_learning(
@@ -327,6 +333,7 @@ def start_learning(
     aspect_ratio: str | None = None,
     temperature: float = 0.0,
     style_notes: str = "",
+    profile_bytes: bytes | None = None,
 ) -> None:
     """Kick off background learning for a project.
 
@@ -359,6 +366,7 @@ def start_learning(
         learn_in_maple,
         temperature,
         style_notes,
+        profile_bytes,
     )
 
 

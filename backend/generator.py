@@ -404,6 +404,7 @@ class DoorGenerator:
         learn_in_maple: bool = False,
         temperature: float = 0.0,
         style_notes: str = "",
+        profile_image_path: Path | None = None,
     ) -> GenerationResult:
         """
         Have Gemini generate its own version of the door to capture its understanding.
@@ -481,6 +482,19 @@ class DoorGenerator:
         if style_notes:
             prompt += f" STRUCTURAL DETAILS: {style_notes}"
 
+        # Profile anchor (see docs/superpowers/specs/2026-07-08-profile-anchor-design.md):
+        # the catalog cross-section carries profile geometry a front-facing photo
+        # underdetermines. Geometry stays in the image — this framing line is the
+        # only prose allowed about it.
+        has_profile = profile_image_path is not None and profile_image_path.exists()
+        if has_profile:
+            prompt += (
+                " PROFILE CROSS-SECTION: an additional small line drawing is "
+                "attached — a cross-section of this exact door's edge, frame, and "
+                "panel profile viewed edge-on. Reproduce this exact profile "
+                "geometry. Do not copy the drawing's line-art rendering style."
+            )
+
         # Load the reference image with HIGH media resolution so Gemini uses
         # ~1120 tokens to analyze it (vs default 256) — critical for reading
         # fine details like exact stile/rail widths from the input image.
@@ -497,6 +511,17 @@ class DoorGenerator:
             types.Part.from_text(text=prompt),
             ref_part,
         ]
+
+        if has_profile:
+            parts.append(
+                types.Part.from_bytes(
+                    data=profile_image_path.read_bytes(),
+                    mime_type=MIME_MAP.get(profile_image_path.suffix.lower(), "image/jpeg"),
+                    # The drawings are tiny (130-185px); HIGH resolution gives the
+                    # model enough tokens to read the profile shape.
+                    media_resolution=types.PartMediaResolutionLevel.MEDIA_RESOLUTION_HIGH,
+                )
+            )
 
         if maple_swatch_path and maple_swatch_path.exists():
             swatch_bytes = maple_swatch_path.read_bytes()
