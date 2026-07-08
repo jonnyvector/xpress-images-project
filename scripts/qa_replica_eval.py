@@ -150,9 +150,14 @@ def main() -> None:
               f"  {('; '.join(result.defects[:2]))[:80]}")
 
     summary = rates(rows)
-    REPORT.parent.mkdir(parents=True, exist_ok=True)
-    REPORT.write_text(json.dumps({"rows": rows, "summary": summary,
-                                  "skipped": skipped}, indent=2))
+    # Anchored runs use a different QA path (drawing-aware judging) than the
+    # pre-anchor baseline — clobbering REPORT would erase the number we
+    # compare anchored results against.
+    report_path = (REPORT.with_name("replica_eval_anchored.json")
+                   if any(r["anchored"] for r in rows) else REPORT)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps({"rows": rows, "summary": summary,
+                                       "skipped": skipped}, indent=2))
     print(f"\ncatch_rate={summary['catch_rate']:.0%} (bar >= {CATCH_BAR:.0%})"
           f"   false_fail_rate={summary['false_fail_rate']:.0%} (bar <= {FALSE_FAIL_BAR:.0%})"
           f"   -> {'ACCEPTED' if summary['accepted'] else 'NOT ACCEPTED'}")
@@ -160,7 +165,7 @@ def main() -> None:
         print(f"skipped {len(skipped)} rows (not silently dropped):")
         for name, why in skipped:
             print(f"  - {name}: {why}")
-    print(f"report -> {REPORT}")
+    print(f"report -> {report_path}")
 
 
 if __name__ == "__main__":

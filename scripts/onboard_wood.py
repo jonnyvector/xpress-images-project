@@ -151,7 +151,7 @@ def main() -> None:
             continue
 
         profile = resolve_profile(name)
-        profile_bytes = profile.read_bytes() if profile else None
+        profile_bytes = (profile.read_bytes() or None) if profile else None
         if profile_bytes is None:
             print(f"[{name}] note — no 3d-profile cross-section in catalog; "
                   "onboarding without anchor")

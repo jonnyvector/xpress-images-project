@@ -64,3 +64,19 @@ def test_cache_path_separates_anchored_from_plain():
     assert plain.name == "p1.json"
     assert anchored.name == "p1__anchored.json"
     assert plain != anchored
+
+
+def test_profile_bytes_prefers_manifest_path_then_catalog(tmp_path, monkeypatch):
+    drawing = tmp_path / "3d-profile.jpg"
+    drawing.write_bytes(b"manifest-xsec")
+    # Branch 1: manifest path exists -> its bytes win, no catalog lookup
+    assert ev._profile_bytes(
+        {"profile_image_path": str(drawing)}, "El Dorado Cabinet Door") == b"manifest-xsec"
+    # Branch 2: no/missing manifest path -> catalog fallback via resolve_profile(door_code(name))
+    calls = []
+    fallback = tmp_path / "fallback.jpg"
+    fallback.write_bytes(b"catalog-xsec")
+    monkeypatch.setattr(ev, "resolve_profile",
+                        lambda name: calls.append(name) or fallback)
+    assert ev._profile_bytes({}, "El Dorado Cabinet Door") == b"catalog-xsec"
+    assert calls == ["El Dorado"]

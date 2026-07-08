@@ -260,6 +260,8 @@ def _run_learn(
         temp_path.write_bytes(upload_bytes)
         if profile_bytes:
             profile_path.write_bytes(profile_bytes)
+            print(f"[learn {project_id}] profile anchor attached "
+                  f"({len(profile_bytes)} bytes)", flush=True)
 
         generator = DoorGenerator(api_key=api_key, model=gemini_model)
         with _api_semaphore:
@@ -320,7 +322,8 @@ def _run_learn(
             store.save(project_id)
     finally:
         temp_path.unlink(missing_ok=True)
-        profile_path.unlink(missing_ok=True)
+        if profile_bytes:
+            profile_path.unlink(missing_ok=True)
 
 
 def start_learning(
