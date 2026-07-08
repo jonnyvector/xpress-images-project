@@ -5,7 +5,7 @@
 > file as features are implemented — never mark a milestone complete
 > until every current-cutoff checkbox under it is checked.
 
-> Current focus: Phase 2 — Lean plumbing + observability
+> Current focus: Phase 4 — Style-prompt audit (operator review pending)
 
 ## Phase 1: Spike — lean-tail composition (COMPLETE 2026-07-08)
 
@@ -22,52 +22,52 @@ Source: `.plans/lean-conditioning/artifacts/spike-report.md`
 Source: `backend/generator.py::learn_door_style`, `backend/worker.py`,
 `.plans/lean-conditioning/implementation.md` M2
 
-- [ ] `learn_door_style(lean=True)` uses the lean prompt text in place of `STYLES[door_style]["learn_prompt"]`
-- [ ] lean=True retains the corner-style block (sharp and bullnose)
-- [ ] lean=True retains the CRITICAL DIMENSIONS block
-- [ ] lean=True retains the RTF material block when `material_type="rtf"`
-- [ ] lean=True retains image parts, including optional `profile_image_path`
-- [ ] `GenerationResult` carries the assembled prompt for a styled call
-- [ ] `GenerationResult` carries the assembled prompt for a lean call
-- [ ] `start_learning` accepts and forwards `lean` and `attempt_label` keywords
-- [ ] `_run_learn` forwards `lean`/label to `learn_door_style` and receives the prompt
-- [ ] Sidecar written to `output/.onboard/prompts/<pid>/<label>-<utc-ts>.txt`
-- [ ] Layer-summary log line emitted (`style=<key>|lean`, notes present/empty, anchor yes/no)
-- [ ] Sidecar write failure is logged and the learn still succeeds
-- [ ] UI-initiated learns get label `ui`
-- [ ] El Dorado (`141216d1`) `door_style` reverted to `raised_panel` with `base_image_id` unchanged
-- [ ] Full suite green + lint (backend, scripts, tests) after M2
+- [x] `learn_door_style(lean=True)` uses the lean prompt text in place of `STYLES[door_style]["learn_prompt"]`
+- [x] lean=True retains the corner-style block (sharp and bullnose)
+- [x] lean=True retains the CRITICAL DIMENSIONS block
+- [x] lean=True retains the RTF material block when `material_type="rtf"`
+- [x] lean=True retains image parts, including optional `profile_image_path`
+- [x] `GenerationResult` carries the assembled prompt for a styled call
+- [x] `GenerationResult` carries the assembled prompt for a lean call
+- [x] `start_learning` accepts and forwards `lean` and `attempt_label` keywords
+- [x] `_run_learn` forwards `lean`/label to `learn_door_style` and receives the prompt
+- [x] Sidecar written to `output/.onboard/prompts/<pid>/<label>-<utc-ts>.txt`
+- [x] Layer-summary log line emitted (`style=<key>|lean`, notes present/empty, anchor yes/no)
+- [x] Sidecar write failure is logged and the learn still succeeds
+- [x] UI-initiated learns get label `ui`
+- [x] El Dorado (`141216d1`) `door_style` reverted to `raised_panel` with `base_image_id` unchanged
+- [x] Full suite green + lint (backend, scripts, tests) after M2
 
 ## Phase 3: Ladder redesign (fixed split)
 
 ### M3: Fixed split in `learn_conditioning`/`onboard_replica`
 Source: `backend/onboarding.py`, `.plans/lean-conditioning/implementation.md` M3
 
-- [ ] Attempt 0 conditioning unchanged (style prompt + spec notes + facts note)
-- [ ] Attempt 1 maple rung unchanged (wood, `allow_maple=True`)
-- [ ] Attempt 1 native+corrective unchanged (RTF, `allow_maple=False`)
-- [ ] Defect corrective from attempt 0 still feeds attempt 1
-- [ ] Anchor still attaches at attempt 1 (existing anchor-gating test passes)
-- [ ] Attempts ≥ 2 call `learn_fn` with `lean=True`
-- [ ] Attempts ≥ 2 `style_notes` == spec width note for doors with `frame_width_in`
-- [ ] Attempts ≥ 2 `style_notes` == "" for doors without `frame_width_in`
-- [ ] Attempts ≥ 2 pass `profile_bytes=None` (no anchor in the tail)
-- [ ] Every rung runs temperature 0; rising-temperature schedule removed
-- [ ] `attempt_cap=1` never reaches the lean tail
-- [ ] Attempt labels `attempt{i}` threaded through to the worker
-- [ ] `base_notes` split into separable spec-note and facts-note inputs
-- [ ] Old temperature-schedule tests updated (not silently deleted)
-- [ ] Full suite green + lint after M3
+- [x] Attempt 0 conditioning unchanged (style prompt + spec notes + facts note)
+- [x] Attempt 1 maple rung unchanged (wood, `allow_maple=True`)
+- [x] Attempt 1 native+corrective unchanged (RTF, `allow_maple=False`)
+- [x] Defect corrective from attempt 0 still feeds attempt 1
+- [x] Anchor still attaches at attempt 1 (existing anchor-gating test passes)
+- [x] Attempts ≥ 2 call `learn_fn` with `lean=True`
+- [x] Attempts ≥ 2 `style_notes` == spec width note for doors with `frame_width_in`
+- [x] Attempts ≥ 2 `style_notes` == "" for doors without `frame_width_in`
+- [x] Attempts ≥ 2 pass `profile_bytes=None` (no anchor in the tail)
+- [x] Every rung runs temperature 0; rising-temperature schedule removed
+- [x] `attempt_cap=1` never reaches the lean tail
+- [x] Attempt labels `attempt{i}` threaded through to the worker
+- [x] `base_notes` split into separable spec-note and facts-note inputs
+- [x] Old temperature-schedule tests updated (not silently deleted)
+- [x] Full suite green + lint after M3
 
 ## Phase 4: Style-prompt audit
 
 ### M4: Audit table + surgical edit
 Source: `backend/styles/catalog.py`, `docs/qa-style-prompt-audit.md`
 
-- [ ] Audit table covers all 38 `learn_prompt`s with flagged prior-cueing vocabulary
-- [ ] Table lists the 3 sibling styles duplicating "bevel profile" as flagged-not-edited
-- [ ] `raised_panel`'s `learn_prompt` contains no "bevel" token (test-locked)
-- [ ] `raised_panel`'s prompt still names the panel raise
+- [x] Audit table covers all 39 `learn_prompt`s with flagged prior-cueing vocabulary
+- [x] Table lists the 3 sibling styles duplicating "bevel profile" as flagged-not-edited
+- [x] `raised_panel`'s `learn_prompt` contains no "bevel" token (test-locked)
+- [x] `raised_panel`'s prompt still names the panel raise
 - [ ] Operator has reviewed the audit table
 
 ## Phase 5: Rollout (operator-gated)
@@ -92,9 +92,9 @@ Source: `scripts/onboard_wood.py`, spike-report roster
 (none)
 
 ## Summary
-- Total features: 44 (3 complete + 41 remaining)
-- Completed: 3
-- Remaining: 41
-- Current cutoff blockers: 41
+- Total features: 44 (37 complete + 7 remaining)
+- Completed: 37
+- Remaining: 7
+- Current cutoff blockers: 7
 - Accepted/deferred follow-up: 2
 - Superseded/obsolete checklist debt: 0
