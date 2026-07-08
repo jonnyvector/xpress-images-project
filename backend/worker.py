@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -236,6 +237,16 @@ def _run_generation(
 OUTPUT_DIR = Path("output")
 
 
+def _write_prompt_sidecar(project_id: str, attempt_label: str, prompt: str) -> Path:
+    """Persist one learn attempt's fully assembled prompt (forensics, D-005)."""
+    pdir = OUTPUT_DIR / ".onboard" / "prompts" / project_id
+    pdir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
+    path = pdir / f"{attempt_label}-{ts}.txt"
+    path.write_text(prompt)
+    return path
+
+
 def _run_learn(
     store: ProjectStore,
     project_id: str,
@@ -251,6 +262,8 @@ def _run_learn(
     temperature: float = 0.0,
     style_notes: str = "",
     profile_bytes: bytes | None = None,
+    lean: bool = False,
+    attempt_label: str = "ui",
 ) -> None:
     """Run learn_door_style in background thread."""
     temp_path = OUTPUT_DIR / f"temp_learn_{project_id}.png"
@@ -276,7 +289,23 @@ def _run_learn(
                 temperature=temperature,
                 style_notes=style_notes,
                 profile_image_path=profile_path if profile_bytes else None,
+                lean=lean,
             )
+
+        # Prompt observability (lean-conditioning D-005/D-010): one layer-summary
+        # line + the full assembled prompt in a timestamped sidecar. A sidecar
+        # write failure never fails the learn.
+        print(f"[learn {project_id}] layers: "
+              f"style={'lean' if lean else door_style} "
+              f"notes={'present' if style_notes else 'empty'} "
+              f"anchor={'yes' if profile_bytes else 'no'}", flush=True)
+        prompt_text = getattr(result, "prompt", "")
+        if prompt_text:
+            try:
+                _write_prompt_sidecar(project_id, attempt_label, prompt_text)
+            except OSError as exc:
+                print(f"[learn {project_id}] prompt sidecar write failed: {exc}",
+                      flush=True)
 
         project = store.get(project_id)
         if project is None:
@@ -337,6 +366,8 @@ def start_learning(
     temperature: float = 0.0,
     style_notes: str = "",
     profile_bytes: bytes | None = None,
+    lean: bool = False,
+    attempt_label: str = "ui",
 ) -> None:
     """Kick off background learning for a project.
 
@@ -370,6 +401,8 @@ def start_learning(
         temperature,
         style_notes,
         profile_bytes,
+        lean,
+        attempt_label,
     )
 
 

@@ -99,6 +99,9 @@ class GenerationResult:
     image_data: bytes | None
     thought_signature: bytes | None
     error: str | None = None
+    # The fully assembled prompt that was (or would have been) sent — set by
+    # learn_door_style for the prompt-sidecar observability contract (D-005).
+    prompt: str = ""
 
 
 def _corner_instruction(corner_style: str) -> str:
@@ -405,6 +408,7 @@ class DoorGenerator:
         temperature: float = 0.0,
         style_notes: str = "",
         profile_image_path: Path | None = None,
+        lean: bool = False,
     ) -> GenerationResult:
         """
         Have Gemini generate its own version of the door to capture its understanding.
@@ -424,7 +428,11 @@ class DoorGenerator:
             GenerationResult with Gemini's door image and thought signature
         """
         style = STYLES.get(door_style, STYLES["recessed_panel"])
-        prompt = style["learn_prompt"]
+        # Lean mode (lean-conditioning plan): the bare lean prompt replaces ONLY
+        # the style-prompt layer; every other assembly step below (corner,
+        # material, dimensions, notes, images) runs unchanged.
+        prompt = (STYLES["rtf_minimal"]["learn_prompt"] if lean
+                  else style["learn_prompt"])
 
         # Inject corner style instruction
         if corner_style == "bullnose":
@@ -547,6 +555,7 @@ class DoorGenerator:
             contents, config, label="learn_door_style"
         )
         if error_result is not None:
+            error_result.prompt = prompt
             return error_result
 
         image_data, signature, _ = self._extract_image_and_signature(response)
@@ -556,6 +565,7 @@ class DoorGenerator:
                 image_data=None,
                 thought_signature=signature,
                 error="No image returned from API",
+                prompt=prompt,
             )
 
         if not signature:
@@ -569,11 +579,13 @@ class DoorGenerator:
                 thought_signature=None,
                 error="No thought signature returned — cannot generate consistent variations. "
                 "Please retry learning.",
+                prompt=prompt,
             )
 
         return GenerationResult(
             image_data=image_data,
             thought_signature=signature,
+            prompt=prompt,
         )
 
     def generate_variation(
