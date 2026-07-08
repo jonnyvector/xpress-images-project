@@ -54,6 +54,7 @@ class ProjectState:
     corner_style: str = "sharp"  # "sharp" | "bullnose"
     style_notes: str = ""
     profile_spec: list[str] | None = None  # verifiable geometry facts (profile_spec.py)
+    profile_image_path: str | None = None  # catalog 3d-profile cross-section (profile anchor)
     gemini_model: str = "gemini-3-pro-image-preview"
     selected_swatches: list[str] = field(default_factory=list)
     upload_filename: str | None = None
@@ -173,6 +174,7 @@ class ProjectStore:
 
                 project.base_image_id = data.get("base_image_id")
                 project.profile_spec = data.get("profile_spec")
+                project.profile_image_path = data.get("profile_image_path")
                 # Migration: a replica without an identity can't be approved —
                 # assign one at load (persisted on the next save).
                 if project.base_image_id is None and project.base_door_image is not None:
@@ -242,6 +244,7 @@ class ProjectStore:
             "corner_style": project.corner_style,
             "style_notes": project.style_notes,
             "profile_spec": project.profile_spec,
+            "profile_image_path": project.profile_image_path,
             "gemini_model": project.gemini_model,
             "selected_swatches": project.selected_swatches,
             "upload_filename": project.upload_filename,
