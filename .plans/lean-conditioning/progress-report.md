@@ -5,7 +5,7 @@
 > file as features are implemented — never mark a milestone complete
 > until every current-cutoff checkbox under it is checked.
 
-> Current focus: Phase 4 — Style-prompt audit (operator review pending)
+> Current focus: Phase 5 — Rollout (operator-gated)
 
 ## Phase 1: Spike — lean-tail composition (COMPLETE 2026-07-08)
 
@@ -68,16 +68,16 @@ Source: `backend/styles/catalog.py`, `docs/qa-style-prompt-audit.md`
 - [x] Table lists the 3 sibling styles duplicating "bevel profile" as flagged-not-edited
 - [x] `raised_panel`'s `learn_prompt` contains no "bevel" token (test-locked)
 - [x] `raised_panel`'s prompt still names the panel raise
-- [ ] Operator has reviewed the audit table
+- [x] Operator has reviewed the audit table (approved 2026-07-09)
 
 ## Phase 5: Rollout (operator-gated)
 
 ### M5: Resistant-class batches
 Source: `scripts/onboard_wood.py`, spike-report roster
 
-- [ ] Gate 3→4: El Dorado dry-run through the new ladder (mechanics verified: lean tail at attempt 2, labels + sidecars correct)
-- [ ] Batch 1: Journey re-onboarded via driver, replica in Stage-A review
-- [ ] Batch 1: Dylan re-onboarded via driver, replica in Stage-A review
+- [x] Gate 3→4: El Dorado dry-run through the new ladder (mechanics verified: lean tail at attempt 2, labels + sidecars correct — cap-hit on draw luck [4 lean draws all beveled, ~32% probability], judge named the right defect every attempt; clean roll-4 replica restored as active from v31)
+- [x] Batch 1: Journey re-onboarded via driver, replica in Stage-A review (READY, 3 attempts, first lean-tail draw, $0.40; visual: razor-thin frame held)
+- [x] Batch 1: Dylan re-onboarded via driver, replica in Stage-A review (READY, 3 attempts, first lean-tail draw, $0.40; visual: 2.25in frame held)
 - [ ] Batch 2+: remaining mitered skinny shakers (~18) under operator-approved ceiling
 - [ ] Batch 2+: remaining rejected doors under operator-approved ceiling
 - [ ] Per-door outcome table (attempts, winning rung, spend) appended to this report
@@ -92,9 +92,9 @@ Source: `scripts/onboard_wood.py`, spike-report roster
 (none)
 
 ## Summary
-- Total features: 44 (37 complete + 7 remaining)
-- Completed: 37
-- Remaining: 7
-- Current cutoff blockers: 7
+- Total features: 44 (41 complete + 3 remaining)
+- Completed: 41
+- Remaining: 3
+- Current cutoff blockers: 3
 - Accepted/deferred follow-up: 2
 - Superseded/obsolete checklist debt: 0
