@@ -62,6 +62,15 @@ Rules:
 Reply with ONLY a JSON object, no markdown fences:
 {{"facts": ["region: fact", ...]}}"""
 
+# Appended ONLY when the catalog cross-section drawing is attached (profile anchor).
+XSECTION_EXTRACT_BLOCK = (
+    "A second image is attached: a line-drawing CROSS-SECTION of this same door's "
+    "edge, frame, and panel profile viewed edge-on. It shows the true geometry a "
+    "front-facing photo cannot — use it to state profile character precisely "
+    "(raise shape: sharp vertical step vs gradual bevel; frame thickness; inside "
+    "and outside edge profiles)."
+)
+
 _MAX_FACTS = 12
 
 
@@ -93,11 +102,15 @@ def _mime(data: bytes) -> str:
 
 
 def extract_profile_spec(client, source_bytes: bytes, *,
-                         model: str = DEFAULT_MODEL) -> list[str]:
-    parts = [
-        types.Part.from_bytes(data=source_bytes, mime_type=_mime(source_bytes)),
-        types.Part.from_text(text=EXTRACT_PROMPT),
-    ]
+                         model: str = DEFAULT_MODEL,
+                         profile_bytes: bytes | None = None) -> list[str]:
+    prompt = (EXTRACT_PROMPT if profile_bytes is None
+              else EXTRACT_PROMPT + "\n\n" + XSECTION_EXTRACT_BLOCK)
+    parts = [types.Part.from_bytes(data=source_bytes, mime_type=_mime(source_bytes))]
+    if profile_bytes is not None:
+        parts.append(types.Part.from_bytes(data=profile_bytes,
+                                           mime_type=_mime(profile_bytes)))
+    parts.append(types.Part.from_text(text=prompt))
     contents = [types.Content(role="user", parts=parts)]
     last = ""
     for attempt in range(3):

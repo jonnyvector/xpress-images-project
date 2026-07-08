@@ -186,7 +186,7 @@ stiles where the sample's elements run off the edge, is disqualified — this is
 failure when adapting to 9:16: the door gets narrowed by cropping its sides instead of
 narrowing its members. Also compare the OUTER EDGE profile precisely: square vs eased
 vs chamfered vs bullnose (fully rounded).
-
+{xsection}
 Profile geometry is where the remaining near-misses fail. For outside_edge,
 inside_edge, panel and trim_molding, CHARACTERIZE THEN COMPARE: first describe the
 sample's profile character in a few words (e.g. "sharp steep raise" vs "gradual
@@ -218,6 +218,18 @@ Reply with ONLY a JSON object, no markdown fences:
 "inside_edge": "...", "panel": "...", "trim_molding": "...", "top_rail_arch": "..."}},
 "defects": ["one-line geometric difference", ...],
 "disqualified": true/false}}"""
+
+# Formatted into {xsection} ONLY when the catalog cross-section is attached;
+# an empty string restores the original paragraph spacing exactly.
+XSECTION_JUDGE_BLOCK = (
+    "\nA line-drawing CROSS-SECTION of the SAMPLE door's edge, frame, and panel "
+    "profile (viewed edge-on) is attached between the sample photo and the "
+    "replica. It shows the sample's TRUE profile geometry — use it to resolve "
+    "profile-character questions: raise shape (sharp vertical step vs gradual "
+    "bevel), frame thickness, inside and outside edge profiles. The REPLICA must "
+    "match the drawing's geometry; the drawing's line-art rendering style is "
+    "irrelevant.\n"
+)
 
 
 @dataclass
@@ -263,15 +275,20 @@ def parse_identity(key: str, text: str) -> IdentityResult:
 def judge_replica_identity(
     client, source_bytes: bytes, replica_bytes: bytes, facts: list[str],
     *, model: str = DEFAULT_MODEL, key: str = "",
+    profile_bytes: bytes | None = None,
 ) -> IdentityResult:
     fallback = "- (no stated facts; rely on the region sweep)"
     fact_lines = "\n".join(f"- {f}" for f in facts) if facts else fallback
-    prompt = IDENTITY_PROMPT.format(facts=fact_lines)
-    parts = [
-        types.Part.from_bytes(data=source_bytes, mime_type=_mime(source_bytes)),
-        types.Part.from_bytes(data=replica_bytes, mime_type=_mime(replica_bytes)),
-        types.Part.from_text(text=prompt),
-    ]
+    prompt = IDENTITY_PROMPT.format(
+        facts=fact_lines,
+        xsection=XSECTION_JUDGE_BLOCK if profile_bytes is not None else "",
+    )
+    parts = [types.Part.from_bytes(data=source_bytes, mime_type=_mime(source_bytes))]
+    if profile_bytes is not None:
+        parts.append(types.Part.from_bytes(data=profile_bytes,
+                                           mime_type=_mime(profile_bytes)))
+    parts.append(types.Part.from_bytes(data=replica_bytes, mime_type=_mime(replica_bytes)))
+    parts.append(types.Part.from_text(text=prompt))
     contents = [types.Content(role="user", parts=parts)]
     last = ""
     for attempt in range(3):

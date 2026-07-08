@@ -56,3 +56,46 @@ def test_missing_region_is_malformed():
 def test_fenced_reply_is_parsed():
     r = parse_identity("k", "```json\n" + _payload() + "\n```")
     assert r.verdict == "ok"
+
+
+from types import SimpleNamespace
+
+from backend.qa.judge import judge_replica_identity
+
+
+class FakeClient:
+    def __init__(self, text):
+        self.calls, self._text = [], text
+        self.models = self
+
+    def generate_content(self, *, model, contents):
+        self.calls.append(contents)
+        return SimpleNamespace(text=self._text)
+
+
+def test_judge_without_drawing_prompt_and_parts_unchanged():
+    fake = FakeClient(_payload())
+    judge_replica_identity(fake, b"\xff\xd8src", b"\xff\xd8rep", ["panel: flat"])
+    parts = fake.calls[0][0].parts
+    assert sum(1 for p in parts if p.inline_data is not None) == 2
+    assert "CROSS-SECTION" not in parts[-1].text
+
+
+def test_judge_with_drawing_inserts_it_between_sample_and_replica():
+    fake = FakeClient(_payload())
+    judge_replica_identity(fake, b"\xff\xd8src", b"\xff\xd8rep", [],
+                           profile_bytes=b"\x89PNGxsec")
+    parts = fake.calls[0][0].parts
+    imgs = [p for p in parts if p.inline_data is not None]
+    assert len(imgs) == 3
+    assert imgs[0].inline_data.data == b"\xff\xd8src"      # sample stays FIRST
+    assert imgs[1].inline_data.data == b"\x89PNGxsec"      # drawing in the middle
+    assert imgs[2].inline_data.data == b"\xff\xd8rep"      # replica stays LAST image
+    assert "CROSS-SECTION" in parts[-1].text
+
+
+def test_xsection_placeholder_collapses_cleanly_when_empty():
+    p = IDENTITY_PROMPT.format(facts="- f", xsection="")
+    # Original paragraph spacing must survive an empty block (byte-identical rule).
+    assert "bullnose (fully rounded).\n\nProfile geometry is where" in p
+    assert "CROSS-SECTION" not in p
