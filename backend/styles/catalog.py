@@ -646,7 +646,7 @@ STYLES: dict[str, dict[str, Any]] = {
         "learn_prompt": (
             "Generate a photorealistic product image of a raised-panel cabinet door. "
             "Use the reference image to match the exact design details: "
-            "the panel raise height, bevel profile, rail/stile proportions, and wood grain direction. "
+            "the panel raise height, raise profile, rail/stile proportions, and wood grain direction. "
             "Create a brand new render - do NOT return the reference image. "
             "Output: clean studio product photo on a STARK PURE WHITE background (#FFFFFF). Absolutely no shadows, no gradients, no grey tones — the background must be perfectly uniform bright white. Professional lighting. "
             "CRITICAL: The door must NOT touch or bleed to the edges of the image. "
