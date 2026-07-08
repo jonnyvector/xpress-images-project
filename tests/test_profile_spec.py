@@ -1,10 +1,12 @@
 import json
+from types import SimpleNamespace
 
 import pytest
 
 from backend.qa.profile_spec import (
     EXTRACT_PROMPT,
     REGIONS,
+    extract_profile_spec,
     parse_facts,
     profile_facts_note,
 )
@@ -45,11 +47,6 @@ def test_profile_facts_note_single_line_and_empty():
     assert "\n" not in note
     assert "panel: flat recess" in note and "frame: 2.25in flat" in note
     assert profile_facts_note([]) == ""
-
-
-from types import SimpleNamespace
-
-from backend.qa.profile_spec import extract_profile_spec
 
 
 class FakeClient:

@@ -1,8 +1,9 @@
 import json
+from types import SimpleNamespace
 
 import pytest
 
-from backend.qa.judge import IDENTITY_PROMPT, IdentityResult, parse_identity
+from backend.qa.judge import IDENTITY_PROMPT, IdentityResult, judge_replica_identity, parse_identity
 from backend.qa.profile_spec import REGIONS
 
 
@@ -56,11 +57,6 @@ def test_missing_region_is_malformed():
 def test_fenced_reply_is_parsed():
     r = parse_identity("k", "```json\n" + _payload() + "\n```")
     assert r.verdict == "ok"
-
-
-from types import SimpleNamespace
-
-from backend.qa.judge import judge_replica_identity
 
 
 class FakeClient:
