@@ -180,7 +180,8 @@ def main() -> None:
 
         res = onboard_replica(store, proj.id, key, upload, attempt_cap=args.cap,
                               min_score=3, spend=spend, allow_maple=True,
-                              profile_bytes=profile_bytes)
+                              profile_bytes=profile_bytes,
+                              lean_notes=notes)  # lean tail: spec width note only (D-012)
         row = asdict(res)
         row["project_id"] = proj.id
         row["style"] = style

@@ -115,48 +115,38 @@ def variant_action(verdict: dict) -> str:
 
 @dataclass
 class LearnConditioning:
-    """How to condition one learn attempt so retries vary (D-006).
+    """How to condition one learn attempt.
 
-    learn runs at temperature 0.0, so identical inputs reproduce the same
-    replica — variety must come from these knobs, not from re-rolling.
+    Temp-0 generation is NOT deterministic across calls (verified 2026-07-08),
+    so re-rolls vary on their own — every rung runs at temperature 0 and the
+    old rising-temperature schedule is gone (lean-conditioning, D-006).
     """
 
     learn_in_maple: bool = False
     temperature: float = 0.0
     extra_note: str = ""
+    lean: bool = False
 
 
 def learn_conditioning(
     attempt: int, low_dim: str | None = None, *, allow_maple: bool = True
 ) -> LearnConditioning:
-    """The per-attempt escalation ladder (D-006).
+    """The fixed prose/lean split (lean-conditioning, D-008/D-012).
 
-    With maple (wood doors): 0 native · 1 maple · 2 native+corrective ·
-    3 maple+corrective · 4+ corrective + rising temperature.
-
-    Without maple (``allow_maple=False``, RTF doors — a maple render would make
-    an RTF replica look like wood, D-009): variety comes from the corrective
-    note and a rising temperature instead. 0 native · 1 native+corrective ·
-    2+ corrective + rising temperature.
+    Prose rungs — attempt 0 native (style prompt + notes), attempt 1 maple
+    (wood) or native+corrective (RTF) — keep today's conditioning. Every
+    attempt from index 2 on is the LEAN TAIL: the bare lean prompt, with
+    ``onboard_replica`` supplying only the spec-file width note as notes
+    (prose actively cues the priors it tries to forbid — El Dorado burned 16
+    prose attempts; the lean prompt fixed it in 4 re-rolls).
     """
-    note = _LOW_DIM_NOTE.get(low_dim or "", "")
     if attempt <= 0:
-        return LearnConditioning(learn_in_maple=False, temperature=0.0, extra_note="")
-
-    if not allow_maple:
-        if attempt == 1:
-            return LearnConditioning(learn_in_maple=False, temperature=0.0, extra_note=note)
-        temp = min(0.25 + 0.1 * (attempt - 2), 0.6)
-        return LearnConditioning(learn_in_maple=False, temperature=temp, extra_note=note)
-
+        return LearnConditioning()
     if attempt == 1:
-        return LearnConditioning(learn_in_maple=True, temperature=0.0, extra_note="")
-    if attempt == 2:
-        return LearnConditioning(learn_in_maple=False, temperature=0.0, extra_note=note)
-    if attempt == 3:
-        return LearnConditioning(learn_in_maple=True, temperature=0.0, extra_note=note)
-    temp = min(0.2 + 0.1 * (attempt - 4), 0.6)
-    return LearnConditioning(learn_in_maple=False, temperature=temp, extra_note=note)
+        if allow_maple:
+            return LearnConditioning(learn_in_maple=True)
+        return LearnConditioning(extra_note=_LOW_DIM_NOTE.get(low_dim or "", ""))
+    return LearnConditioning(lean=True)
 
 
 _MAX_DEFECT_LINES = 5
@@ -287,20 +277,22 @@ def onboard_replica(
     identity_fn=None,
     extract_fn=None,
     profile_bytes: bytes | None = None,
+    lean_notes: str = "",
 ) -> OnboardResult:
-    """Learn → identity-judge → defect-guided re-learn until no disqualifier or the
-    attempt cap. Never approves the replica (Stage-A stays human, D-001).
+    """Learn → identity-judge → re-learn until no disqualifier or the attempt
+    cap, on the fixed prose/lean split (lean-conditioning, D-008/D-012). Never
+    approves the replica (Stage-A stays human, D-001).
 
-    The profile spec (verifiable geometry facts) is extracted once per project and
-    guides every attempt's conditioning; the identity judge verifies the replica
-    against it fact-by-fact plus a 7-region sweep. Named defects become the next
-    attempt's corrective. The old min-score judge still runs in the QA lane; an
-    attempt gates on it only when the identity judge errors.
-
-    ``profile_bytes`` (the catalog cross-section drawing, when the driver found
-    one) always reaches extraction and the identity judge; the LEARN call gets it
-    only on retries — the first attempt is exactly today's path, and the anchor
-    joins after the first disqualification.
+    Prose rungs (attempts 0–1): the profile spec's facts and the project's
+    stored notes condition the learn prompt, named defects become the next
+    attempt's corrective, and ``profile_bytes`` (the catalog cross-section
+    drawing) joins at attempt 1. The lean tail (attempts ≥ 2) drops ALL of
+    that: the bare lean prompt plus ``lean_notes`` — the driver passes the
+    spec-file width note there (one measured fact, no character prose) — with
+    no anchor, re-rolled at temp 0. Facts remain the identity judge's
+    acceptance criteria on EVERY attempt; extraction and the judge always see
+    the drawing. The old min-score judge still runs in the QA lane; an attempt
+    gates on it only when the identity judge errors.
     """
     if learn_fn is None:
         from backend.worker import start_learning as learn_fn  # lazy: avoid import cycle
@@ -353,8 +345,12 @@ def onboard_replica(
             return best
 
         cond = learn_conditioning(attempt, low_dim, allow_maple=allow_maple)
-        corrective = defect_note(defects) or cond.extra_note
-        notes = f"{base_notes} {corrective}".strip() if corrective else base_notes
+        if cond.lean:
+            # Lean tail (D-012): width note only — no facts, defects, or anchor.
+            notes = lean_notes
+        else:
+            corrective = defect_note(defects) or cond.extra_note
+            notes = f"{base_notes} {corrective}".strip() if corrective else base_notes
 
         learn_fn(
             store, store.get(project_id), api_key, upload_bytes,
@@ -362,7 +358,9 @@ def onboard_replica(
             aspect_ratio=aspect_ratio,
             temperature=cond.temperature,
             style_notes=notes,
-            profile_bytes=profile_bytes if attempt >= 1 else None,
+            profile_bytes=profile_bytes if attempt == 1 else None,
+            lean=cond.lean,
+            attempt_label=f"attempt{attempt}",
         )
         if spend is not None:
             spend.charge()

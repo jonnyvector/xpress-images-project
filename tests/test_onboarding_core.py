@@ -4,7 +4,6 @@ from backend.onboarding import (
     VARIANT_AUTO_ACCEPT,
     VARIANT_ESCALATE,
     VARIANT_REGENERATE,
-    LearnConditioning,
     best_attempt_index,
     is_done,
     learn_conditioning,
@@ -77,26 +76,27 @@ def test_lowest_dim_targets_weakest():
     assert lowest_dim({"scores": {}}) is None
 
 
-def test_learn_conditioning_ladder():
-    assert learn_conditioning(0) == LearnConditioning(False, 0.0, "")
-    assert learn_conditioning(1).learn_in_maple is True
-    assert learn_conditioning(1).temperature == 0.0
-    a2 = learn_conditioning(2, low_dim="profile_character_match")
-    assert a2.learn_in_maple is False and a2.extra_note and a2.temperature == 0.0
-    a3 = learn_conditioning(3, low_dim="profile_character_match")
-    assert a3.learn_in_maple is True and a3.extra_note
-    a4 = learn_conditioning(4, low_dim="panel_layout_match")
-    assert a4.temperature > 0.0 and a4.extra_note
-    # temperature rises but is capped
-    assert learn_conditioning(20).temperature <= 0.6
+def test_learn_conditioning_fixed_split_wood():
+    # lean-conditioning D-008: 0 native · 1 maple · 2+ lean tail, all temp 0.
+    a0 = learn_conditioning(0)
+    assert a0.learn_in_maple is False and a0.temperature == 0.0
+    assert a0.extra_note == "" and a0.lean is False
+    a1 = learn_conditioning(1)
+    assert a1.learn_in_maple is True and a1.temperature == 0.0 and a1.lean is False
+    for attempt in (2, 3, 7, 20):
+        cond = learn_conditioning(attempt, low_dim="profile_character_match")
+        assert cond.lean is True, attempt
+        assert cond.learn_in_maple is False and cond.extra_note == ""
+        assert cond.temperature == 0.0   # rising-temp schedule removed (D-006)
 
 
-def test_rtf_ladder_never_uses_maple():
-    # allow_maple=False (RTF): no attempt may render in maple wood.
+def test_rtf_ladder_never_uses_maple_and_goes_lean():
+    # allow_maple=False (RTF): 0 native · 1 native+corrective · 2+ lean tail.
     for attempt in range(8):
-        cond = learn_conditioning(attempt, low_dim="profile_character_match", allow_maple=False)
+        cond = learn_conditioning(attempt, low_dim="profile_character_match",
+                                  allow_maple=False)
         assert cond.learn_in_maple is False, attempt
-    # variety still comes from a rising temperature on later attempts
-    assert learn_conditioning(1, allow_maple=False).temperature == 0.0
-    assert learn_conditioning(3, low_dim="panel_layout_match", allow_maple=False).temperature > 0.0
-    assert learn_conditioning(20, allow_maple=False).temperature <= 0.6
+        assert cond.temperature == 0.0, attempt
+    a1 = learn_conditioning(1, low_dim="profile_character_match", allow_maple=False)
+    assert a1.lean is False and a1.extra_note   # corrective survives on rung 1
+    assert learn_conditioning(2, allow_maple=False).lean is True

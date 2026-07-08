@@ -163,3 +163,83 @@ def test_no_profile_bytes_means_none_on_every_attempt(tmp_path):
     )
     assert res.status == QUEUED_READY
     assert seen_profiles == [None, None]
+
+
+def test_lean_tail_conditioning(tmp_path):
+    """D-008/D-012: prose rungs 0-1 (anchor at 1), lean tail from 2 with the
+    spec width note only, no anchor, temp 0, attempt labels threaded."""
+    store, pid = _store(tmp_path)
+    store.update(pid, style_notes="spec frame note")
+    counter = {"n": 0}
+    seen = []
+    inner = make_learn_fn(counter)
+
+    def learn_fn(store_, project, api_key, upload, **kw):
+        seen.append({k: kw.get(k) for k in (
+            "lean", "style_notes", "profile_bytes", "attempt_label", "temperature")})
+        inner(store_, project, api_key, upload, **kw)
+
+    verdicts = [IdentityResult(key="k", disqualified=True, defects=["d"])
+                for _ in range(3)]
+    verdicts.append(IdentityResult(key="k", disqualified=False, defects=[]))
+    res = onboard_replica(
+        store, pid, "key", b"src", attempt_cap=3, spend=None, learn_fn=learn_fn,
+        extract_fn=lambda src: ["panel: flat"], identity_fn=lambda *a: verdicts.pop(0),
+        profile_bytes=b"xsec",
+        lean_notes="The frame is exactly 2.25 inches wide",
+    )
+    assert res.status == QUEUED_READY and res.attempts == 4
+    # attempt 0: prose native — spec notes + facts, no anchor
+    assert seen[0]["lean"] is False and seen[0]["profile_bytes"] is None
+    assert "spec frame note" in seen[0]["style_notes"]
+    assert "panel: flat" in seen[0]["style_notes"]
+    assert seen[0]["attempt_label"] == "attempt0"
+    # attempt 1: prose rung — anchor attached
+    assert seen[1]["lean"] is False and seen[1]["profile_bytes"] == b"xsec"
+    # attempts 2-3: lean tail — width note ONLY, no anchor, temp 0
+    for i in (2, 3):
+        assert seen[i]["lean"] is True, i
+        assert seen[i]["style_notes"] == "The frame is exactly 2.25 inches wide"
+        assert seen[i]["profile_bytes"] is None
+        assert seen[i]["temperature"] == 0.0
+        assert seen[i]["attempt_label"] == f"attempt{i}"
+
+
+def test_lean_tail_bare_without_width_note(tmp_path):
+    store, pid = _store(tmp_path)
+    counter = {"n": 0}
+    seen = []
+    inner = make_learn_fn(counter)
+
+    def learn_fn(store_, project, api_key, upload, **kw):
+        seen.append(kw)
+        inner(store_, project, api_key, upload, **kw)
+
+    verdicts = [IdentityResult(key="k", disqualified=True, defects=["d"]),
+                IdentityResult(key="k", disqualified=True, defects=["d"]),
+                IdentityResult(key="k", disqualified=False, defects=[])]
+    onboard_replica(
+        store, pid, "key", b"src", attempt_cap=2, spend=None, learn_fn=learn_fn,
+        extract_fn=lambda src: [], identity_fn=lambda *a: verdicts.pop(0),
+    )
+    assert seen[2]["lean"] is True and seen[2]["style_notes"] == ""
+
+
+def test_attempt_cap_one_never_reaches_lean(tmp_path):
+    store, pid = _store(tmp_path)
+    counter = {"n": 0}
+    seen = []
+    inner = make_learn_fn(counter)
+
+    def learn_fn(store_, project, api_key, upload, **kw):
+        seen.append(kw)
+        inner(store_, project, api_key, upload, **kw)
+
+    verdicts = [IdentityResult(key="k", disqualified=True, defects=["d"]),
+                IdentityResult(key="k", disqualified=True, defects=["d"])]
+    res = onboard_replica(
+        store, pid, "key", b"src", attempt_cap=1, spend=None, learn_fn=learn_fn,
+        extract_fn=lambda src: [], identity_fn=lambda *a: verdicts.pop(0),
+    )
+    assert res.attempts == 2
+    assert all(not kw.get("lean") for kw in seen)
