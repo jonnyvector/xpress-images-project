@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _onboard_common import read_api_key  # noqa: E402
 from google import genai  # noqa: E402
+from onboard_wood import resolve_profile  # noqa: E402
 
 from backend.qa.judge import judge_replica_identity  # noqa: E402
 from backend.qa.profile_spec import extract_profile_spec  # noqa: E402
@@ -41,6 +42,29 @@ def session_replica_decisions(approvals: list[dict], since: str) -> list[dict]:
             if r.get("kind") == "replica" and r.get("decided_at", "") >= since]
     rows.sort(key=lambda r: r.get("decided_at", ""))
     return rows
+
+
+def door_code(project_name: str) -> str:
+    """Catalog door name from a project name ('El Dorado Cabinet Door' -> 'El Dorado')."""
+    for suffix in (" Cabinet Door", " Drawer Front"):
+        if project_name.endswith(suffix):
+            return project_name[: -len(suffix)]
+    return project_name
+
+
+def _cache_path(project_id: str, anchored: bool) -> Path:
+    """Anchored extractions cache separately — the drawing changes the facts."""
+    name = f"{project_id}__anchored.json" if anchored else f"{project_id}.json"
+    return SPEC_CACHE / name
+
+
+def _profile_bytes(manifest_data: dict, name: str) -> bytes | None:
+    """The door's cross-section: stored manifest path first, catalog lookup second."""
+    stored = manifest_data.get("profile_image_path")
+    if stored and Path(stored).exists():
+        return Path(stored).read_bytes()
+    p = resolve_profile(door_code(name))
+    return p.read_bytes() if p else None
 
 
 def resolve_replica_image(project_dir: Path, image_id: str) -> Path | None:
@@ -71,12 +95,13 @@ def rates(rows: list[dict]) -> dict:
             "accepted": catch >= CATCH_BAR and false_fail <= FALSE_FAIL_BAR}
 
 
-def _cached_facts(client, project_id: str, source: Path) -> list[str]:
+def _cached_facts(client, project_id: str, source: Path,
+                  profile_bytes: bytes | None = None) -> list[str]:
     SPEC_CACHE.mkdir(parents=True, exist_ok=True)
-    cache = SPEC_CACHE / f"{project_id}.json"
+    cache = _cache_path(project_id, anchored=profile_bytes is not None)
     if cache.exists():
         return json.loads(cache.read_text())
-    facts = extract_profile_spec(client, source.read_bytes())
+    facts = extract_profile_spec(client, source.read_bytes(), profile_bytes=profile_bytes)
     cache.write_text(json.dumps(facts))
     return facts
 
@@ -98,24 +123,28 @@ def main() -> None:
         pid = dec["project_id"]
         pdir = PROJECTS / pid
         manifest = pdir / "manifest.json"
-        name = json.loads(manifest.read_text()).get("name", pid) if manifest.exists() else pid
+        manifest_data = json.loads(manifest.read_text()) if manifest.exists() else {}
+        name = manifest_data.get("name", pid)
         source = pdir / "upload.bin"
         replica = resolve_replica_image(pdir, dec["image_id"])
         if not source.exists() or replica is None:
             skipped.append((name, "missing source" if not source.exists() else "image not found"))
             continue
+        profile_bytes = _profile_bytes(manifest_data, name)
         try:
-            facts = _cached_facts(client, pid, source)
+            facts = _cached_facts(client, pid, source, profile_bytes=profile_bytes)
         except RuntimeError as exc:
             skipped.append((name, f"extraction failed: {exc}"))
             continue
         result = judge_replica_identity(client, source.read_bytes(), replica.read_bytes(),
-                                        facts, key=f"{pid}:{dec['image_id']}")
+                                        facts, key=f"{pid}:{dec['image_id']}",
+                                        profile_bytes=profile_bytes)
         if result.verdict == "error":
             skipped.append((name, f"judge error: {result.reason}"))
             continue
         rows.append({"name": name, "project_id": pid, "operator": dec["verdict"],
-                     "disqualified": result.disqualified, "defects": result.defects})
+                     "disqualified": result.disqualified, "defects": result.defects,
+                     "anchored": profile_bytes is not None})
         mark = "✓" if (dec["verdict"] == "rejected") == result.disqualified else "✗"
         print(f"{mark} {name:30s} operator={dec['verdict']:9s} judge_disq={result.disqualified}"
               f"  {('; '.join(result.defects[:2]))[:80]}")

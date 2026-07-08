@@ -50,3 +50,17 @@ def test_rates():
     assert r["catch_rate"] == 0.5          # 1 of 2 rejects caught
     assert r["false_fail_rate"] == 1 / 3   # 1 of 3 approves failed
     assert r["accepted"] is False          # gate: >=0.80 and <=0.20
+
+
+def test_door_code_strips_product_suffixes():
+    assert ev.door_code("El Dorado Cabinet Door") == "El Dorado"
+    assert ev.door_code("Apache Drawer Front") == "Apache"
+    assert ev.door_code("Laredo") == "Laredo"
+
+
+def test_cache_path_separates_anchored_from_plain():
+    plain = ev._cache_path("p1", anchored=False)
+    anchored = ev._cache_path("p1", anchored=True)
+    assert plain.name == "p1.json"
+    assert anchored.name == "p1__anchored.json"
+    assert plain != anchored
