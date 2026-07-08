@@ -53,3 +53,37 @@ def test_select_doors_empty_after_split_errors():
     import pytest
     with pytest.raises(SystemExit):
         onboard_wood.select_doors([], doors=" , ")  # non-empty but no real names
+
+
+def _fake_catalog(tmp_path, with_profile=True):
+    d = tmp_path / "raised-panel" / "El Dorado"
+    (d / "hero").mkdir(parents=True)
+    (d / "hero" / "door.jpg").write_bytes(b"hero")
+    if with_profile:
+        (d / "profile").mkdir()
+        (d / "profile" / "3d-profile.jpg").write_bytes(b"xsec")
+    return tmp_path
+
+
+def test_resolve_profile_finds_drawing(tmp_path):
+    cat = _fake_catalog(tmp_path)
+    p = onboard_wood.resolve_profile("El Dorado", catalog=cat)
+    assert p is not None and p.read_bytes() == b"xsec"
+
+
+def test_resolve_profile_missing_returns_none(tmp_path):
+    cat = _fake_catalog(tmp_path, with_profile=False)
+    assert onboard_wood.resolve_profile("El Dorado", catalog=cat) is None
+
+
+def test_resolve_profile_prefix_match_like_dylan_7_8(tmp_path):
+    d = tmp_path / "raised-panel" / "Dylan-7-8"
+    (d / "profile").mkdir(parents=True)
+    (d / "profile" / "3d-profile.jpg").write_bytes(b"xsec")
+    assert onboard_wood.resolve_profile("Dylan", catalog=tmp_path) is not None
+
+
+def test_resolve_hero_still_works_with_catalog_override(tmp_path):
+    cat = _fake_catalog(tmp_path)
+    p = onboard_wood.resolve("El Dorado", catalog=cat)
+    assert p is not None and p.read_bytes() == b"hero"

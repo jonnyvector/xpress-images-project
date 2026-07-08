@@ -72,20 +72,35 @@ def select_doors(spec_names, only=None, doors=None, all_=False) -> list[str]:
     return names
 
 
-def resolve(name: str) -> Path | None:
-    """Locate a wood door's hero image in the catalog (either profile folder)."""
+def _door_dirs(name: str, catalog: Path = CATALOG):
+    """Catalog folders matching a door name, across both profile folders."""
     lname = name.lower()
     for sub, _ in _PROFILE_STYLE:
-        base = CATALOG / sub
+        base = catalog / sub
         if not base.exists():
             continue
         for d in sorted(base.iterdir()):
             if d.is_dir():
                 dn = d.name.lower()
                 if dn == lname or dn.startswith(lname + "-") or dn.startswith(lname + " "):
-                    door = d / "hero" / "door.jpg"
-                    if door.exists():
-                        return door
+                    yield d
+
+
+def resolve(name: str, catalog: Path = CATALOG) -> Path | None:
+    """Locate a wood door's hero image in the catalog (either profile folder)."""
+    for d in _door_dirs(name, catalog):
+        door = d / "hero" / "door.jpg"
+        if door.exists():
+            return door
+    return None
+
+
+def resolve_profile(name: str, catalog: Path = CATALOG) -> Path | None:
+    """Locate a door's cross-section drawing (the profile anchor), if any."""
+    for d in _door_dirs(name, catalog):
+        drawing = d / "profile" / "3d-profile.jpg"
+        if drawing.exists():
+            return drawing
     return None
 
 
@@ -135,6 +150,12 @@ def main() -> None:
             summary.append({"code": name, "status": "skipped_no_spec"})
             continue
 
+        profile = resolve_profile(name)
+        profile_bytes = profile.read_bytes() if profile else None
+        if profile_bytes is None:
+            print(f"[{name}] note — no 3d-profile cross-section in catalog; "
+                  "onboarding without anchor")
+
         existing = already_onboarded(store, name)
         if existing and not args.force:
             print(f"[{name}] SKIP — already onboarded (project {existing.id})")
@@ -150,14 +171,16 @@ def main() -> None:
             proj = store.create(name=f"{name} Cabinet Door", product_type="Cabinet Door",
                                 material_type="wood")
         store.update(proj.id, door_style=style, corner_style="sharp",
-                     style_notes=notes, selected_swatches=palette)
+                     style_notes=notes, selected_swatches=palette,
+                     profile_image_path=str(profile) if profile else None)
         store.save_upload(proj.id, f"{name}.jpg", upload)
 
         if args.respec:
             store.update(proj.id, profile_spec=None)
 
         res = onboard_replica(store, proj.id, key, upload, attempt_cap=args.cap,
-                              min_score=3, spend=spend, allow_maple=True)
+                              min_score=3, spend=spend, allow_maple=True,
+                              profile_bytes=profile_bytes)
         row = asdict(res)
         row["project_id"] = proj.id
         row["style"] = style
