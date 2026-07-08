@@ -286,6 +286,7 @@ def onboard_replica(
     learn_fn=None,
     identity_fn=None,
     extract_fn=None,
+    profile_bytes: bytes | None = None,
 ) -> OnboardResult:
     """Learn → identity-judge → defect-guided re-learn until no disqualifier or the
     attempt cap. Never approves the replica (Stage-A stays human, D-001).
@@ -295,6 +296,11 @@ def onboard_replica(
     against it fact-by-fact plus a 7-region sweep. Named defects become the next
     attempt's corrective. The old min-score judge still runs in the QA lane; an
     attempt gates on it only when the identity judge errors.
+
+    ``profile_bytes`` (the catalog cross-section drawing, when the driver found
+    one) always reaches extraction and the identity judge; the LEARN call gets it
+    only on retries — the first attempt is exactly today's path, and the anchor
+    joins after the first disqualification.
     """
     if learn_fn is None:
         from backend.worker import start_learning as learn_fn  # lazy: avoid import cycle
@@ -308,10 +314,11 @@ def onboard_replica(
         if identity_fn is None:
             def identity_fn(src, rep, facts):  # closure mirrors learn_fn's lazy import
                 return judge_replica_identity(_client, src, rep, facts,
-                                              key=f"{project_id}:identity")
+                                              key=f"{project_id}:identity",
+                                              profile_bytes=profile_bytes)
         if extract_fn is None:
             def extract_fn(src):
-                return extract_profile_spec(_client, src)
+                return extract_profile_spec(_client, src, profile_bytes=profile_bytes)
 
     from backend.qa.profile_spec import profile_facts_note
 
@@ -355,6 +362,7 @@ def onboard_replica(
             aspect_ratio=aspect_ratio,
             temperature=cond.temperature,
             style_notes=notes,
+            profile_bytes=profile_bytes if attempt >= 1 else None,
         )
         if spend is not None:
             spend.charge()

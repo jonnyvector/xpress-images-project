@@ -118,3 +118,48 @@ def test_extraction_failure_falls_back_to_old_gate(tmp_path):
     # identity errored -> old min-score gate; GOOD_SCORES pass min 3
     assert res.status == QUEUED_READY
     assert store.get(pid).profile_spec is None
+
+
+def test_profile_anchor_attaches_only_after_first_disqualification(tmp_path):
+    store, pid = _store(tmp_path)
+    counter = {"n": 0}
+    seen_profiles = []
+    inner = make_learn_fn(counter)
+
+    def learn_fn(store_, project, api_key, upload, **kw):
+        seen_profiles.append(kw.get("profile_bytes"))
+        inner(store_, project, api_key, upload, **kw)
+
+    verdicts = [
+        IdentityResult(key="k", disqualified=True, defects=["raise too gradual"]),
+        IdentityResult(key="k", disqualified=False, defects=[]),
+    ]
+    res = onboard_replica(
+        store, pid, "key", b"src", attempt_cap=3, spend=None, learn_fn=learn_fn,
+        extract_fn=lambda src: [], identity_fn=lambda *a: verdicts.pop(0),
+        profile_bytes=b"xsec",
+    )
+    assert res.status == QUEUED_READY and res.attempts == 2
+    assert seen_profiles == [None, b"xsec"]   # attempt 1 native, retries anchored
+
+
+def test_no_profile_bytes_means_none_on_every_attempt(tmp_path):
+    store, pid = _store(tmp_path)
+    counter = {"n": 0}
+    seen_profiles = []
+    inner = make_learn_fn(counter)
+
+    def learn_fn(store_, project, api_key, upload, **kw):
+        seen_profiles.append(kw.get("profile_bytes"))
+        inner(store_, project, api_key, upload, **kw)
+
+    verdicts = [
+        IdentityResult(key="k", disqualified=True, defects=["d"]),
+        IdentityResult(key="k", disqualified=False, defects=[]),
+    ]
+    res = onboard_replica(
+        store, pid, "key", b"src", attempt_cap=3, spend=None, learn_fn=learn_fn,
+        extract_fn=lambda src: [], identity_fn=lambda *a: verdicts.pop(0),
+    )
+    assert res.status == QUEUED_READY
+    assert seen_profiles == [None, None]
