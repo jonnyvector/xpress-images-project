@@ -79,8 +79,37 @@ Source: `scripts/onboard_wood.py`, spike-report roster
 - [x] Batch 1: Journey re-onboarded via driver, replica in Stage-A review (READY, 3 attempts, first lean-tail draw, $0.40; visual: razor-thin frame held)
 - [x] Batch 1: Dylan re-onboarded via driver, replica in Stage-A review (READY, 3 attempts, first lean-tail draw, $0.40; visual: 2.25in frame held)
 - [ ] Batch 2+: remaining mitered skinny shakers (~18) under operator-approved ceiling
-- [ ] Batch 2+: remaining rejected doors under operator-approved ceiling
+- [x] Batch 2a: 19 rejected doors under $15 ceiling — 15 READY / 4 needs_human (Parker, Rhode Island, Terracina, Vermont), $7.24
 - [ ] Per-door outcome table (attempts, winning rung, spend) appended to this report
+
+
+## Batch outcomes (rollout, M5)
+
+| Door | Result | Attempts | Spend |
+|---|---|---|---|
+| Journey (b1) | READY — first lean-tail draw | 3 | $0.40 |
+| Dylan (b1) | READY — first lean-tail draw | 3 | $0.40 |
+| Ambassador | READY | 2 | $0.27 |
+| Catalina | READY | 1 | $0.13 |
+| European | READY | 1 | $0.14 |
+| Falcon | READY | 1 | $0.13 |
+| Newbury | READY | 6 | $0.80 |
+| Parker | needs_human (cap) | 6 | $0.81 |
+| Redondo | READY | 3 | $0.40 |
+| Rhode Island | needs_human (cap) | 6 | $0.80 |
+| Taurus | READY | 3 | $0.41 |
+| Terracina | needs_human (cap) | 6 | $0.80 |
+| Vermont | needs_human (cap) | 6 | $0.80 |
+| Waterford | READY | 1 | $0.14 |
+| Indiana | READY | 2 | $0.27 |
+| Isabella | READY | 1 | $0.13 |
+| Jasper | READY | 3 | $0.40 |
+| Mitchell | READY | 3 | $0.41 |
+| Oakley | READY | 1 | $0.13 |
+| Prudential | READY | 1 | $0.13 |
+| Woodhaven | READY | 1 | $0.14 |
+
+Rollout so far: 21 doors, 17 READY (81%), 4 flagged, ~$9.04.
 
 ## Deferred follow-up
 
@@ -92,9 +121,9 @@ Source: `scripts/onboard_wood.py`, spike-report roster
 (none)
 
 ## Summary
-- Total features: 44 (41 complete + 3 remaining)
-- Completed: 41
-- Remaining: 3
-- Current cutoff blockers: 3
+- Total features: 44 (42 complete + 2 remaining)
+- Completed: 42
+- Remaining: 2
+- Current cutoff blockers: 2
 - Accepted/deferred follow-up: 2
 - Superseded/obsolete checklist debt: 0
