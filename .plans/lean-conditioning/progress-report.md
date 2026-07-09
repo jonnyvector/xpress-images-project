@@ -5,7 +5,7 @@
 > file as features are implemented — never mark a milestone complete
 > until every current-cutoff checkbox under it is checked.
 
-> Current focus: Phase 5 — Rollout (operator-gated)
+> Current focus: COMPLETE — all current-cutoff features done; deferred follow-ups remain
 
 ## Phase 1: Spike — lean-tail composition (COMPLETE 2026-07-08)
 
@@ -78,9 +78,9 @@ Source: `scripts/onboard_wood.py`, spike-report roster
 - [x] Gate 3→4: El Dorado dry-run through the new ladder (mechanics verified: lean tail at attempt 2, labels + sidecars correct — cap-hit on draw luck [4 lean draws all beveled, ~32% probability], judge named the right defect every attempt; clean roll-4 replica restored as active from v31)
 - [x] Batch 1: Journey re-onboarded via driver, replica in Stage-A review (READY, 3 attempts, first lean-tail draw, $0.40; visual: razor-thin frame held)
 - [x] Batch 1: Dylan re-onboarded via driver, replica in Stage-A review (READY, 3 attempts, first lean-tail draw, $0.40; visual: 2.25in frame held)
-- [ ] Batch 2+: remaining mitered skinny shakers (~18) under operator-approved ceiling
+- [x] Batch 2b: skinny shakers under $15 ceiling — 9 READY / 1 needs_human (Baldwin), $4.56; 6 no catalog image (permanently excluded); 5 discovered already done/approved under lowercase project names; 4 experiment-era replicas pending operator review (Connecticut, Estrella, Islander, Monterey)
 - [x] Batch 2a: 19 rejected doors under $15 ceiling — 15 READY / 4 needs_human (Parker, Rhode Island, Terracina, Vermont), $7.24
-- [ ] Per-door outcome table (attempts, winning rung, spend) appended to this report
+- [x] Per-door outcome table (attempts, winning rung, spend) appended to this report
 
 
 ## Batch outcomes (rollout, M5)
@@ -109,7 +109,18 @@ Source: `scripts/onboard_wood.py`, spike-report roster
 | Prudential | READY | 1 | $0.13 |
 | Woodhaven | READY | 1 | $0.14 |
 
-Rollout so far: 21 doors, 17 READY (81%), 4 flagged, ~$9.04.
+| Boston | READY | 1 | $0.14 |
+| Embassy | READY | 2 | $0.27 |
+| Fallbrook | READY | 1 | $0.13 |
+| Finley | READY | 3 | $0.40 |
+| Hamilton | READY | 6 | $0.81 |
+| Melbourne | READY | 3 | $0.40 |
+| Ramona | READY | 3 | $0.40 |
+| Sheldon | READY | 6 | $0.80 |
+| Windsor | READY | 3 | $0.41 |
+| Baldwin | needs_human (cap) | 6 | $0.80 |
+
+Rollout final: 31 doors run, 26 READY (84%), 5 flagged, ~$13.60 total.
 
 ## Deferred follow-up
 
@@ -121,9 +132,9 @@ Rollout so far: 21 doors, 17 READY (81%), 4 flagged, ~$9.04.
 (none)
 
 ## Summary
-- Total features: 44 (42 complete + 2 remaining)
-- Completed: 42
-- Remaining: 2
-- Current cutoff blockers: 2
+- Total features: 44 (44 complete + 0 remaining)
+- Completed: 44
+- Remaining: 0
+- Current cutoff blockers: 0
 - Accepted/deferred follow-up: 2
 - Superseded/obsolete checklist debt: 0
