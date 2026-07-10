@@ -19,6 +19,28 @@ an ensemble simulation across all three runs:
 | Run 3 (+operator-calibrated edges-first + characterize-then-compare) | 52% | 10% |
 | Union of 3 runs (simulated) | 74% | 36% |
 | Majority 2-of-3 (simulated) | 37% | 14% |
+| Run 3 + cross-section anchor (2026-07-10) | 53% | 21% |
+
+### Cross-section anchor re-calibration (2026-07-10)
+
+The profile-anchor build (spec `2026-07-08-profile-anchor-design.md`) added the
+catalog cross-section drawing to BOTH extraction and the identity judge. This
+re-run uses Run-3's exact prompts with the drawing attached — the only variable
+is the image. Result: **catch flat (52%→53%), false-fails DOUBLED (10%→21%)** —
+the 80/20 gate is still unreachable, and the drawing made the judge worse, not
+better. Per-door diff over the 85 doors common to both reports: the anchor
+flipped **10 wrong→right but 13 right→wrong (net −3)**, and 10 of the 13 it
+broke were APPROVED doors newly false-failed — the line drawing gives the judge
+more profile-character detail to nitpick and it over-flags. It even damaged the
+two hardest rejects (El Dorado, Terracina flipped from a correct catch to a
+miss). This mirrors the lean-conditioning spike, where the same drawing hurt
+lean GENERATION. **Recommendation: drop the cross-section from the identity
+judge** (returns to the better-calibrated 52/10 Run-3 state); extraction's use
+is untested in isolation and may still help (Apache/isabella/indiana flipped
+right), so keep it there pending a separate extraction-only run. The judge
+remains a re-roll ASSIST; Stage-A stays the authority regardless, so the only
+practical cost of the current (anchored) judge is extra re-rolls and spurious
+cap-hits — which removing the anchor would reduce.
 
 Findings:
 - Each run catches a different, weakly-overlapping subset — per-door detection is at
