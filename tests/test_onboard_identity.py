@@ -120,7 +120,11 @@ def test_extraction_failure_falls_back_to_old_gate(tmp_path):
     assert store.get(pid).profile_spec is None
 
 
-def test_profile_anchor_attaches_only_after_first_disqualification(tmp_path):
+def test_profile_anchor_never_reaches_generation(tmp_path):
+    """2026-07-10 re-calibration + spike evidence: the cross-section drawing
+    HURT the judge (ff 10%->21%) and lean generation (viewpoint leak), and
+    never won a prose attempt. It stays extraction-only — learn_fn must see
+    profile_bytes=None on every rung even when the driver supplies bytes."""
     store, pid = _store(tmp_path)
     counter = {"n": 0}
     seen_profiles = []
@@ -132,6 +136,7 @@ def test_profile_anchor_attaches_only_after_first_disqualification(tmp_path):
 
     verdicts = [
         IdentityResult(key="k", disqualified=True, defects=["raise too gradual"]),
+        IdentityResult(key="k", disqualified=True, defects=["raise too gradual"]),
         IdentityResult(key="k", disqualified=False, defects=[]),
     ]
     res = onboard_replica(
@@ -139,8 +144,35 @@ def test_profile_anchor_attaches_only_after_first_disqualification(tmp_path):
         extract_fn=lambda src: [], identity_fn=lambda *a: verdicts.pop(0),
         profile_bytes=b"xsec",
     )
-    assert res.status == QUEUED_READY and res.attempts == 2
-    assert seen_profiles == [None, b"xsec"]   # attempt 1 native, retries anchored
+    assert res.status == QUEUED_READY and res.attempts == 3
+    assert seen_profiles == [None, None, None]   # prose rungs AND lean tail
+
+
+def test_extraction_still_receives_the_drawing(tmp_path):
+    """The drawing's one proven-positive role: extraction facts. The default
+    extract_fn closure must still pass profile_bytes through."""
+    captured = {}
+
+    def fake_extract(client, src, *, profile_bytes=None, **kw):
+        captured["profile_bytes"] = profile_bytes
+        return ["panel: flat"]
+
+    import backend.onboarding as ob
+    import backend.qa.profile_spec as ps
+    store, pid = _store(tmp_path)
+    counter = {"n": 0}
+
+    import unittest.mock as mock
+    with mock.patch.object(ps, "extract_profile_spec", fake_extract), \
+         mock.patch("google.genai.Client", lambda api_key: object()):
+        ob.onboard_replica(
+            store, pid, "key", b"src", attempt_cap=0, spend=None,
+            learn_fn=make_learn_fn(counter),
+            identity_fn=lambda *a: IdentityResult(key="k", disqualified=False,
+                                                  defects=[]),
+            profile_bytes=b"xsec",
+        )
+    assert captured["profile_bytes"] == b"xsec"
 
 
 def test_no_profile_bytes_means_none_on_every_attempt(tmp_path):
@@ -194,8 +226,8 @@ def test_lean_tail_conditioning(tmp_path):
     assert "spec frame note" in seen[0]["style_notes"]
     assert "panel: flat" in seen[0]["style_notes"]
     assert seen[0]["attempt_label"] == "attempt0"
-    # attempt 1: prose rung — anchor attached
-    assert seen[1]["lean"] is False and seen[1]["profile_bytes"] == b"xsec"
+    # attempt 1: prose rung — drawing never reaches generation (2026-07-10)
+    assert seen[1]["lean"] is False and seen[1]["profile_bytes"] is None
     # attempts 2-3: lean tail — width note ONLY, no anchor, temp 0
     for i in (2, 3):
         assert seen[i]["lean"] is True, i

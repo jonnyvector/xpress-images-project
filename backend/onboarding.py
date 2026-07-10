@@ -284,15 +284,17 @@ def onboard_replica(
     approves the replica (Stage-A stays human, D-001).
 
     Prose rungs (attempts 0–1): the profile spec's facts and the project's
-    stored notes condition the learn prompt, named defects become the next
-    attempt's corrective, and ``profile_bytes`` (the catalog cross-section
-    drawing) joins at attempt 1. The lean tail (attempts ≥ 2) drops ALL of
-    that: the bare lean prompt plus ``lean_notes`` — the driver passes the
-    spec-file width note there (one measured fact, no character prose) — with
-    no anchor, re-rolled at temp 0. Facts remain the identity judge's
-    acceptance criteria on EVERY attempt; extraction and the judge always see
-    the drawing. The old min-score judge still runs in the QA lane; an attempt
-    gates on it only when the identity judge errors.
+    stored notes condition the learn prompt, and named defects become the next
+    attempt's corrective. The lean tail (attempts ≥ 2) drops ALL of that: the
+    bare lean prompt plus ``lean_notes`` — the driver passes the spec-file
+    width note there (one measured fact, no character prose) — re-rolled at
+    temp 0. ``profile_bytes`` (the catalog cross-section drawing) feeds
+    EXTRACTION ONLY: as an image it hurt both generation (lean-spike viewpoint
+    leak, 2026-07-08) and the judge (false-fails doubled, re-cal 2026-07-10);
+    as extraction input it sharpens the facts. Facts remain the identity
+    judge's acceptance criteria on EVERY attempt. The old min-score judge
+    still runs in the QA lane; an attempt gates on it only when the identity
+    judge errors.
     """
     if learn_fn is None:
         from backend.worker import start_learning as learn_fn  # lazy: avoid import cycle
@@ -305,9 +307,11 @@ def onboard_replica(
         _client = genai.Client(api_key=api_key)
         if identity_fn is None:
             def identity_fn(src, rep, facts):  # closure mirrors learn_fn's lazy import
+                # No cross-section: the 2026-07-10 re-calibration showed the
+                # drawing DOUBLES the judge's false-fails (10%->21%) for flat
+                # catch — it stays extraction-only.
                 return judge_replica_identity(_client, src, rep, facts,
-                                              key=f"{project_id}:identity",
-                                              profile_bytes=profile_bytes)
+                                              key=f"{project_id}:identity")
         if extract_fn is None:
             def extract_fn(src):
                 return extract_profile_spec(_client, src, profile_bytes=profile_bytes)
@@ -358,7 +362,6 @@ def onboard_replica(
             aspect_ratio=aspect_ratio,
             temperature=cond.temperature,
             style_notes=notes,
-            profile_bytes=profile_bytes if attempt == 1 else None,
             lean=cond.lean,
             attempt_label=f"attempt{attempt}",
         )

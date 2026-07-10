@@ -136,9 +136,11 @@ def main() -> None:
         except RuntimeError as exc:
             skipped.append((name, f"extraction failed: {exc}"))
             continue
+        # Judge runs WITHOUT the drawing (re-cal 2026-07-10: it doubled
+        # false-fails); profile_bytes feeds extraction only, mirroring
+        # production onboard_replica.
         result = judge_replica_identity(client, source.read_bytes(), replica.read_bytes(),
-                                        facts, key=f"{pid}:{dec['image_id']}",
-                                        profile_bytes=profile_bytes)
+                                        facts, key=f"{pid}:{dec['image_id']}")
         if result.verdict == "error":
             skipped.append((name, f"judge error: {result.reason}"))
             continue
