@@ -46,6 +46,24 @@ def door_spec(name: str, specs: dict[str, "WoodSpec"]) -> tuple[str | None, str]
     return spec.door_style, learn_notes(spec)
 
 
+def canonical_name(name: str, specs: dict[str, "WoodSpec"]) -> str:
+    """Fold a requested door name onto its spec key case-insensitively.
+
+    Rosters are often built from stored PROJECT names, which are lowercase
+    ("indiana"), while spec keys and catalog folders are capitalized
+    ("Indiana"). Without this, a lowercase name silently SKIPs on
+    door_spec's exact-match lookup (the 2026-07-09 casing gremlin, which
+    dropped 7 doors mid-batch). Returns the spec's canonical casing when a
+    case-insensitive match exists, else the name unchanged."""
+    if name in specs:
+        return name
+    lower = name.lower()
+    for key in specs:
+        if key.lower() == lower:
+            return key
+    return name
+
+
 CATALOG = Path.home() / "Desktop" / "Xpress" / "Decore Catalog" / "wood"
 DEFAULT_SUMMARY = Path("output/.onboard/wood_replicas_summary.json")
 
@@ -138,7 +156,10 @@ def main() -> None:
     names = select_doors(list(specs), only=args.only, doors=args.doors, all_=args.all)
 
     summary = []
-    for name in names:
+    for raw_name in names:
+        # Canonicalize casing up front so resolve, door_spec, project naming
+        # and already_onboarded all agree regardless of how the roster was built.
+        name = canonical_name(raw_name, specs)
         src = resolve(name)
         if src is None:
             print(f"[{name}] SKIP — no source image in the wood catalog")

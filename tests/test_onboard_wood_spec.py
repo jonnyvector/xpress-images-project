@@ -25,6 +25,18 @@ def test_door_spec_missing_entry_returns_none_style():
     assert style is None and notes == ""
 
 
+def test_canonical_name_matches_spec_key_case_insensitively():
+    specs = {"Indiana": WoodSpec("shaker_bevel", "flat", None, "cope", False, ""),
+             "El Dorado": WoodSpec("raised_panel", "raised", None, "miter", False, "")}
+    # lowercase roster name (built from a lowercase project name) resolves to
+    # the spec's canonical casing — the 2026-07-09 casing gremlin.
+    assert onboard_wood.canonical_name("indiana", specs) == "Indiana"
+    assert onboard_wood.canonical_name("EL DORADO", specs) == "El Dorado"
+    # already canonical or genuinely absent -> returned unchanged
+    assert onboard_wood.canonical_name("Indiana", specs) == "Indiana"
+    assert onboard_wood.canonical_name("Unlisted", specs) == "Unlisted"
+
+
 def test_select_doors_only_returns_single():
     assert onboard_wood.select_doors(["A", "B"], only="A") == ["A"]
 
