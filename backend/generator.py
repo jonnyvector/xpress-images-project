@@ -16,6 +16,14 @@ from backend.styles.catalog import STYLES
 
 CANVAS_SIZE = 1000
 
+# Lean variant hint (lean-variants plan, D-005): deliberately makes NO geometry
+# claims — the thought signature carries the door's structure. NOT reused from
+# STYLES["minimal"], whose "all stiles and rails must remain the same width"
+# is false for non-uniform-frame doors.
+LEAN_VARIATION_HINT = (
+    "Preserve the exact door structure from before. Change only the wood material."
+)
+
 
 def add_watermark(
     image_bytes: bytes,
@@ -603,6 +611,7 @@ class DoorGenerator:
         material_type: str = "wood",
         hex_color: str | None = None,
         rtf_finish: str | None = None,
+        lean: bool = False,
     ) -> GenerationResult:
         """
         Generate a door variation with a specific wood type.
@@ -632,7 +641,10 @@ class DoorGenerator:
 
         style = STYLES.get(door_style, STYLES["recessed_panel"])
         is_rtf_drawer = style.get("category") == "drawer"
-        variation_hint = style["variation_hint"]
+        # Lean variant mode (lean-variants plan): the signature carries the
+        # geometry; a styled hint that re-describes the door can contradict it
+        # (Mitchell 0/38). The bare hint replaces ONLY the hint layer.
+        variation_hint = LEAN_VARIATION_HINT if lean else style["variation_hint"]
 
         # Combine variation hint with user-provided structural notes
         if style_notes:
