@@ -90,11 +90,14 @@ def _generate_for_selection(
     corner_style: str,
     material_type: str,
     use_base_door_reference: bool,
+    lean: bool = False,
 ):
     """Dispatch a single selection to the correct generator call.
 
     Owns the reference-vs-signature branch shared by batch generation and
-    single-result retry, so the two call sites can't drift apart.
+    single-result retry, so the two call sites can't drift apart. ``lean``
+    (lean-variants plan) applies ONLY to the signature branch — the
+    reference-image path keeps its own hint and is untouched by design.
     """
     wood_name = sel["wood_name"]
     if use_base_door_reference and sel.get("reference_image"):
@@ -120,6 +123,7 @@ def _generate_for_selection(
         material_type=material_type,
         hex_color=sel.get("hex"),
         rtf_finish=sel.get("rtf_finish"),
+        lean=lean,
     )
 
 
@@ -137,6 +141,7 @@ def _run_generation(
     gemini_model: str | None = None,
     use_base_door_reference: bool = False,
     run: RunManifest | None = None,
+    lean: bool = False,
 ) -> None:
     """Run generation in background thread, updating ProjectState incrementally.
 
@@ -144,6 +149,10 @@ def _run_generation(
     ``image_id`` (from the run manifest's planned entries), so results and
     verdicts reference the right image regardless of completion order.
     """
+    # Observability (lean-variants D-008): the run log must prove which
+    # conditioning every draw carried — a clobbered mode is invisible otherwise.
+    print(f"[variants {project_id}] hint={'lean' if lean else 'styled'} "
+          f"notes={'present' if style_notes else 'empty'}", flush=True)
     try:
         generator = DoorGenerator(api_key=api_key, model=gemini_model)
         style = STYLES.get(door_style, {})
@@ -164,6 +173,7 @@ def _run_generation(
                     corner_style=corner_style,
                     material_type=material_type,
                     use_base_door_reference=use_base_door_reference,
+                    lean=lean,
                 )
             return sel["wood_name"], result
 
@@ -206,6 +216,7 @@ def _run_generation(
                                         corner_style=corner_style,
                                         material_type=material_type,
                                         use_base_door_reference=use_base_door_reference,
+                                        lean=lean,
                                     )
 
                             regen = RegenContext(
@@ -420,8 +431,11 @@ def _run_retry(
     material_type: str = "wood",
     gemini_model: str | None = None,
     use_base_door_reference: bool = False,
+    lean: bool = False,
 ) -> None:
     """Re-generate a single variation in-place."""
+    print(f"[variants {project_id}] hint={'lean' if lean else 'styled'} "
+          f"notes={'present' if style_notes else 'empty'}", flush=True)
     try:
         generator = DoorGenerator(api_key=api_key, model=gemini_model)
         wood_name = selection["wood_name"]
@@ -439,6 +453,7 @@ def _run_retry(
                 corner_style=corner_style,
                 material_type=material_type,
                 use_base_door_reference=use_base_door_reference,
+                lean=lean,
             )
         record = store.record_retry_result(
             project_id,
@@ -541,6 +556,7 @@ def start_retry(
         project.material_type,
         project.gemini_model,
         use_ref,
+        project.variant_hint_mode == "lean",
     )
 
 
@@ -628,4 +644,5 @@ def start_generation(
         project.gemini_model,
         use_ref,
         run,
+        project.variant_hint_mode == "lean",
     )

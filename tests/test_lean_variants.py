@@ -112,3 +112,149 @@ def test_lean_keeps_swatch_and_signature_parts(tmp_path):
     assert parts[0].thought_signature == b"sig-bytes"   # signature first
     assert any(p.inline_data is not None for p in parts)  # swatch part intact
     assert fake.captured["config"].temperature == 0.3
+
+
+# --- M2: worker plumbing -----------------------------------------------------
+
+
+import backend.worker as worker  # noqa: E402
+
+
+class _StubGen:
+    """Captures the kwargs each generation branch receives."""
+    def __init__(self):
+        self.variation_kwargs = None
+        self.reference_kwargs = None
+
+    def generate_variation(self, **kw):
+        self.variation_kwargs = kw
+        return "variation-result"
+
+    def generate_variation_from_reference(self, **kw):
+        self.reference_kwargs = kw
+        return "reference-result"
+
+
+def _sel(**over):
+    sel = {"wood_name": "Maple Select", "swatch_path": None,
+           "wood_description": "pale", "reference_image": None, "hex": None,
+           "rtf_finish": None}
+    sel.update(over)
+    return sel
+
+
+def test_generate_for_selection_forwards_lean():
+    gen = _StubGen()
+    worker._generate_for_selection(
+        gen, _sel(), base_signature=b"sig", door_style="shaker_bevel",
+        variation_hint="styled hint", aspect_ratio="9:16", style_notes="",
+        corner_style="sharp", material_type="wood",
+        use_base_door_reference=False, lean=True,
+    )
+    assert gen.variation_kwargs["lean"] is True
+
+
+def test_generate_for_selection_reference_branch_ignores_lean():
+    gen = _StubGen()
+    worker._generate_for_selection(
+        gen, _sel(reference_image="ref.jpg"), base_signature=b"sig",
+        door_style="shaker_bevel", variation_hint="styled hint",
+        aspect_ratio="9:16", style_notes="", corner_style="sharp",
+        material_type="wood", use_base_door_reference=True, lean=True,
+    )
+    assert gen.reference_kwargs is not None
+    assert "lean" not in gen.reference_kwargs      # branch untouched
+    assert gen.variation_kwargs is None
+
+
+def _mode_project(tmp_path, mode):
+    store = ProjectStore(persist_dir=tmp_path / f"projects_{mode}")
+    p = store.create(name=f"Door {mode}", product_type="Cabinet Door",
+                     material_type="wood")
+    store.update(p.id, variant_hint_mode=mode, has_signature=True,
+                 learned_signature=b"sig",
+                 selected_swatches=["swatches/wood/maple_select.jpg"])
+    return store, store.get(p.id)
+
+
+def test_start_generation_resolves_mode(tmp_path, monkeypatch):
+    calls = {}
+
+    def fake_submit(fn, *args):
+        calls.setdefault("runs", []).append(args)
+
+    monkeypatch.setattr(worker, "_executor",
+                        type("E", (), {"submit": staticmethod(fake_submit)})())
+    for mode, expected in (("lean", True), ("styled", False)):
+        store, p = _mode_project(tmp_path, mode)
+        worker.start_generation(store, p, "key")
+        assert calls["runs"][-1][-1] is expected, mode   # lean is the last arg
+
+
+def test_run_generation_logs_resolved_mode(tmp_path, capsys):
+    store, p = _mode_project(tmp_path, "lean")
+    worker._run_generation(store, p.id, "key", b"sig", "shaker_bevel", [],
+                           "9:16", "", lean=True)
+    out = capsys.readouterr().out
+    assert f"[variants {p.id}] hint=lean" in out
+    worker._run_generation(store, p.id, "key", b"sig", "shaker_bevel", [],
+                           "9:16", "notes here", lean=False)
+    out = capsys.readouterr().out
+    assert f"[variants {p.id}] hint=styled notes=present" in out
+
+
+# --- M2: variant_wave --topup helpers ---------------------------------------
+
+
+import importlib.util  # noqa: E402
+
+
+def _load_wave():
+    spec = importlib.util.spec_from_file_location(
+        "variant_wave", Path(__file__).resolve().parents[1] / "scripts" / "variant_wave.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class _StubApprovals:
+    def __init__(self, approved_ids):
+        self._ids = approved_ids
+
+    def for_project(self, pid):
+        class A:
+            def __init__(self, image_id):
+                self.image_id = image_id
+                self.kind = "variant"
+                self.verdict = "approved"
+        return [A(i) for i in self._ids]
+
+
+class _StubRecord:
+    def __init__(self, image_id, wood_name):
+        self.image_id = image_id
+        self.wood_name = wood_name
+
+
+class _StubProject:
+    def __init__(self, results, swatches):
+        self.id = "p1"
+        self.results = results
+        self.selected_swatches = swatches
+        self.door_style = "shaker_bevel"
+        self.material_type = "wood"
+
+
+def test_approved_wood_names_and_topup_selection():
+    wave = _load_wave()
+    swatches = ["swatches/wood/maple_select.jpg", "swatches/wood/cherry_natural.jpg"]
+    project = _StubProject(
+        results=[_StubRecord("img1", "Maple Select"), _StubRecord("img2", "Cherry Natural")],
+        swatches=swatches,
+    )
+    approvals = _StubApprovals({"img1"})          # only Maple approved
+    approved = wave.approved_wood_names(project, approvals)
+    assert approved == {"Maple Select"}
+    missing = wave.topup_swatch_paths(project, approved)
+    assert len(missing) == 1
+    assert "cherry_natural" in str(missing[0])    # only the unapproved wood

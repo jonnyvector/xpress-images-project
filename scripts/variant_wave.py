@@ -47,11 +47,33 @@ def approved_project(store, approvals, door: str):
     return None
 
 
+def approved_wood_names(project, approvals) -> set:
+    """Wood names whose variant the operator has APPROVED for this project."""
+    ok = {a.image_id for a in approvals.for_project(project.id)
+          if a.kind == "variant" and a.verdict == "approved"}
+    return {r.wood_name for r in project.results if r.image_id in ok}
+
+
+def topup_swatch_paths(project, approved_names) -> list:
+    """Palette swatch paths for woods that LACK an approved variant (D-007:
+    top-ups never regenerate operator-approved work)."""
+    from backend.selections import build_selections
+
+    sels = build_selections(project.selected_swatches or [],
+                            door_style=project.door_style,
+                            material_type=project.material_type)
+    return [s["swatch_path"] for s in sels
+            if s["wood_name"] not in approved_names and s.get("swatch_path")]
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--doors", required=True, help="comma-separated door names")
     ap.add_argument("--no-auto-accept", action="store_true",
                     help="queue every variant for the operator instead")
+    ap.add_argument("--topup", action="store_true",
+                    help="generate ONLY woods lacking an approved variant "
+                         "(reset_existing=False; protects approved work)")
     args = ap.parse_args()
 
     key = read_api_key()
@@ -67,11 +89,30 @@ def main() -> None:
             print(f"[{door}] SKIP — no operator-approved current replica", flush=True)
             summary.append({"door": door, "status": "skipped_not_approved"})
             continue
-        print(f"[{door}] generating {len(palette)} variants (project {p.id})…", flush=True)
+        approved = approved_wood_names(p, approvals)
+        if approved and not args.topup:
+            print(f"[{door}] REFUSED — {len(approved)} operator-approved variants "
+                  "exist; a full re-run would destroy them. Use --topup.", flush=True)
+            summary.append({"door": door, "status": "refused_has_approved",
+                            "approved": len(approved)})
+            continue
+        if args.topup:
+            swatches = topup_swatch_paths(p, approved)
+            reset = False
+            if not swatches:
+                print(f"[{door}] SKIP — every palette wood already approved", flush=True)
+                summary.append({"door": door, "status": "complete"})
+                continue
+        else:
+            swatches, reset = palette, True
+        mode = getattr(p, "variant_hint_mode", "styled")
+        print(f"[{door}] generating {len(swatches)} variants (project {p.id}, "
+              f"hint={mode}, reset={reset})…", flush=True)
         # timeout must cover generation AND the QA lane judging all ~38
         # variants (~15-25 min) — the 300s default snapshots too early and
         # auto-accept misses judged-later passes.
-        out = onboard_variants(store, p.id, key, palette, timeout=2400.0,
+        out = onboard_variants(store, p.id, key, swatches, timeout=2400.0,
+                               reset_existing=reset,
                                auto_accept=not args.no_auto_accept)
         print(f"[{door}] done — {out['total']} generated, "
               f"{len(out['accepted'])} auto-accepted, {len(out['queued'])} queued",
