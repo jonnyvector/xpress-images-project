@@ -5,7 +5,7 @@
 > completes — never mark a milestone complete until every current-cutoff
 > checkbox under it is checked.
 
-> Current focus: Phase 3 — Prep + staged rollout (M3, operator-gated)
+> Current focus: COMPLETE — deferred follow-ups remain
 
 ## Phase 1: Core mode
 
@@ -44,13 +44,33 @@ Source: `backend/worker.py`, `scripts/variant_wave.py`, implementation.md M2
 ### M3: prep + stages
 Source: implementation.md M3
 
-- [ ] Prep one-off (dev server DOWN): lean mode set on all ten doors; prints id+name+mode+notes; operator eyeball ack
-- [ ] Width notes backfilled from spec for Melbourne, Windsor, Fallbrook
-- [ ] OQ-2: Fallbrook classification verified against catalog hero before any draw
-- [ ] Stage 1 probe (operator go, ~$1.21): Baldwin/Windsor/Rhode Island × 3 swatches, artifact page, operator verdicts recorded (resolves OQ-1)
-- [ ] Stage 2 gate door (operator go): one full lean palette, wave rhythm review
-- [ ] Stage 3 waves (operator go): remaining doors; Rhode Island via `--topup`; single-writer discipline
-- [ ] Per-door scorecard appended to this report
+- [x] Prep one-off (server down): lean set on ten doors, table acked; RI later reverted to styled (D-010)
+- [x] Width backfill impossible (no measurements exist, D-009); flat-panel GUARD fact added instead (D-011); Mitchell's guard removed after it flattened his bevel (D-012)
+- [x] OQ-2: Fallbrook classification verified CORRECT (mitered flat panel + decorative inner profile)
+- [x] Stage 1 probes ×2 rounds (~$2.40): verdict-widget page; RI collapse caught ($0.40 vs $5); flat guard invented+validated; per-door recipes fixed
+- [x] Stage 2 gate: Windsor 32/38 (84%) through the full pipeline
+- [x] Stage 3 waves A/B/C complete; --topup protection fired correctly for Dylan/Baldwin; single-writer held
+- [x] Per-door scorecard appended below
+
+
+## Stage-3 scorecard (approved variants per door)
+
+| Door | Library variants | Styled baseline | Recipe |
+|---|---|---|---|
+| Fallbrook | 36/38 | 0/38 | lean + flat guard |
+| Baldwin | 34 (33 new) | 1/38 | lean + width + guard |
+| Windsor | 32/38 | — (parked) | lean + flat guard |
+| Mitchell | 31/38 | 0/38 | bare lean |
+| Finley | 28/38 | — | lean + width + guard |
+| Melbourne | 20/38 | — | lean + flat guard |
+| Rhode Island | 13 (styled top-up 0/25 accepted, drift-flags to operator) | 13/37 | styled (lean collapses it) |
+| Dylan | 7 | 1/38 | lean + width + guard (2.25" hardest class) |
+| Journey | 4/37 | — | lean + width + guard (2" hardest) |
+| Hamilton | 3/38 | — | lean + width + guard (drift-flagged, 32 clean-scored queued) |
+
+TOTAL: 208 library variants across the ten rollout doors (~$62 spend incl. probes/regens).
+The skinniest doors (Journey/Hamilton/Dylan) remain hard; their queued clean-scored
+drift flags await operator verdicts.
 
 ## Deferred follow-up
 
@@ -63,8 +83,8 @@ Source: implementation.md M3
 
 ## Summary
 - Total features: 27
-- Completed: 20
-- Remaining: 7
-- Current cutoff blockers: 7
+- Completed: 27
+- Remaining: 0
+- Current cutoff blockers: 0
 - Accepted/deferred follow-up: 2
 - Superseded/obsolete checklist debt: 0
