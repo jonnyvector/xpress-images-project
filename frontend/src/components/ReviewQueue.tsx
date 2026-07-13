@@ -7,6 +7,7 @@ import type { QaVerdict } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 import ApprovalControls from './ApprovalControls';
+import ApproveAllButton from './ApproveAllButton';
 import QaBadge from './QaBadge';
 
 interface QueueVariant {
@@ -82,7 +83,14 @@ export default function ReviewQueue() {
       </h2>
       {queue.projects.map((p) => (
         <section key={p.project_id} className="review-project">
-          <h3>{p.project_name}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+            <h3 style={{ margin: 0 }}>{p.project_name}</h3>
+            <ApproveAllButton
+              projectId={p.project_id}
+              imageIds={p.variants.map((v) => v.image_id)}
+              onDone={onChanged}
+            />
+          </div>
           <div className="review-row">
             {p.has_sample && (
               <figure className="review-card reference">
