@@ -151,3 +151,53 @@ def test_build_plan_warns_on_unapproved_replica(tmp_path):
 
     assert len(items) == 1
     assert any("not approved" in w for w in items[0].warnings)
+
+
+def test_apply_backfills_and_preserves_results(tmp_path):
+    from scripts.backfill_library_signatures import apply_plan, verify
+
+    projects = tmp_path / "projects"
+    approvals = tmp_path / "approvals.json"
+    backup = tmp_path / "backup"
+    make_source(projects, "src00001", "frontier")
+    make_library(projects, "lib00001", "Frontier_new_wm", n_results=3)
+    make_approvals(approvals, ["bid-source-1"])
+    result_bytes_before = [
+        (projects / "lib00001" / f"result_{i}.bin").read_bytes() for i in range(3)
+    ]
+
+    items, _ = build_plan(projects, approvals, {"lib00001": "src00001"})
+    apply_plan(projects, items, backup)
+
+    lib_dir = projects / "lib00001"
+    assert (lib_dir / "signature.bin").read_bytes() == b"SIGNATURE-BYTES"
+    assert (lib_dir / "base_door.bin").read_bytes() == b"REPLICA-BYTES"
+    assert (lib_dir / "upload.bin").read_bytes() == b"UPLOAD-BYTES"
+    # Backup of the pre-write manifest exists.
+    assert (backup / "lib00001" / "manifest.json").exists()
+    assert json.loads((backup / "lib00001" / "files_added.json").read_text()) == [
+        "signature.bin",
+        "base_door.bin",
+        "upload.bin",
+    ]
+    # Results untouched, byte for byte.
+    for i in range(3):
+        assert (lib_dir / f"result_{i}.bin").read_bytes() == result_bytes_before[i]
+    # Manifest carries the generation-critical fields + replica verdict.
+    manifest = json.loads((lib_dir / "manifest.json").read_text())
+    assert manifest["door_style"] == "recessed_panel"
+    assert manifest["base_image_id"] == "bid-source-1"
+    assert manifest["upload_filename"] == "door.png"
+    assert manifest["qa_verdicts"]["bid-source-1"] == {
+        "verdict": "pass",
+        "kind": "replica",
+    }
+    # Source untouched.
+    src_manifest = json.loads((projects / "src00001" / "manifest.json").read_text())
+    assert src_manifest["name"] == "frontier"
+    # Post-verify passes: fresh store sees signature + replica + 3 results.
+    assert verify(projects, items) == []
+    # Idempotent: a second plan pass now skips the library.
+    items2, skipped2 = build_plan(projects, approvals, {"lib00001": "src00001"})
+    assert items2 == []
+    assert any("already has signature.bin" in s for s in skipped2)

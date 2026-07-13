@@ -18,6 +18,8 @@ is copied VERBATIM so the replica's existing global approval carries over
 from __future__ import annotations
 
 import json
+import shutil
+import socket
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -26,6 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from backend.qa.approvals import ApprovalStore  # noqa: E402
+from backend.state import ProjectStore  # noqa: E402
 
 PROJECTS_DIR = REPO_ROOT / "output" / ".projects"
 APPROVALS_PATH = REPO_ROOT / "output" / ".qa" / "approvals.json"
@@ -159,3 +162,77 @@ def build_plan(
             )
         )
     return items, skipped
+
+
+def apply_plan(
+    projects_dir: Path, items: list[PlanItem], backup_dir: Path
+) -> None:
+    """Write signature/replica/upload + manifest fields via ProjectStore.
+
+    Mutation idiom mirrors the routers: get() -> set fields -> save(id).
+    Source dirs are only ever read.
+    """
+    store = ProjectStore(projects_dir)
+    for item in items:
+        lib_dir = projects_dir / item.library_id
+        src_dir = projects_dir / item.source_id
+
+        bdir = backup_dir / item.library_id
+        bdir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(lib_dir / "manifest.json", bdir / "manifest.json")
+        files_added = ["signature.bin", "base_door.bin"] + (
+            ["upload.bin"] if item.has_upload else []
+        )
+        (bdir / "files_added.json").write_text(json.dumps(files_added))
+
+        project = store.get(item.library_id)
+        if project is None:
+            raise RuntimeError(f"{item.library_id} not loaded by ProjectStore")
+        project.learned_signature = (src_dir / "signature.bin").read_bytes()
+        project.base_door_image = (src_dir / "base_door.bin").read_bytes()
+        project.has_signature = True
+        f = item.fields
+        project.door_style = f["door_style"]
+        project.corner_style = f["corner_style"] or "sharp"
+        project.material_type = f["material_type"] or "wood"
+        project.style_notes = f["style_notes"] or ""
+        project.profile_spec = f["profile_spec"]
+        project.profile_image_path = f["profile_image_path"]
+        project.variant_hint_mode = f["variant_hint_mode"] or "styled"
+        project.base_image_id = f["base_image_id"]
+        if item.replica_verdict is not None and f["base_image_id"]:
+            project.qa_verdicts[f["base_image_id"]] = item.replica_verdict
+        store.save(item.library_id)
+        if item.has_upload:
+            store.save_upload(
+                item.library_id,
+                f["upload_filename"] or f"{item.source_name}.png",
+                (src_dir / "upload.bin").read_bytes(),
+            )
+
+
+def verify(projects_dir: Path, items: list[PlanItem]) -> list[str]:
+    """Reload everything through a fresh ProjectStore; return problems."""
+    fresh = ProjectStore(projects_dir)
+    problems: list[str] = []
+    for item in items:
+        p = fresh.get(item.library_id)
+        if p is None:
+            problems.append(f"{item.library_id}: missing after apply")
+            continue
+        if not p.has_signature or p.learned_signature is None:
+            problems.append(f"{item.library_id}: no signature after apply")
+        if p.base_door_image is None:
+            problems.append(f"{item.library_id}: no replica after apply")
+        if len(p.results) != item.result_count_before:
+            problems.append(
+                f"{item.library_id}: result count changed "
+                f"{item.result_count_before} -> {len(p.results)}"
+            )
+    return problems
+
+
+def server_running(port: int = 8000) -> bool:
+    with socket.socket() as s:
+        s.settimeout(0.5)
+        return s.connect_ex(("127.0.0.1", port)) == 0
