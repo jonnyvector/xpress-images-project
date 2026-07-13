@@ -187,3 +187,12 @@ export function listStyles(material: string = 'wood'): Promise<Style[]> {
 export function getCoverage(): Promise<CoverageResponse> {
   return request<CoverageResponse>('/api/coverage');
 }
+
+export function uploadShopifyCsv(file: File): Promise<CoverageResponse> {
+  const form = new FormData();
+  form.append('file', file);
+  return request<CoverageResponse>('/api/coverage/shopify-csv', {
+    method: 'POST',
+    body: form,
+  });
+}
