@@ -17,6 +17,8 @@ is copied VERBATIM so the replica's existing global approval carries over
 
 from __future__ import annotations
 
+import argparse
+import base64
 import json
 import shutil
 import socket
@@ -236,3 +238,94 @@ def server_running(port: int = 8000) -> bool:
     with socket.socket() as s:
         s.settimeout(0.5)
         return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def _img_tag(path: Path, width: int = 220) -> str:
+    b64 = base64.b64encode(path.read_bytes()).decode()
+    return f'<img src="data:image/png;base64,{b64}" width="{width}" loading="lazy">'
+
+
+def compare_report(projects_dir: Path, out_path: Path) -> None:
+    """HTML side-by-side: each ambiguous library's variants vs candidate replicas."""
+    rows = []
+    for lib_id, cand_ids in CANDIDATES.items():
+        lib = _read_manifest(projects_dir, lib_id)
+        lib_dir = projects_dir / lib_id
+        samples = [
+            _img_tag(lib_dir / f"result_{i}.bin")
+            for i in range(3)
+            if (lib_dir / f"result_{i}.bin").exists()
+        ]
+        cands = []
+        for cid in cand_ids:
+            c = _read_manifest(projects_dir, cid)
+            base = projects_dir / cid / "base_door.bin"
+            img = _img_tag(base) if base.exists() else "(no replica)"
+            cands.append(
+                f"<figure><figcaption><b>{cid}</b> — {c['name']} "
+                f"(style: {c.get('door_style')})</figcaption>{img}</figure>"
+            )
+        rows.append(
+            f"<h2>{lib['name']} ({lib_id})</h2>"
+            f"<h3>Library variants (first 3)</h3><div class=row>{''.join(samples)}</div>"
+            f"<h3>Candidate replicas</h3><div class=row>{''.join(cands)}</div><hr>"
+        )
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(
+        "<meta charset=utf-8><title>Backfill: ambiguous door matching</title>"
+        "<style>.row{display:flex;gap:12px;flex-wrap:wrap}figure{margin:0}</style>"
+        + "".join(rows)
+    )
+    print(f"Report written to {out_path}")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--apply", action="store_true", help="write changes")
+    parser.add_argument(
+        "--compare-report", action="store_true",
+        help="emit HTML report for ambiguous doors and exit",
+    )
+    parser.add_argument("--port", type=int, default=8000)
+    args = parser.parse_args()
+
+    if args.compare_report:
+        compare_report(PROJECTS_DIR, COMPARE_REPORT)
+        return 0
+
+    if server_running(args.port):
+        print(f"ABORT: something is listening on port {args.port} — stop the dev "
+              "server first (single-writer rule).")
+        return 1
+
+    items, skipped = build_plan(PROJECTS_DIR, APPROVALS_PATH, MAPPING)
+    print(f"=== Plan: {len(items)} to backfill, {len(skipped)} skipped ===")
+    for s in skipped:
+        print(f"  SKIP {s}")
+    for item in items:
+        flags = " ".join(f"[WARN {w}]" for w in item.warnings)
+        print(
+            f"  {item.library_name:22} ({item.library_id}) <- "
+            f"{item.source_name} ({item.source_id}) "
+            f"style={item.fields['door_style']} "
+            f"results={item.result_count_before} upload={item.has_upload} {flags}"
+        )
+
+    if not args.apply:
+        print("\nDry run — nothing written. Re-run with --apply to write.")
+        return 0
+
+    apply_plan(PROJECTS_DIR, items, BACKUP_DIR)
+    problems = verify(PROJECTS_DIR, items)
+    if problems:
+        print("=== VERIFY FAILED ===")
+        for p in problems:
+            print(f"  {p}")
+        return 1
+    print(f"=== Applied + verified {len(items)} projects. "
+          f"Backups: {BACKUP_DIR} ===")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
