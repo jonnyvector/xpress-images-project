@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+import backend.routers.coverage as coverage_router
 from backend.app import app
 from backend.coverage import (
     CATEGORIES,
@@ -227,6 +228,51 @@ def test_compute_coverage_on_shopify_none_when_no_csv_uploaded(tmp_path: Path):
     cats = compute_coverage([], data_dir=tmp_path, approval_store=store)
     row = next(c for c in cats if c["key"] == "wood_cabinet_doors")["products"][0]
     assert row["on_shopify"] is None
+
+
+def test_upload_shopify_csv_persists_and_refreshes_coverage(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(coverage_router, "DATA_DIR", tmp_path)
+    (tmp_path / "wood_cabinet_doors.csv").write_text(
+        '"Product title","Net sales","Quantity ordered"\n'
+        '"Shaker Cabinet Door",100.0,5\n'
+    )
+    csv_bytes = (
+        b"Handle,Title,Variant SKU,Variant Image\n"
+        b"shaker-cabinet-door,Shaker Cabinet Door,SCD-MAPLE,https://cdn/1.jpg\n"
+    )
+    with TestClient(app) as client:
+        resp = client.post(
+            "/api/coverage/shopify-csv",
+            files={"file": ("shopify_products.csv", csv_bytes, "text/csv")},
+        )
+    assert resp.status_code == 200
+    assert (tmp_path / "shopify_products.csv").exists()
+    data = resp.json()
+    wood_cd = next(c for c in data["categories"] if c["key"] == "wood_cabinet_doors")
+    row = next(p for p in wood_cd["products"] if p["title"] == "Shaker Cabinet Door")
+    assert row["on_shopify"] is True
+
+
+def test_upload_shopify_csv_rejects_empty_file(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(coverage_router, "DATA_DIR", tmp_path)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/api/coverage/shopify-csv",
+            files={"file": ("shopify_products.csv", b"", "text/csv")},
+        )
+    assert resp.status_code == 400
+    assert not (tmp_path / "shopify_products.csv").exists()
+
+
+def test_upload_shopify_csv_rejects_unrecognized_headers(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(coverage_router, "DATA_DIR", tmp_path)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/api/coverage/shopify-csv",
+            files={"file": ("shopify_products.csv", b"Foo,Bar\nx,y\n", "text/csv")},
+        )
+    assert resp.status_code == 400
+    assert not (tmp_path / "shopify_products.csv").exists()
 
 
 def test_compute_coverage_on_shopify_none_when_no_title_match(tmp_path: Path):
