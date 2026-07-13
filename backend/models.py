@@ -133,6 +133,9 @@ class CoverageProduct(BaseModel):
     covered: bool
     manual: bool = False  # covered by operator override, not a project match
     matched_project_ids: list[str]
+    approved_count: int = 0
+    approved_total: int = 0
+    on_shopify: bool | None = None  # None = no Shopify CSV uploaded, or no title match
 
 
 class CoverageCategory(BaseModel):
