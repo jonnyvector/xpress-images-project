@@ -139,20 +139,12 @@ def load_overrides(data_dir: Path) -> set[str]:
 
 
 def _approval_progress(project: ProjectState, approval_store: ApprovalStore) -> tuple[int, int]:
-    """(approved_count, total) for a project's current result records.
-
-    Uses getattr for image_id (rather than record.image_id directly) because
-    some older test fixtures build ``results`` from bare tuples instead of
-    ResultRecord instances; those have no approval identity and just count
-    as unapproved rather than crashing.
-    """
+    """(approved_count, total) for a project's current result records."""
     total = len(project.results)
     approved = sum(
         1
         for record in project.results
-        if (image_id := getattr(record, "image_id", None)) is not None
-        and (a := approval_store.get(image_id)) is not None
-        and a.verdict == "approved"
+        if (a := approval_store.get(record.image_id)) is not None and a.verdict == "approved"
     )
     return approved, total
 
