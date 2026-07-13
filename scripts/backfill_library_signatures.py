@@ -44,7 +44,7 @@ MAPPING: dict[str, str | None] = {
     "123fe10f": "9f98e1fa",  # Campbell_new_wm      <- campbell
     "12d5f927": "a3453f05",  # Hamilton_new_wm      <- Hamilton Cabinet Door
     "2246bbc1": "02afd676",  # Connecticut_new_wm   <- connecticut
-    "42a5ceae": None,        # Shaker_new_wm        — ambiguous
+    "42a5ceae": "6176c0db",  # Shaker_new_wm        <- shaker/minimal (confirmed 2026-07-13)
     "473248ee": "ca7c7f92",  # Josephine_new_wm     <- Josephine
     "4fdd9a63": "6d2bb325",  # Isabella_new_wm      <- isabella
     "599471c0": "a2c466f8",  # Arcadia_new_wm       <- arcadia
@@ -54,15 +54,15 @@ MAPPING: dict[str, str | None] = {
     "8ec7f68a": "5875fc02",  # Laguna_new_wm        <- Laguna
     "950e8411": "a9f04868",  # Frontier_new_wm      <- frontier
     "9bce8708": "b48dfef2",  # Artesia_new_wm       <- artesia
-    "9d8a5618": None,        # Highpointe_new_wm    — ambiguous
+    "9d8a5618": "045eb318",  # Highpointe_new_wm    <- highpointe mitered+molding (conf 2026-07-13)
     "ac084bf5": "ec593b7e",  # Estrella_new_wm      <- estrella
     "c3ac38ec": "c9ff205d",  # Alpine_new_wm        <- alpine
-    "c81e6ddf": None,        # Durango_new_wm       — ambiguous
+    "c81e6ddf": "2b51d74d",  # Durango_new_wm       <- Durango recessed_panel (confirmed 2026-07-13)
     "d0d227d0": "2564359f",  # Adobe_new_wm         <- adobe
     "dc8e7e9a": "dcf543e4",  # Kennedy_new_wm       <- Kennedy
-    "dca2a561": None,        # Graham_new_wm        — ambiguous
+    "dca2a561": "18460a95",  # Graham_new_wm        <- graham eponymous (tie; conf 2026-07-13)
     "defe8a7d": "35113f5a",  # Cascade_new_wm       <- cascade
-    "e56a767d": None,        # Mission_new_wm       — ambiguous
+    "e56a767d": "7634b572",  # Mission_new_wm       <- Mission tight-ogee arch (conf 2026-07-13)
     "ef5204ed": "7ef841e3",  # Jasper_new_wm        <- jasper
     "f3910c7d": "1de2743f",  # Cougar_new_wm        <- Cougar
 }
