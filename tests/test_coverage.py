@@ -170,6 +170,26 @@ def test_compute_coverage_reports_approval_progress(tmp_path: Path):
     assert row["approved_total"] == 2
 
 
+def test_compute_coverage_rejected_verdict_does_not_count_as_approved(tmp_path: Path):
+    (tmp_path / "wood_cabinet_doors.csv").write_text(
+        '"Product title","Net sales","Quantity ordered"\n'
+        '"Shaker Cabinet Door",100.0,5\n'
+    )
+    records = [
+        ResultRecord(image_id="img1", wood_name="Maple"),
+        ResultRecord(image_id="img2", wood_name="Oak"),
+    ]
+    project = _project(id="s1", name="Shaker", results=records)
+    store = ApprovalStore(path=tmp_path / "approvals.json")
+    store.set(Approval(image_id="img1", project_id="s1", kind="variant", verdict="approved"))
+    store.set(Approval(image_id="img2", project_id="s1", kind="variant", verdict="rejected"))
+
+    cats = compute_coverage([project], data_dir=tmp_path, approval_store=store)
+    row = next(c for c in cats if c["key"] == "wood_cabinet_doors")["products"][0]
+    assert row["approved_count"] == 1
+    assert row["approved_total"] == 2
+
+
 def test_compute_coverage_approval_zero_total_when_no_results(tmp_path: Path):
     (tmp_path / "wood_cabinet_doors.csv").write_text(
         '"Product title","Net sales","Quantity ordered"\n'

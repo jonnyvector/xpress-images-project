@@ -20,7 +20,7 @@ IMAGE_HEADER_CANDIDATES = ("Variant Image", "Image Src")
 def has_recognizable_headers(header: list[str]) -> bool:
     """True if header has Handle, Title, and one of the known image columns."""
     fields = set(header)
-    if not REQUIRED_HEADERS <= fields:
+    if not fields >= REQUIRED_HEADERS:
         return False
     return any(h in fields for h in IMAGE_HEADER_CANDIDATES)
 

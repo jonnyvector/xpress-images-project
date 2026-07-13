@@ -761,6 +761,11 @@ label {
   color: #92400e;
 }
 
+.badge-warn {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .badge-muted {
   background: var(--color-border);
   color: var(--color-text-muted);
