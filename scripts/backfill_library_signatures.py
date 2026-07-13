@@ -241,8 +241,16 @@ def server_running(port: int = 8000) -> bool:
 
 
 def _img_tag(path: Path, width: int = 220) -> str:
-    b64 = base64.b64encode(path.read_bytes()).decode()
-    return f'<img src="data:image/png;base64,{b64}" width="{width}" loading="lazy">'
+    data = path.read_bytes()
+    # Sniff MIME type from magic bytes
+    if data.startswith(b"\xff\xd8"):
+        mime = "image/jpeg"
+    elif data.startswith(b"\x89PNG"):
+        mime = "image/png"
+    else:
+        mime = "image/png"
+    b64 = base64.b64encode(data).decode()
+    return f'<img src="data:{mime};base64,{b64}" width="{width}" loading="lazy">'
 
 
 def compare_report(projects_dir: Path, out_path: Path) -> None:
@@ -289,14 +297,14 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
 
-    if args.compare_report:
-        compare_report(PROJECTS_DIR, COMPARE_REPORT)
-        return 0
-
     if server_running(args.port):
         print(f"ABORT: something is listening on port {args.port} — stop the dev "
               "server first (single-writer rule).")
         return 1
+
+    if args.compare_report:
+        compare_report(PROJECTS_DIR, COMPARE_REPORT)
+        return 0
 
     items, skipped = build_plan(PROJECTS_DIR, APPROVALS_PATH, MAPPING)
     print(f"=== Plan: {len(items)} to backfill, {len(skipped)} skipped ===")
@@ -304,12 +312,15 @@ def main() -> int:
         print(f"  SKIP {s}")
     for item in items:
         flags = " ".join(f"[WARN {w}]" for w in item.warnings)
-        print(
+        line = (
             f"  {item.library_name:22} ({item.library_id}) <- "
             f"{item.source_name} ({item.source_id}) "
             f"style={item.fields['door_style']} "
-            f"results={item.result_count_before} upload={item.has_upload} {flags}"
+            f"results={item.result_count_before} upload={item.has_upload}"
         )
+        if flags:
+            line += f" {flags}"
+        print(line)
 
     if not args.apply:
         print("\nDry run — nothing written. Re-run with --apply to write.")
