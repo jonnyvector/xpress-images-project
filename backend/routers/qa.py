@@ -133,19 +133,21 @@ def review_queue(request: Request) -> dict:
     for project in store.list_projects():
         if not project.qa_verdicts:
             continue  # no pipeline activity — not reviewable yet
-        project_decided = {
-            a.image_id for a in approvals.for_project(project.id)
-        }
+        # Decided-ness is keyed by image IDENTITY, not project (D-006): a
+        # replica shared across projects (library backfilled from its source)
+        # is decided everywhere by one verdict — same rule approved_ids()
+        # applies at the GT-001 gate. Project-scoped lookup here made shared
+        # replicas ping-pong between the two queues forever.
         replica_pending = (
             project.base_image_id is not None
-            and project.base_image_id not in project_decided
+            and approvals.get(project.base_image_id) is None
         )
         variants = []
         for idx, record in enumerate(project.results):
             verdict = project.qa_verdicts.get(record.image_id)
             if not verdict or verdict.get("qa_status") != "done":
                 continue
-            if record.image_id in project_decided:
+            if approvals.get(record.image_id) is not None:
                 continue
             variants.append({
                 "image_id": record.image_id,

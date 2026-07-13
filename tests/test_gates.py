@@ -423,3 +423,37 @@ def test_review_queue_lists_pending_verdict_items(client) -> None:
     pending_variants = {v["wood_name"] for v in entry["variants"]}
     assert pending_variants == {"Cherry"}  # Oak already approved
     assert queue["total_pending"] == 2  # replica + Cherry
+
+
+def test_review_queue_shared_replica_identity_decided_once(client) -> None:
+    """Two projects sharing a base_image_id (library backfilled from source,
+    D-006: same replica bytes = same identity) — one approval decides the
+    image EVERYWHERE. The queue must not ping-pong the twin forever."""
+    store = client.app.state.project_store
+    source = _learned_project(client)
+    store.set_qa_verdict(source.id, source.base_image_id,
+                         {"verdict": "pass", "qa_status": "done", "reason": "ok"})
+
+    library = store.create(name="Door 1_new_wm", product_type="Cabinet Door")
+    store.update(
+        library.id,
+        has_signature=True,
+        learned_signature=b"sig",
+        base_door_image=b"replica",
+        base_image_id=source.base_image_id,  # shared identity (backfill)
+    )
+    store.set_qa_verdict(library.id, source.base_image_id,
+                         {"verdict": "pass", "qa_status": "done", "reason": "ok"})
+
+    # Operator approves the replica from the SOURCE project's queue card.
+    resp = client.post(f"/api/projects/{source.id}/approvals",
+                       json={"image_id": source.base_image_id, "verdict": "approved"})
+    assert resp.status_code == 200
+
+    queue = client.get("/api/qa/review-queue").json()
+    ids = {p["project_id"] for p in queue["projects"]}
+    assert source.id not in ids, "approved replica must leave the source queue"
+    assert library.id not in ids, (
+        "same image identity is decided everywhere — library must not stay pending"
+    )
+    assert queue["total_pending"] == 0
