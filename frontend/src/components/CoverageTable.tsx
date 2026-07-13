@@ -1,6 +1,7 @@
 // Renders one best-seller category as a coverage checklist: a header summary
 // with a progress bar, then one row per product showing covered status, sales
-// figures, and a link to the matched project. Presentational only.
+// figures, approval progress, Shopify status, and a link to the matched
+// project. Presentational only.
 import type { CoverageCategory } from '../types';
 
 interface Props {
@@ -39,6 +40,8 @@ export default function CoverageTable({ category, onlyUncovered, onOpenProject }
               <th>Product</th>
               <th style={{ textAlign: 'right' }}>Net sales</th>
               <th style={{ textAlign: 'right' }}>Units</th>
+              <th>Approved</th>
+              <th>On Shopify</th>
             </tr>
           </thead>
           <tbody>
@@ -62,6 +65,26 @@ export default function CoverageTable({ category, onlyUncovered, onOpenProject }
                   ${p.net_sales.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </td>
                 <td style={{ textAlign: 'right' }}>{p.quantity.toLocaleString()}</td>
+                <td>
+                  {p.approved_total > 0 ? (
+                    <span
+                      className={`badge ${p.approved_count === p.approved_total ? 'badge-approved' : 'badge-partial'}`}
+                    >
+                      {p.approved_count}/{p.approved_total} approved
+                    </span>
+                  ) : (
+                    <span className="badge badge-muted">—</span>
+                  )}
+                </td>
+                <td>
+                  {p.on_shopify === true ? (
+                    <span className="badge badge-approved">On Shopify</span>
+                  ) : p.on_shopify === false ? (
+                    <span className="badge badge-muted">Missing images</span>
+                  ) : (
+                    <span className="badge badge-muted">—</span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
