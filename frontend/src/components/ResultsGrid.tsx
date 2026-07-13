@@ -4,6 +4,7 @@ import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 import { usePollingTask } from '../hooks/usePollingTask';
 import ApprovalControls from './ApprovalControls';
+import ApproveAllButton from './ApproveAllButton';
 import QaBadge from './QaBadge';
 
 interface Props {
@@ -34,6 +35,13 @@ export default function ResultsGrid({ project }: Props) {
   useEffect(() => {
     refreshApprovals();
   }, [refreshApprovals]);
+
+  const undecidedVariantIds = project.results
+    .filter((r) => {
+      const v = verdicts.get(r.image_id);
+      return v !== 'approved' && v !== 'rejected';
+    })
+    .map((r) => r.image_id);
 
   // Verdicts land asynchronously after generation — keep polling while any
   // QA task is visibly in flight so badges flip from judging… to done.
@@ -263,6 +271,11 @@ export default function ResultsGrid({ project }: Props) {
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
             <h3 style={{ margin: 0 }}>Wood Variations ({project.results.length})</h3>
+            <ApproveAllButton
+              projectId={project.id}
+              imageIds={undecidedVariantIds}
+              onDone={refreshApprovals}
+            />
             <button
               onClick={toggleSort}
               style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
