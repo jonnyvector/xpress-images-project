@@ -54,6 +54,7 @@ STYLE_CLASSES: dict[str, str] = {
     "rtf_minimal": EXCLUDED,  # minimal test, unknown structure
     "vienna": EXCLUDED,  # slab veneer with bead molding
     "mission": EXCLUDED,  # cathedral arch (radius/arched)
+    "recessed_panel_arched": EXCLUDED,  # arched recessed panel — not a measurable rectangle
     "raised_panel": EXCLUDED,  # raised/beveled panel
     "raised_panel_radius": EXCLUDED,  # raised panel, radius corners
     "solid_plank": EXCLUDED,  # solid slab

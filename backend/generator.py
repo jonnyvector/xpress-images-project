@@ -16,6 +16,14 @@ from backend.styles.catalog import STYLES
 
 CANVAS_SIZE = 1000
 
+# Lean variant hint (lean-variants plan, D-005): deliberately makes NO geometry
+# claims — the thought signature carries the door's structure. NOT reused from
+# STYLES["minimal"], whose "all stiles and rails must remain the same width"
+# is false for non-uniform-frame doors.
+LEAN_VARIATION_HINT = (
+    "Preserve the exact door structure from before. Change only the wood material."
+)
+
 
 def add_watermark(
     image_bytes: bytes,
@@ -99,6 +107,9 @@ class GenerationResult:
     image_data: bytes | None
     thought_signature: bytes | None
     error: str | None = None
+    # The fully assembled prompt that was (or would have been) sent — set by
+    # learn_door_style for the prompt-sidecar observability contract (D-005).
+    prompt: str = ""
 
 
 def _corner_instruction(corner_style: str) -> str:
@@ -159,6 +170,10 @@ def _build_rtf_prompt(
                 "The grain flows continuously from the very top edge to the very bottom edge "
                 "without interruption across the entire surface. "
                 "Monolithic vertical wood texture — do NOT break the grain direction for any part of the door. "
+                "CRITICAL: the TOP RAIL and BOTTOM RAIL also have VERTICAL grain, NOT horizontal. "
+                "This is a printed thermofoil film, NOT real wood joinery — the grain does NOT turn "
+                "sideways at the rails the way a real 5-piece wood door would. Every part of the door — "
+                "top rail, bottom rail, stiles, and center panel — has the SAME uninterrupted vertical grain. "
             )
     else:
         grain_override = ""
@@ -398,6 +413,10 @@ class DoorGenerator:
         corner_style: str = "sharp",
         material_type: str = "wood",
         learn_in_maple: bool = False,
+        temperature: float = 0.0,
+        style_notes: str = "",
+        profile_image_path: Path | None = None,
+        lean: bool = False,
     ) -> GenerationResult:
         """
         Have Gemini generate its own version of the door to capture its understanding.
@@ -417,7 +436,11 @@ class DoorGenerator:
             GenerationResult with Gemini's door image and thought signature
         """
         style = STYLES.get(door_style, STYLES["recessed_panel"])
-        prompt = style["learn_prompt"]
+        # Lean mode (lean-conditioning plan): the bare lean prompt replaces ONLY
+        # the style-prompt layer; every other assembly step below (corner,
+        # material, dimensions, notes, images) runs unchanged.
+        prompt = (STYLES["rtf_minimal"]["learn_prompt"] if lean
+                  else style["learn_prompt"])
 
         # Inject corner style instruction
         if corner_style == "bullnose":
@@ -436,11 +459,13 @@ class DoorGenerator:
         # Inject material type instruction
         if material_type == "rtf":
             prompt += (
-                " MATERIAL: This is an RTF (Rigid Thermofoil) door — the surface "
-                "is a smooth, uniform vinyl/thermofoil wrap over MDF substrate. "
-                "The finish is NOT natural wood. It has a consistent, uniform color "
-                "with no natural wood grain variation. The surface may be matte, "
-                "satin, or have a subtle embossed texture pattern."
+                " MATERIAL: This is an RTF (Rigid Thermofoil) door — a smooth "
+                "vinyl/thermofoil wrap over MDF substrate. Reproduce the EXACT "
+                "surface finish shown in the reference image: if it is a solid "
+                "uniform color, keep it perfectly smooth and uniform with no grain; "
+                "if it shows a printed WOODGRAIN, faithfully reproduce that "
+                "woodgrain pattern and its direction. Do NOT flatten a woodgrain "
+                "finish into a solid color."
             )
 
         # Inject dimension preservation instruction
@@ -468,6 +493,24 @@ class DoorGenerator:
             )
             maple_swatch_path = Path("swatches/wood/maple_select.jpg")
 
+        # Corrective structural notes (onboarding re-learn ladder targets the
+        # sample's weakest-scoring dimension).
+        if style_notes:
+            prompt += f" STRUCTURAL DETAILS: {style_notes}"
+
+        # Profile anchor (see docs/superpowers/specs/2026-07-08-profile-anchor-design.md):
+        # the catalog cross-section carries profile geometry a front-facing photo
+        # underdetermines. Geometry stays in the image — this framing line is the
+        # only prose allowed about it.
+        has_profile = profile_image_path is not None and profile_image_path.exists()
+        if has_profile:
+            prompt += (
+                " PROFILE CROSS-SECTION: an additional small line drawing is "
+                "attached — a cross-section of this exact door's edge, frame, and "
+                "panel profile viewed edge-on. Reproduce this exact profile "
+                "geometry. Do not copy the drawing's line-art rendering style."
+            )
+
         # Load the reference image with HIGH media resolution so Gemini uses
         # ~1120 tokens to analyze it (vs default 256) — critical for reading
         # fine details like exact stile/rail widths from the input image.
@@ -485,6 +528,17 @@ class DoorGenerator:
             ref_part,
         ]
 
+        if has_profile:
+            parts.append(
+                types.Part.from_bytes(
+                    data=profile_image_path.read_bytes(),
+                    mime_type=MIME_MAP.get(profile_image_path.suffix.lower(), "image/jpeg"),
+                    # The drawings are tiny (130-185px); HIGH resolution gives the
+                    # model enough tokens to read the profile shape.
+                    media_resolution=types.PartMediaResolutionLevel.MEDIA_RESOLUTION_HIGH,
+                )
+            )
+
         if maple_swatch_path and maple_swatch_path.exists():
             swatch_bytes = maple_swatch_path.read_bytes()
             swatch_suffix = maple_swatch_path.suffix.lower()
@@ -499,13 +553,17 @@ class DoorGenerator:
 
         config = types.GenerateContentConfig(
             response_modalities=["image", "text"],
-            temperature=0.0,  # Deterministic for style consistency
+            # Deterministic (0.0) by default for style consistency; the
+            # onboarding re-learn loop bumps this to vary otherwise-identical
+            # retries (temp-0.0 reproduces the same replica).
+            temperature=temperature,
             image_config=types.ImageConfig(aspect_ratio=aspect_ratio),
         )
         response, error_result = self._call_with_retry(
             contents, config, label="learn_door_style"
         )
         if error_result is not None:
+            error_result.prompt = prompt
             return error_result
 
         image_data, signature, _ = self._extract_image_and_signature(response)
@@ -515,6 +573,7 @@ class DoorGenerator:
                 image_data=None,
                 thought_signature=signature,
                 error="No image returned from API",
+                prompt=prompt,
             )
 
         if not signature:
@@ -528,11 +587,13 @@ class DoorGenerator:
                 thought_signature=None,
                 error="No thought signature returned — cannot generate consistent variations. "
                 "Please retry learning.",
+                prompt=prompt,
             )
 
         return GenerationResult(
             image_data=image_data,
             thought_signature=signature,
+            prompt=prompt,
         )
 
     def generate_variation(
@@ -550,6 +611,7 @@ class DoorGenerator:
         material_type: str = "wood",
         hex_color: str | None = None,
         rtf_finish: str | None = None,
+        lean: bool = False,
     ) -> GenerationResult:
         """
         Generate a door variation with a specific wood type.
@@ -579,7 +641,10 @@ class DoorGenerator:
 
         style = STYLES.get(door_style, STYLES["recessed_panel"])
         is_rtf_drawer = style.get("category") == "drawer"
-        variation_hint = style["variation_hint"]
+        # Lean variant mode (lean-variants plan): the signature carries the
+        # geometry; a styled hint that re-describes the door can contradict it
+        # (Mitchell 0/38). The bare hint replaces ONLY the hint layer.
+        variation_hint = LEAN_VARIATION_HINT if lean else style["variation_hint"]
 
         # Combine variation hint with user-provided structural notes
         if style_notes:

@@ -156,3 +156,147 @@ class VisionJudge:
             confidence=data.get("confidence", "low"),
             reason=str(data.get("reason", "")),
         )
+
+
+# --- Replica identity judging (profile-spec pipeline) -----------------------
+# The similarity rubric above still governs variants; replicas gate on THIS.
+
+from backend.qa.profile_spec import REGIONS  # noqa: E402  (grouped with its feature)
+
+IDENTITY_PROMPT = """You are comparing two cabinet door photos for GEOMETRIC IDENTITY.
+The FIRST image is the SAMPLE photo of the real door. The LAST image is an
+AI-generated replica rendered at 9:16 — it may be TALLER than the sample. Repeating
+elements (louver slats, grooves, planks) continuing at the same pitch on a taller door
+is CORRECT; a different pitch, spacing ratio, or element profile IS a defect.
+
+The replica must be the IDENTICAL door design. Wood grain figure, color, lighting,
+shadows and camera angle are NEVER defects. Any geometric difference you are VISUALLY
+CERTAIN of IS a defect. Certainty rule: construction details that are hard to read at
+photo scale — joint type (miter vs cope-and-stick vs butt), a hairline edge roundover —
+count as a difference ONLY when unmistakable in BOTH images (e.g. clearly visible
+45-degree corner lines in one and clearly absent in the other); when in doubt, answer
+"matches". A fact about such a detail holds unless clearly contradicted.
+
+CHECK THE DOOR'S EDGES FIRST — the most common replica failure is at the perimeter,
+not the interior. Compare the LEFT and RIGHT edges of both doors: does the sample have
+side stiles, and does the replica? Does frame molding run down BOTH sides in both? Do
+planks/panels run off the door edge (outermost elements cut by the edge) in one but
+not the other? A replica that CROPS AWAY side stiles or side molding, or ADDS side
+stiles where the sample's elements run off the edge, is disqualified — this is a known
+failure when adapting to 9:16: the door gets narrowed by cropping its sides instead of
+narrowing its members. Also compare the OUTER EDGE profile precisely: square vs eased
+vs chamfered vs bullnose (fully rounded).
+{xsection}
+Profile geometry is where the remaining near-misses fail. For outside_edge,
+inside_edge, panel and trim_molding, CHARACTERIZE THEN COMPARE: first describe the
+sample's profile character in a few words (e.g. "sharp steep raise" vs "gradual
+shallow raise"; "fat quarter-round molding standing proud, deep reveal" vs "slim flat
+molding"; "deep chamfered V-grooves" vs "faint scratched lines"; "half-round reeds
+with rounded ends" vs "flat boards"), then describe the replica's the same way, then
+compare. A different CHARACTER is a defect even when the type matches — name it
+precisely.
+
+Step 1 — verify each stated fact against the replica:
+{facts}
+
+Step 2 — region sweep. For EACH region below, compare sample vs replica and answer
+"matches" or state the difference in one sentence:
+- outside_edge: precise outer edge profile (square / eased / chamfered / bullnose)
+- stiles_rails: side stiles present or absent; elements cut off at the door's left and
+  right edges; member widths and proportions
+- joints_corners: miter 45-degree lines vs cope-and-stick vs butt (certainty rule applies)
+- inside_edge: the frame-to-panel transition profile (step, bevel, ogee, routing) and
+  its character (soft wide bevel vs crisp narrow step)
+- panel: type, raise character (sharp vs gradual), recess depth, surface texture
+  geometry (groove depth, reed profile)
+- trim_molding: applied molding present/absent, its weight (fat vs fine) and reveal depth
+- top_rail_arch: square vs cathedral vs radius geometry
+
+Reply with ONLY a JSON object, no markdown fences:
+{{"fact_checks": [{{"fact": "...", "holds": true, "observed": "..."}}, ...],
+"region_sweep": {{"outside_edge": "matches", "stiles_rails": "...", "joints_corners": "...",
+"inside_edge": "...", "panel": "...", "trim_molding": "...", "top_rail_arch": "..."}},
+"defects": ["one-line geometric difference", ...],
+"disqualified": true/false}}"""
+
+# Formatted into {xsection} ONLY when the catalog cross-section is attached;
+# an empty string restores the original paragraph spacing exactly.
+XSECTION_JUDGE_BLOCK = (
+    "\nA line-drawing CROSS-SECTION of the SAMPLE door's edge, frame, and panel "
+    "profile (viewed edge-on) is attached between the sample photo and the "
+    "replica. It shows the sample's TRUE profile geometry — use it to resolve "
+    "profile-character questions: raise shape (sharp vertical step vs gradual "
+    "bevel), frame thickness, inside and outside edge profiles. The REPLICA must "
+    "match the drawing's geometry; the drawing's line-art rendering style is "
+    "irrelevant.\n"
+)
+
+
+@dataclass
+class IdentityResult:
+    key: str
+    fact_checks: list[dict] = field(default_factory=list)
+    region_sweep: dict = field(default_factory=dict)
+    defects: list[str] = field(default_factory=list)
+    disqualified: bool = True
+    verdict: str = "ok"  # "ok" | "error"
+    reason: str = ""
+
+
+def parse_identity(key: str, text: str) -> IdentityResult:
+    cleaned = re.sub(r"^```(json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
+    data = json.loads(cleaned)
+    sweep = data.get("region_sweep") or {}
+    missing = [r for r in REGIONS if r not in sweep]
+    if missing:
+        raise ValueError(f"region_sweep missing regions: {missing}")
+    checks = [
+        {"fact": str(c.get("fact", "")), "holds": bool(c.get("holds")),
+         "observed": str(c.get("observed", ""))}
+        for c in data.get("fact_checks") or []
+    ]
+    defects = [str(d) for d in data.get("defects") or []]
+    # Derive disqualification — the model's flag alone is not trusted. A failed
+    # fact or a non-matching region always disqualifies and always yields a defect.
+    for c in checks:
+        if not c["holds"]:
+            line = f"fact failed — {c['fact']} (observed: {c['observed']})"
+            if not any(c["fact"] in d for d in defects):
+                defects.append(line)
+    for region in REGIONS:
+        answer = str(sweep[region]).strip()
+        if answer.lower() != "matches" and not any(answer in d for d in defects):
+            defects.append(f"{region}: {answer}")
+    disqualified = bool(data.get("disqualified")) or bool(defects)
+    return IdentityResult(key=key, fact_checks=checks, region_sweep=sweep,
+                          defects=defects, disqualified=disqualified)
+
+
+def judge_replica_identity(
+    client, source_bytes: bytes, replica_bytes: bytes, facts: list[str],
+    *, model: str = DEFAULT_MODEL, key: str = "",
+    profile_bytes: bytes | None = None,
+) -> IdentityResult:
+    fallback = "- (no stated facts; rely on the region sweep)"
+    fact_lines = "\n".join(f"- {f}" for f in facts) if facts else fallback
+    prompt = IDENTITY_PROMPT.format(
+        facts=fact_lines,
+        xsection=XSECTION_JUDGE_BLOCK if profile_bytes is not None else "",
+    )
+    parts = [types.Part.from_bytes(data=source_bytes, mime_type=_mime(source_bytes))]
+    if profile_bytes is not None:
+        parts.append(types.Part.from_bytes(data=profile_bytes,
+                                           mime_type=_mime(profile_bytes)))
+    parts.append(types.Part.from_bytes(data=replica_bytes, mime_type=_mime(replica_bytes)))
+    parts.append(types.Part.from_text(text=prompt))
+    contents = [types.Content(role="user", parts=parts)]
+    last = ""
+    for attempt in range(3):
+        try:
+            resp = client.models.generate_content(model=model, contents=contents)
+            return parse_identity(key, resp.text or "")
+        except Exception as exc:  # noqa: BLE001 - retry then error result
+            last = str(exc)
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+    return IdentityResult(key=key, verdict="error", reason=last)

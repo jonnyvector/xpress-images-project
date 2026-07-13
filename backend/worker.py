@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -33,6 +34,50 @@ def _is_drawer_product(project: ProjectState) -> bool:
     return project.product_type == "Drawer Front"
 
 
+# Near-white threshold: every RGB channel this light or lighter counts as
+# low-contrast. White Supermatte (FAF9F5), 949W (F8F8F6), Feather (FEFEF9) all
+# clear it; mid-tones and greys do not.
+_NEAR_WHITE_MIN_CHANNEL = 0xDC
+
+
+def _swatch_min_channel(swatch_path) -> int | None:
+    """Darkest RGB channel of the swatch's mean color, or None if unreadable."""
+    try:
+        from PIL import Image
+
+        with Image.open(swatch_path) as im:
+            r, g, b = im.convert("RGB").resize((1, 1)).getpixel((0, 0))
+        return min(r, g, b)
+    except Exception:
+        return None
+
+
+def _needs_geometry_anchor(sel: dict, material_type: str) -> bool:
+    """Whether this selection should attach the replica as a geometry reference.
+
+    White-on-white RTF collapses the tiered/recessed profile to a raised panel:
+    with near-zero luminance contrast the signature/prompt conditioning is too
+    weak, and the raised-panel prior wins (validated 2026-07-03). Attaching the
+    approved replica image restores geometry independent of color contrast.
+
+    Scoped to near-white RTF only — darker colors don't need it, and a white
+    replica reference could leak lightness into a saturated target. Uses the hex
+    when present, else falls back to the swatch's actual mean luminance so
+    non-hex whites (e.g. Velvet White) still anchor.
+    """
+    if material_type != "rtf":
+        return False
+    hexv = sel.get("hex")
+    if hexv and len(hexv) >= 6:
+        try:
+            r, g, b = (int(hexv[i : i + 2], 16) for i in (0, 2, 4))
+            return min(r, g, b) >= _NEAR_WHITE_MIN_CHANNEL
+        except ValueError:
+            pass  # malformed hex — fall back to the swatch pixels
+    mn = _swatch_min_channel(sel.get("swatch_path"))
+    return mn is not None and mn >= _NEAR_WHITE_MIN_CHANNEL
+
+
 def _generate_for_selection(
     generator: DoorGenerator,
     sel: dict,
@@ -45,11 +90,14 @@ def _generate_for_selection(
     corner_style: str,
     material_type: str,
     use_base_door_reference: bool,
+    lean: bool = False,
 ):
     """Dispatch a single selection to the correct generator call.
 
     Owns the reference-vs-signature branch shared by batch generation and
-    single-result retry, so the two call sites can't drift apart.
+    single-result retry, so the two call sites can't drift apart. ``lean``
+    (lean-variants plan) applies ONLY to the signature branch — the
+    reference-image path keeps its own hint and is untouched by design.
     """
     wood_name = sel["wood_name"]
     if use_base_door_reference and sel.get("reference_image"):
@@ -75,6 +123,7 @@ def _generate_for_selection(
         material_type=material_type,
         hex_color=sel.get("hex"),
         rtf_finish=sel.get("rtf_finish"),
+        lean=lean,
     )
 
 
@@ -92,6 +141,7 @@ def _run_generation(
     gemini_model: str | None = None,
     use_base_door_reference: bool = False,
     run: RunManifest | None = None,
+    lean: bool = False,
 ) -> None:
     """Run generation in background thread, updating ProjectState incrementally.
 
@@ -99,6 +149,10 @@ def _run_generation(
     ``image_id`` (from the run manifest's planned entries), so results and
     verdicts reference the right image regardless of completion order.
     """
+    # Observability (lean-variants D-008): the run log must prove which
+    # conditioning every draw carried — a clobbered mode is invisible otherwise.
+    print(f"[variants {project_id}] hint={'lean' if lean else 'styled'} "
+          f"notes={'present' if style_notes else 'empty'}", flush=True)
     try:
         generator = DoorGenerator(api_key=api_key, model=gemini_model)
         style = STYLES.get(door_style, {})
@@ -119,6 +173,7 @@ def _run_generation(
                     corner_style=corner_style,
                     material_type=material_type,
                     use_base_door_reference=use_base_door_reference,
+                    lean=lean,
                 )
             return sel["wood_name"], result
 
@@ -161,6 +216,7 @@ def _run_generation(
                                         corner_style=corner_style,
                                         material_type=material_type,
                                         use_base_door_reference=use_base_door_reference,
+                                        lean=lean,
                                     )
 
                             regen = RegenContext(
@@ -192,6 +248,16 @@ def _run_generation(
 OUTPUT_DIR = Path("output")
 
 
+def _write_prompt_sidecar(project_id: str, attempt_label: str, prompt: str) -> Path:
+    """Persist one learn attempt's fully assembled prompt (forensics, D-005)."""
+    pdir = OUTPUT_DIR / ".onboard" / "prompts" / project_id
+    pdir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
+    path = pdir / f"{attempt_label}-{ts}.txt"
+    path.write_text(prompt)
+    return path
+
+
 def _run_learn(
     store: ProjectStore,
     project_id: str,
@@ -204,12 +270,22 @@ def _run_learn(
     material_type: str = "wood",
     gemini_model: str | None = None,
     learn_in_maple: bool = False,
+    temperature: float = 0.0,
+    style_notes: str = "",
+    profile_bytes: bytes | None = None,
+    lean: bool = False,
+    attempt_label: str = "ui",
 ) -> None:
     """Run learn_door_style in background thread."""
     temp_path = OUTPUT_DIR / f"temp_learn_{project_id}.png"
+    profile_path = OUTPUT_DIR / f"temp_profile_{project_id}.jpg"
     try:
         temp_path.parent.mkdir(parents=True, exist_ok=True)
         temp_path.write_bytes(upload_bytes)
+        if profile_bytes:
+            profile_path.write_bytes(profile_bytes)
+            print(f"[learn {project_id}] profile anchor attached "
+                  f"({len(profile_bytes)} bytes)", flush=True)
 
         generator = DoorGenerator(api_key=api_key, model=gemini_model)
         with _api_semaphore:
@@ -221,7 +297,26 @@ def _run_learn(
                 corner_style=corner_style,
                 material_type=material_type,
                 learn_in_maple=learn_in_maple,
+                temperature=temperature,
+                style_notes=style_notes,
+                profile_image_path=profile_path if profile_bytes else None,
+                lean=lean,
             )
+
+        # Prompt observability (lean-conditioning D-005/D-010): one layer-summary
+        # line + the full assembled prompt in a timestamped sidecar. A sidecar
+        # write failure never fails the learn.
+        print(f"[learn {project_id}] layers: "
+              f"style={'lean' if lean else door_style} "
+              f"notes={'present' if style_notes else 'empty'} "
+              f"anchor={'yes' if profile_bytes else 'no'}", flush=True)
+        prompt_text = getattr(result, "prompt", "")
+        if prompt_text:
+            try:
+                _write_prompt_sidecar(project_id, attempt_label, prompt_text)
+            except OSError as exc:
+                print(f"[learn {project_id}] prompt sidecar write failed: {exc}",
+                      flush=True)
 
         project = store.get(project_id)
         if project is None:
@@ -267,6 +362,8 @@ def _run_learn(
             store.save(project_id)
     finally:
         temp_path.unlink(missing_ok=True)
+        if profile_bytes:
+            profile_path.unlink(missing_ok=True)
 
 
 def start_learning(
@@ -277,11 +374,18 @@ def start_learning(
     *,
     learn_in_maple: bool = False,
     aspect_ratio: str | None = None,
+    temperature: float = 0.0,
+    style_notes: str = "",
+    profile_bytes: bytes | None = None,
+    lean: bool = False,
+    attempt_label: str = "ui",
 ) -> None:
     """Kick off background learning for a project.
 
     ``aspect_ratio`` overrides the product-type default for doors that
     aren't the usual 9:16 shape (operator finding: FC712 is ~2:3).
+    ``temperature``/``style_notes`` let the onboarding re-learn loop vary
+    otherwise-deterministic retries (temp-0.0 reproduces the same replica).
     """
     is_drawer = _is_drawer_product(project)
     if aspect_ratio is None:
@@ -305,6 +409,11 @@ def start_learning(
         project.material_type,
         project.gemini_model,
         learn_in_maple,
+        temperature,
+        style_notes,
+        profile_bytes,
+        lean,
+        attempt_label,
     )
 
 
@@ -322,8 +431,11 @@ def _run_retry(
     material_type: str = "wood",
     gemini_model: str | None = None,
     use_base_door_reference: bool = False,
+    lean: bool = False,
 ) -> None:
     """Re-generate a single variation in-place."""
+    print(f"[variants {project_id}] hint={'lean' if lean else 'styled'} "
+          f"notes={'present' if style_notes else 'empty'}", flush=True)
     try:
         generator = DoorGenerator(api_key=api_key, model=gemini_model)
         wood_name = selection["wood_name"]
@@ -341,6 +453,7 @@ def _run_retry(
                 corner_style=corner_style,
                 material_type=material_type,
                 use_base_door_reference=use_base_door_reference,
+                lean=lean,
             )
         record = store.record_retry_result(
             project_id,
@@ -415,8 +528,14 @@ def start_retry(
             "reference_image": None,
         }
 
-    # Inject base door reference for opted-in styles
-    if use_ref:
+    # Inject base door reference: for opted-in styles, or for near-white RTF
+    # (anchor geometry on the replica via the signature path — not the temp-0.0
+    # from-reference path — so white-on-white keeps the recessed profile).
+    if use_ref or (
+        selection.get("reference_image") is None
+        and base_door_path.exists()
+        and _needs_geometry_anchor(selection, project.material_type)
+    ):
         selection["reference_image"] = base_door_path
 
     project.retrying_indices.append(idx)
@@ -437,6 +556,7 @@ def start_retry(
         project.material_type,
         project.gemini_model,
         use_ref,
+        project.variant_hint_mode == "lean",
     )
 
 
@@ -481,6 +601,14 @@ def start_generation(
     if use_ref:
         for sel in selections:
             sel["reference_image"] = base_door_path
+    # Near-white RTF: anchor geometry on the replica (signature path) so
+    # white-on-white keeps the recessed profile instead of collapsing to raised.
+    elif base_door_path.exists():
+        for sel in selections:
+            if sel.get("reference_image") is None and _needs_geometry_anchor(
+                sel, project.material_type
+            ):
+                sel["reference_image"] = base_door_path
 
     # Identity at submission (D-006): every planned image gets its id before
     # any API call, recorded in the run manifest for crash-safe accounting.
@@ -516,4 +644,5 @@ def start_generation(
         project.gemini_model,
         use_ref,
         run,
+        project.variant_hint_mode == "lean",
     )

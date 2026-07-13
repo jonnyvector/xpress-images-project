@@ -1,0 +1,1258 @@
+{
+  "Adobe": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Classic recessed flat panel",
+    "panel": "flat"
+  },
+  "Alpine": {
+    "arched": false,
+    "door_style": "shaker_cope_stick",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Small cove inside edge detail",
+    "panel": "flat"
+  },
+  "Ambassador": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered frame with raised center panel",
+    "panel": "raised"
+  },
+  "Apache": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "V-groove beadboard center panel",
+    "panel": "beadboard"
+  },
+  "Arcadia": {
+    "arched": false,
+    "door_style": "shaker",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "shallow 1/4 inch recessed flat panel",
+    "panel": "flat"
+  },
+  "Arizona": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "detailed inside and outside edge shapes",
+    "panel": "flat"
+  },
+  "Artesia": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "smooth inside edge detail",
+    "panel": "flat"
+  },
+  "Aspen": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Clean mitered frame with flat panel",
+    "panel": "flat"
+  },
+  "Auburn": {
+    "arched": false,
+    "door_style": "recessed_panel_center_stile",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Shaker style with a center stile",
+    "panel": "flat"
+  },
+  "Augustine": {
+    "arched": false,
+    "door_style": "recessed_panel_applied_molding",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "extra wide frame with intricate applied molding",
+    "panel": "flat"
+  },
+  "Baldwin": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": 2.5,
+    "joint": "miter",
+    "notes": "Slender 2-1/2 inch mitered frame",
+    "panel": "flat"
+  },
+  "Barcelona": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "raised panel with scalloped corners",
+    "panel": "raised"
+  },
+  "Bel Air": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Raised panel with applied molding",
+    "panel": "raised"
+  },
+  "Bellingham": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered frame, raised panel, applied molding",
+    "panel": "raised"
+  },
+  "Berrington": {
+    "arched": false,
+    "door_style": "mitered_recessed_panel_applied_molding",
+    "frame_width_in": 3.0,
+    "joint": "miter",
+    "notes": "3-inch frame, mitered joints, applied molding",
+    "panel": "flat"
+  },
+  "Boston": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": 2.75,
+    "joint": "miter",
+    "notes": "miter frame skinny shaker solid panel",
+    "panel": "flat"
+  },
+  "Brighton": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered corners with simple raised panel",
+    "panel": "raised"
+  },
+  "Bronco": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": 2.0,
+    "joint": "cope",
+    "notes": "Narrow 2-inch frame with decorative inner profile",
+    "panel": "flat"
+  },
+  "Brunswick": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "mitered frame with flat recessed panel",
+    "panel": "flat"
+  },
+  "CDS+ Raised": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Square raised panel",
+    "panel": "raised"
+  },
+  "CDS+ Recessed": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Square recessed panel with decorative inner profile",
+    "panel": "flat"
+  },
+  "Cabrillo": {
+    "arched": false,
+    "door_style": "louver",
+    "frame_width_in": 2.25,
+    "joint": "butt",
+    "notes": "Simulated non-vented louver panel",
+    "panel": "louver"
+  },
+  "Camarillo": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": 2.5,
+    "joint": "miter",
+    "notes": "mitered frame, raised center panel",
+    "panel": "raised"
+  },
+  "Camden": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Butt-joint frame with a beaded center panel",
+    "panel": "beadboard"
+  },
+  "Campbell": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Classic recessed panel with inner edge profile",
+    "panel": "flat"
+  },
+  "Canyon": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "stepped raised center panel",
+    "panel": "raised"
+  },
+  "Cardinal": {
+    "arched": true,
+    "door_style": "raised_panel",
+    "frame_width_in": 2.0,
+    "joint": "cope",
+    "notes": "Flat arched top, raised panel, narrow frame",
+    "panel": "raised"
+  },
+  "Cascade": {
+    "arched": false,
+    "door_style": "recessed_panel_applied_molding",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Recessed panel with applied molding",
+    "panel": "flat"
+  },
+  "Catalina": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered frame with raised center panel",
+    "panel": "raised"
+  },
+  "Cathedral 3/4\" Solid Panel (152)": {
+    "arched": true,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Cathedral arch raised panel door",
+    "panel": "raised"
+  },
+  "Cathedral Arch 3/4\" Recessed Panel (156)": {
+    "arched": true,
+    "door_style": "recessed_panel_arched",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Cathedral arch top, recessed flat panel",
+    "panel": "flat"
+  },
+  "Century": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "butt joint, raised panel design",
+    "panel": "raised"
+  },
+  "Chapman": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Beaded outside edge",
+    "panel": "flat"
+  },
+  "Charleston": {
+    "arched": false,
+    "door_style": "mitered_recessed_panel_applied_molding",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "extra wide frame, applied molding",
+    "panel": "flat"
+  },
+  "Chesapeake": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "raised panel with applied molding",
+    "panel": "raised"
+  },
+  "Cheyenne": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Stepped corner details with grooved horizontal rails",
+    "panel": "flat"
+  },
+  "Colonial": {
+    "arched": true,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Cathedral arch raised panel",
+    "panel": "raised"
+  },
+  "Connecticut": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "mitered frame with flat recessed panel",
+    "panel": "flat"
+  },
+  "Constitution": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Detailed mitered flat panel",
+    "panel": "flat"
+  },
+  "Cougar": {
+    "arched": true,
+    "door_style": "recessed_panel_arched",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Flat arch recessed panel",
+    "panel": "flat"
+  },
+  "Crofton": {
+    "arched": false,
+    "door_style": "mitered_recessed_panel_applied_molding",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered frame with applied rope molding",
+    "panel": "flat"
+  },
+  "Dalton": {
+    "arched": false,
+    "door_style": "shaker",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Flat panel set back 3/8 inch",
+    "panel": "flat"
+  },
+  "Danish": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered frame with flat center panel",
+    "panel": "flat"
+  },
+  "Davenport": {
+    "arched": false,
+    "door_style": "davenport",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Recessed beaded panel with profiled inner edge",
+    "panel": "beadboard"
+  },
+  "Del Oro": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Raised panel with IE098 inside edge detail",
+    "panel": "raised"
+  },
+  "Delaware": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered corners, intricate edge detailing",
+    "panel": "raised"
+  },
+  "Diplomat": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered joint, detailed raised panel",
+    "panel": "raised"
+  },
+  "Durango": {
+    "arched": false,
+    "door_style": "shaker",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Classic shaker with 1/2-inch solid panel",
+    "panel": "flat"
+  },
+  "Dylan": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": 2.25,
+    "joint": "miter",
+    "notes": "Mitered skinny shaker with solid flat panel",
+    "panel": "flat"
+  },
+  "Eagle": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": 2.0,
+    "joint": "cope",
+    "notes": "Slender 2-inch stiles and rails",
+    "panel": "raised"
+  },
+  "Easton": {
+    "arched": false,
+    "door_style": "louver",
+    "frame_width_in": 2.25,
+    "joint": "cope",
+    "notes": "horizontal reeded center panel",
+    "panel": "louver"
+  },
+  "El Dorado": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Miter joint, simple raised panel detailing",
+    "panel": "raised"
+  },
+  "Eldridge": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "mitered frame, delicate edge detailing",
+    "panel": "flat"
+  },
+  "Embassy": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "miter joint with subtle edge detailing",
+    "panel": "flat"
+  },
+  "Estrella": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered frame with inner bead",
+    "panel": "flat"
+  },
+  "European": {
+    "arched": false,
+    "door_style": "louver",
+    "frame_width_in": null,
+    "joint": null,
+    "notes": "Horizontal slats between vertical stiles",
+    "panel": "louver"
+  },
+  "Executive": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "7/8-inch thick raised panel with edge detailing",
+    "panel": "raised"
+  },
+  "Falcon": {
+    "arched": true,
+    "door_style": "raised_panel_radius",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Soft arch with slender stiles and rails",
+    "panel": "raised"
+  },
+  "Fallbrook": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "mitered frame with decorative inner profile",
+    "panel": "flat"
+  },
+  "Fiesta": {
+    "arched": true,
+    "door_style": "recessed_panel_arched",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Soft arched top rail, flat recessed panel",
+    "panel": "flat"
+  },
+  "Finley": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": 2.5,
+    "joint": "miter",
+    "notes": "miter frame skinny shaker style",
+    "panel": "flat"
+  },
+  "Flagstaff": {
+    "arched": false,
+    "door_style": "recessed_panel_center_stile",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Classic shaker style with a center stile",
+    "panel": "flat"
+  },
+  "Flat Arch 3/4\" Recessed Panel (158)": {
+    "arched": true,
+    "door_style": "recessed_panel_arched",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Arched top rail with flat recessed panel",
+    "panel": "flat"
+  },
+  "Flat Arch 3/4\" Solid Panel (154)": {
+    "arched": true,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Flat arch raised panel",
+    "panel": "raised"
+  },
+  "Freedom": {
+    "arched": true,
+    "door_style": "raised_panel_radius",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Unique flat arch with raised panel",
+    "panel": "raised"
+  },
+  "Frontier": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "mitered frame, recessed panel, delicate edge detail",
+    "panel": "flat"
+  },
+  "Georgia": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "step bevel detail with butt joint",
+    "panel": "raised"
+  },
+  "Glacier": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": 2.5,
+    "joint": "miter",
+    "notes": "Raised panel with mitered 2-1/2 inch frame",
+    "panel": "raised"
+  },
+  "Graham": {
+    "arched": false,
+    "door_style": "graham",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "step to 1/2-inch ledge inside edge",
+    "panel": "flat"
+  },
+  "Hamilton": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": 2.75,
+    "joint": "miter",
+    "notes": "miter frame skinny shaker style",
+    "panel": "flat"
+  },
+  "Harmony": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "beaded outside edge, mitered",
+    "panel": "flat"
+  },
+  "Hawk": {
+    "arched": true,
+    "door_style": "raised_panel",
+    "frame_width_in": 2.0,
+    "joint": "cope",
+    "notes": "Cathedral arch raised panel",
+    "panel": "raised"
+  },
+  "Heritage": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": 2.5,
+    "joint": "cope",
+    "notes": "Traditional raised panel design",
+    "panel": "raised"
+  },
+  "Highpointe": {
+    "arched": false,
+    "door_style": "mitered_recessed_panel_applied_molding",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered frame with applied rope molding",
+    "panel": "flat"
+  },
+  "Hillsboro": {
+    "arched": true,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Flat arch raised panel",
+    "panel": "raised"
+  },
+  "Holden": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered raised panel with intricate detailing",
+    "panel": "raised"
+  },
+  "Hudson": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "mitered frame with raised center panel",
+    "panel": "raised"
+  },
+  "Indiana": {
+    "arched": false,
+    "door_style": "shaker_bevel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Small inner bevel with v-groove joints",
+    "panel": "flat"
+  },
+  "Isabella": {
+    "arched": false,
+    "door_style": "shaker_bevel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Step bevel detail with butt joints",
+    "panel": "flat"
+  },
+  "Islander": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "thick frame with inner edge detailing",
+    "panel": "flat"
+  },
+  "JLS": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": null,
+    "notes": "detailed raised panel with intricate lines",
+    "panel": "raised"
+  },
+  "Jasper": {
+    "arched": false,
+    "door_style": "shaker_bevel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Small inner bevel with v-groove joints",
+    "panel": "flat"
+  },
+  "Josephine": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": 2.5,
+    "joint": "miter",
+    "notes": "Mitered frame with flat recessed panel",
+    "panel": "flat"
+  },
+  "Journey": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": 2.0,
+    "joint": "miter",
+    "notes": "miter frame skinny shaker style",
+    "panel": "flat"
+  },
+  "Kennedy": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": 2.25,
+    "joint": "miter",
+    "notes": "miter frame skinny shaker style",
+    "panel": "flat"
+  },
+  "Laguna": {
+    "arched": false,
+    "door_style": "recessed_panel_applied_molding",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "butt joints with detailed applied molding",
+    "panel": "flat"
+  },
+  "Laredo": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": 2.5,
+    "joint": "butt",
+    "notes": "bold vertical reeded beaded center panel",
+    "panel": "beadboard"
+  },
+  "Lexington": {
+    "arched": true,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Soft arch raised panel",
+    "panel": "raised"
+  },
+  "Liberty": {
+    "arched": true,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Cathedral arched raised panel",
+    "panel": "raised"
+  },
+  "Lincoln": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "raised panel with center stile",
+    "panel": "raised"
+  },
+  "Malibu": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered frame with detailed raised panel",
+    "panel": "raised"
+  },
+  "Manhattan": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "raised panel with mitered corners",
+    "panel": "raised"
+  },
+  "Maverick": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Craftsman style raised panel design",
+    "panel": "raised"
+  },
+  "Melbourne": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "mitered frame, intricate edge detail",
+    "panel": "flat"
+  },
+  "Mendocino": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "mitered frame with applied molding",
+    "panel": "raised"
+  },
+  "Mission": {
+    "arched": true,
+    "door_style": "recessed_panel_arched",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Cathedral arched top rail, flat recessed panel",
+    "panel": "flat"
+  },
+  "Mitchell": {
+    "arched": false,
+    "door_style": "shaker_bevel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Simplistic beveled panel, Shaker look",
+    "panel": "flat"
+  },
+  "Monterey": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Miter joints with curved frame design",
+    "panel": "flat"
+  },
+  "Mustang": {
+    "arched": true,
+    "door_style": "recessed_panel_arched",
+    "frame_width_in": 2.0,
+    "joint": "cope",
+    "notes": "Soft arch with narrow 2-inch frame",
+    "panel": "flat"
+  },
+  "Nevada": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Craftsman style substantial raised panel",
+    "panel": "raised"
+  },
+  "Newbury": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": 2.0,
+    "joint": "miter",
+    "notes": "miter frame skinny shaker style",
+    "panel": "flat"
+  },
+  "Nolan": {
+    "arched": false,
+    "door_style": "shaker_bevel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "1/8-inch inside bevel detail",
+    "panel": "flat"
+  },
+  "Normandie": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "mitered frame with subtle inner detailing",
+    "panel": "flat"
+  },
+  "Oakley": {
+    "arched": false,
+    "door_style": "shaker_bevel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Solid flat panel with 1/8-inch inner bevel.",
+    "panel": "flat"
+  },
+  "Olympia": {
+    "arched": false,
+    "door_style": "solid_plank",
+    "frame_width_in": null,
+    "joint": null,
+    "notes": "Solid door with center groove",
+    "panel": "slab"
+  },
+  "Orlando": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Detailed mitered frame with flat panel",
+    "panel": "flat"
+  },
+  "Owen": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "small cove inside edge detail",
+    "panel": "flat"
+  },
+  "Parker": {
+    "arched": false,
+    "door_style": "shaker",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "grooved joint look",
+    "panel": "flat"
+  },
+  "Patriot": {
+    "arched": true,
+    "door_style": "raised_panel_radius",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Soft arch raised panel",
+    "panel": "raised"
+  },
+  "Pinnacle": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "mitered frame with intricate rope molding",
+    "panel": "raised"
+  },
+  "Ponderosa": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Raised panel with mitered corners",
+    "panel": "raised"
+  },
+  "Presidente": {
+    "arched": true,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Cathedral arched top rail with raised panel",
+    "panel": "raised"
+  },
+  "Providence": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "raised panel with intricate detailing",
+    "panel": "raised"
+  },
+  "Prudential": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": 2.25,
+    "joint": "miter",
+    "notes": "Mitered frame, applied molding, raised panel",
+    "panel": "raised"
+  },
+  "Pueblo": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "horizontal grooves on top and bottom rails",
+    "panel": "flat"
+  },
+  "Ramona": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered frame with edge detailing",
+    "panel": "flat"
+  },
+  "Ranger": {
+    "arched": true,
+    "door_style": "recessed_panel_arched",
+    "frame_width_in": 2.0,
+    "joint": "cope",
+    "notes": "Arched recessed panel with 2-inch stiles",
+    "panel": "flat"
+  },
+  "Redondo": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Simple solid raised panel design",
+    "panel": "raised"
+  },
+  "Revere": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Classic raised panel door",
+    "panel": "raised"
+  },
+  "Revere Mitered": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "45 degree mitered corners, raised panel",
+    "panel": "raised"
+  },
+  "Rhode Island": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Recessed panel with decorative inner profile",
+    "panel": "flat"
+  },
+  "Richmond": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered frame with flat recessed panel",
+    "panel": "flat"
+  },
+  "Ridgeview": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Applied rope molding with raised panel",
+    "panel": "raised"
+  },
+  "San Marino": {
+    "arched": false,
+    "door_style": "recessed_panel_applied_molding",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Recessed panel with applied molding detail",
+    "panel": "flat"
+  },
+  "Santa Fe": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "stepped inner corner detail",
+    "panel": "flat"
+  },
+  "Saratoga": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "raised panel with smooth frame curves",
+    "panel": "raised"
+  },
+  "Sawyer": {
+    "arched": false,
+    "door_style": "shaker",
+    "frame_width_in": 3.0,
+    "joint": "butt",
+    "notes": "3 inch frame classic shaker",
+    "panel": "flat"
+  },
+  "Shaker": {
+    "arched": false,
+    "door_style": "shaker",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Classic versatile flat panel design",
+    "panel": "flat"
+  },
+  "Sheffield": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "miter joint and raised panel",
+    "panel": "raised"
+  },
+  "Sheldon": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered frame with beaded center panel",
+    "panel": "beadboard"
+  },
+  "Soft Arch 3/4\" Recessed Panel (157)": {
+    "arched": true,
+    "door_style": "recessed_panel_arched",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Soft arch recessed panel",
+    "panel": "flat"
+  },
+  "Soft Arch 3/4\" Solid Panel (153)": {
+    "arched": true,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Soft arch top raised panel",
+    "panel": "raised"
+  },
+  "Solana": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Raised panel with intricate applied molding",
+    "panel": "raised"
+  },
+  "Square 3/4\" Recessed Panel (155)": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Customizable inner and outer edge profiles",
+    "panel": "flat"
+  },
+  "Square 3/4\" Solid Panel (151)": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Customizable square solid raised panel door",
+    "panel": "raised"
+  },
+  "Studio": {
+    "arched": false,
+    "door_style": "shaker",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Features a grooved joint look",
+    "panel": "flat"
+  },
+  "Sullivan": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "Solid flat panel with clean lines",
+    "panel": "flat"
+  },
+  "Tacoma": {
+    "arched": false,
+    "door_style": "solid_plank",
+    "frame_width_in": null,
+    "joint": null,
+    "notes": "Sleek and simple solid panel slab",
+    "panel": "slab"
+  },
+  "Talbot": {
+    "arched": false,
+    "door_style": "louver",
+    "frame_width_in": 2.25,
+    "joint": "butt",
+    "notes": "Faux louver detailing on solid panel",
+    "panel": "louver"
+  },
+  "Taurus": {
+    "arched": true,
+    "door_style": "recessed_panel_arched",
+    "frame_width_in": 2.0,
+    "joint": "cope",
+    "notes": "Cathedral arch recessed panel",
+    "panel": "flat"
+  },
+  "Taylor": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": 2.5,
+    "joint": "miter",
+    "notes": "miter frame, solid flat panel",
+    "panel": "flat"
+  },
+  "Terracina": {
+    "arched": false,
+    "door_style": "terracina",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "recessed panel with simple frame detailing",
+    "panel": "flat"
+  },
+  "Trenton": {
+    "arched": false,
+    "door_style": "recessed_panel",
+    "frame_width_in": null,
+    "joint": "butt",
+    "notes": "recessed panel with inner edge detailing",
+    "panel": "flat"
+  },
+  "Tuscany": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Simply detailed classic raised panel",
+    "panel": "raised"
+  },
+  "Valencia": {
+    "arched": false,
+    "door_style": "solid_plank",
+    "frame_width_in": null,
+    "joint": null,
+    "notes": "Solid wood slab with backing battens",
+    "panel": "slab"
+  },
+  "Vermont": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered corners with a raised panel",
+    "panel": "raised"
+  },
+  "Victoria": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered frame with stepped inner profile",
+    "panel": "flat"
+  },
+  "Vienna (79)": {
+    "arched": false,
+    "door_style": "vienna",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Slab veneer door with outer bead molding",
+    "panel": "slab"
+  },
+  "Waldorf": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered frame with rope molding detail",
+    "panel": "raised"
+  },
+  "Washington": {
+    "arched": true,
+    "door_style": "recessed_panel_arched",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Cathedral arched top rail flat recessed panel",
+    "panel": "flat"
+  },
+  "Waterford": {
+    "arched": false,
+    "door_style": "mitered_recessed_panel_applied_molding",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "mitered corners with applied molding",
+    "panel": "flat"
+  },
+  "Wedgewood": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered frame with raised center panel",
+    "panel": "raised"
+  },
+  "Wilmington": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "Mitered frame with flat recessed panel",
+    "panel": "flat"
+  },
+  "Windsor": {
+    "arched": false,
+    "door_style": "mitered_flat_panel",
+    "frame_width_in": null,
+    "joint": "miter",
+    "notes": "mitered corners with frame detailing",
+    "panel": "flat"
+  },
+  "Woodhaven": {
+    "arched": false,
+    "door_style": "recessed_panel_applied_molding",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "Rope molding on recessed panel",
+    "panel": "flat"
+  },
+  "Yukon": {
+    "arched": false,
+    "door_style": "solid_plank",
+    "frame_width_in": null,
+    "joint": null,
+    "notes": "solid door with center groove",
+    "panel": "slab"
+  },
+  "Zion": {
+    "arched": false,
+    "door_style": "raised_panel",
+    "frame_width_in": null,
+    "joint": "cope",
+    "notes": "sleek beveled raised panel, step inside edge detail",
+    "panel": "raised"
+  }
+}
