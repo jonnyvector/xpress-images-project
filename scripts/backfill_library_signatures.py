@@ -127,7 +127,14 @@ def build_plan(
         lib_dir = projects_dir / lib_id
         src_dir = projects_dir / src_id
         if (lib_dir / "signature.bin").exists():
-            skipped.append(f"{lib_id}: already has signature.bin — idempotent skip")
+            lib = _read_manifest(projects_dir, lib_id)
+            if not lib.get("base_image_id"):
+                skipped.append(
+                    f"{lib_id}: has signature.bin but manifest lacks base_image_id — "
+                    "HALF-BACKFILLED? restore from backup or delete signature.bin and re-run"
+                )
+            else:
+                skipped.append(f"{lib_id}: already has signature.bin — idempotent skip")
             continue
         lib = _read_manifest(projects_dir, lib_id)
         src = _read_manifest(projects_dir, src_id)

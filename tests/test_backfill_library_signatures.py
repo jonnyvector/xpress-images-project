@@ -120,13 +120,35 @@ def test_build_plan_copies_generation_fields(tmp_path):
     assert item.warnings == []
 
 
+def test_build_plan_detects_half_backfilled(tmp_path):
+    """Library with signature.bin but manifest lacking base_image_id flags as HALF-BACKFILLED."""
+    projects = tmp_path / "projects"
+    approvals = tmp_path / "approvals.json"
+    make_source(projects, "src00001", "frontier")
+    make_library(projects, "lib00001", "Frontier_new_wm")
+    # Simulate crash mid-apply: signature.bin written, but manifest never updated
+    (projects / "lib00001" / "signature.bin").write_bytes(b"SIGNATURE-BYTES")
+    make_approvals(approvals, ["bid-source-1"])
+
+    items, skipped = build_plan(projects, approvals, {"lib00001": "src00001"})
+
+    assert items == []
+    assert len(skipped) == 1
+    assert "HALF-BACKFILLED" in skipped[0]
+
+
 def test_build_plan_skips_backfilled_and_pending(tmp_path):
     projects = tmp_path / "projects"
     approvals = tmp_path / "approvals.json"
     make_source(projects, "src00001", "frontier")
     make_library(projects, "lib00001", "Frontier_new_wm")
-    # Already backfilled: library has a signature.
+    # Already backfilled: library has a signature and complete manifest.
     (projects / "lib00001" / "signature.bin").write_bytes(b"X")
+    # Give it a base_image_id so it's not detected as half-backfilled
+    manifest = json.loads((projects / "lib00001" / "manifest.json").read_text())
+    manifest["base_image_id"] = "bid-001"
+    (projects / "lib00001" / "manifest.json").write_text(json.dumps(manifest))
+
     make_library(projects, "lib00002", "Durango_new_wm")
     make_approvals(approvals, ["bid-source-1"])
 
