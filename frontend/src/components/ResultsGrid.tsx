@@ -27,21 +27,30 @@ export default function ResultsGrid({ project }: Props) {
 
   // Per-image operator verdicts (approvals keyed by stable image_id).
   const [verdicts, setVerdicts] = useState<Map<string, Approval['verdict']>>(new Map());
+  const [verdictsLoaded, setVerdictsLoaded] = useState(false);
   const refreshApprovals = useCallback(() => {
     api.listApprovals(project.id)
-      .then((items) => setVerdicts(new Map(items.map((a) => [a.image_id, a.verdict]))))
+      .then((items) => {
+        setVerdicts(new Map(items.map((a) => [a.image_id, a.verdict])));
+        setVerdictsLoaded(true);
+      })
       .catch(console.error);
   }, [project.id]);
   useEffect(() => {
     refreshApprovals();
   }, [refreshApprovals]);
 
-  const undecidedVariantIds = project.results
-    .filter((r) => {
-      const v = verdicts.get(r.image_id);
-      return v !== 'approved' && v !== 'rejected';
-    })
-    .map((r) => r.image_id);
+  // Gate on verdictsLoaded: until the first approvals fetch resolves, treating
+  // every variant as "undecided" would let Approve All silently overwrite a
+  // prior rejection during that window.
+  const undecidedVariantIds = verdictsLoaded
+    ? project.results
+        .filter((r) => {
+          const v = verdicts.get(r.image_id);
+          return v !== 'approved' && v !== 'rejected';
+        })
+        .map((r) => r.image_id)
+    : [];
 
   // Verdicts land asynchronously after generation — keep polling while any
   // QA task is visibly in flight so badges flip from judging… to done.

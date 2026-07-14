@@ -27,7 +27,6 @@ export default function ApproveAllButton({ projectId, imageIds, onDone }: Props)
     let succeeded = 0;
     let failed = 0;
     for (let i = 0; i < imageIds.length; i++) {
-      setProgress(i);
       try {
         await api.setApproval(projectId, imageIds[i], 'approved');
         succeeded++;
@@ -35,14 +34,11 @@ export default function ApproveAllButton({ projectId, imageIds, onDone }: Props)
         console.error('Approve All: failed to approve', imageIds[i], err);
         failed++;
       }
+      setProgress(i + 1);
     }
-    setProgress(imageIds.length);
     setRunning(false);
     setResult({ succeeded, failed });
     onDone();
-    if (failed === 0) {
-      setTimeout(() => setResult(null), 4000);
-    }
   }, [projectId, imageIds, onDone]);
 
   if (imageIds.length === 0) return null;
