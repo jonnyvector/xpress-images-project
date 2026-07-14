@@ -4,6 +4,7 @@ import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 import { usePollingTask } from '../hooks/usePollingTask';
 import ApprovalControls from './ApprovalControls';
+import ApproveAllButton from './ApproveAllButton';
 import QaBadge from './QaBadge';
 
 interface Props {
@@ -26,14 +27,30 @@ export default function ResultsGrid({ project }: Props) {
 
   // Per-image operator verdicts (approvals keyed by stable image_id).
   const [verdicts, setVerdicts] = useState<Map<string, Approval['verdict']>>(new Map());
+  const [verdictsLoaded, setVerdictsLoaded] = useState(false);
   const refreshApprovals = useCallback(() => {
     api.listApprovals(project.id)
-      .then((items) => setVerdicts(new Map(items.map((a) => [a.image_id, a.verdict]))))
+      .then((items) => {
+        setVerdicts(new Map(items.map((a) => [a.image_id, a.verdict])));
+        setVerdictsLoaded(true);
+      })
       .catch(console.error);
   }, [project.id]);
   useEffect(() => {
     refreshApprovals();
   }, [refreshApprovals]);
+
+  // Gate on verdictsLoaded: until the first approvals fetch resolves, treating
+  // every variant as "undecided" would let Approve All silently overwrite a
+  // prior rejection during that window.
+  const undecidedVariantIds = verdictsLoaded
+    ? project.results
+        .filter((r) => {
+          const v = verdicts.get(r.image_id);
+          return v !== 'approved' && v !== 'rejected';
+        })
+        .map((r) => r.image_id)
+    : [];
 
   // Verdicts land asynchronously after generation — keep polling while any
   // QA task is visibly in flight so badges flip from judging… to done.
@@ -263,6 +280,11 @@ export default function ResultsGrid({ project }: Props) {
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
             <h3 style={{ margin: 0 }}>Wood Variations ({project.results.length})</h3>
+            <ApproveAllButton
+              projectId={project.id}
+              imageIds={undecidedVariantIds}
+              onDone={refreshApprovals}
+            />
             <button
               onClick={toggleSort}
               style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
