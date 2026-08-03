@@ -196,3 +196,38 @@ export function uploadShopifyCsv(file: File): Promise<CoverageResponse> {
     body: form,
   });
 }
+
+export async function setCanonicalProject(
+  title: string,
+  projectId: string,
+): Promise<CoverageResponse> {
+  return request<CoverageResponse>(
+    `/api/coverage/${encodeURIComponent(title)}/canonical`,
+    { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_id: projectId }) },
+  );
+}
+
+export async function setExclusions(
+  title: string,
+  colors: string[],
+): Promise<CoverageResponse> {
+  return request<CoverageResponse>(
+    `/api/coverage/${encodeURIComponent(title)}/exclusions`,
+    { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ colors }) },
+  );
+}
+
+export async function setSignoff(
+  title: string,
+  gate: 'variations' | 'shopify',
+  value: boolean,
+  acknowledgeGap = false,
+): Promise<CoverageResponse> {
+  return request<CoverageResponse>(
+    `/api/coverage/${encodeURIComponent(title)}/signoff`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gate, value, acknowledge_gap: acknowledgeGap }) },
+  );
+}
