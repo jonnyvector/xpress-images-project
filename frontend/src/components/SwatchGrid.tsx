@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Project, Swatch } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
@@ -11,6 +11,7 @@ export default function SwatchGrid({ project }: Props) {
   const dispatch = useDispatch();
   const [swatches, setSwatches] = useState<Swatch[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set(project.selected_swatches));
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const materialType = project.material_type || 'wood';
 
@@ -23,15 +24,35 @@ export default function SwatchGrid({ project }: Props) {
     setSelected(new Set(project.selected_swatches));
   }, [project.selected_swatches]);
 
-  const saveSelections = useCallback(async (keys: Set<string>) => {
-    try {
-      const updated = await api.updateProject(project.id, {
-        selected_swatches: Array.from(keys),
-      });
-      dispatch({ type: 'UPDATE_PROJECT', project: updated });
-    } catch (err) {
-      console.error('Failed to save swatch selection:', err);
-    }
+  // Each toggle PATCHes the whole selection set. Sent concurrently, those
+  // requests race and the server keeps whichever ARRIVES last rather than
+  // whichever was clicked last — so a deselected swatch can survive on the
+  // server and get generated. Chaining the writes makes the server settle on
+  // the last set clicked; the sequence guard keeps a superseded response from
+  // clobbering newer local state.
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
+  const saveSeqRef = useRef(0);
+
+  const saveSelections = useCallback((keys: Set<string>) => {
+    const seq = ++saveSeqRef.current;
+    saveChainRef.current = saveChainRef.current.then(async () => {
+      try {
+        const updated = await api.updateProject(project.id, {
+          selected_swatches: Array.from(keys),
+        });
+        if (seq !== saveSeqRef.current) return; // a newer toggle superseded this
+        dispatch({ type: 'UPDATE_PROJECT', project: updated });
+        setSaveError(null);
+      } catch (err) {
+        console.error('Failed to save swatch selection:', err);
+        // Silent failure previously let generation run against a selection the
+        // operator never confirmed. Surface it instead.
+        setSaveError(
+          'Swatch selection did not save. Reload before generating — the server '
+          + 'may still hold a different selection.',
+        );
+      }
+    });
   }, [dispatch, project.id]);
 
   const toggleSwatch = useCallback((key: string) => {
@@ -62,6 +83,22 @@ export default function SwatchGrid({ project }: Props) {
   return (
     <section style={{ marginTop: '1rem' }}>
       <h3>2. Select {materialType === 'rtf' ? 'Colors' : 'Wood Types'}</h3>
+
+      {saveError && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: '0.75rem',
+            padding: '0.5rem 0.75rem',
+            border: '1px solid #b00',
+            borderRadius: '4px',
+            color: '#b00',
+            fontSize: '0.85rem',
+          }}
+        >
+          {saveError}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
         <button onClick={selectAll} style={{ flex: 1 }}>Select All</button>
