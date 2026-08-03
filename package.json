@@ -5,7 +5,7 @@
     "dev:backend": "uv run uvicorn backend.app:app --reload --reload-exclude .venv --port 8000",
     "dev:frontend": "cd frontend && npm run dev",
     "build": "cd frontend && npm run build",
-    "lint": "uv run ruff check backend/",
+    "lint": "uv run ruff check backend/ tests/ scripts/",
     "format": "uv run ruff format backend/"
   },
   "devDependencies": {

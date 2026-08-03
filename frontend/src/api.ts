@@ -10,6 +10,18 @@ function authHeaders(): Record<string, string> {
   return apiKey ? { 'X-API-Key': apiKey } : {};
 }
 
+// Carries the HTTP status so callers can tell a specific failure (e.g. the 409
+// coverage-gap guard) from any other error instead of treating them alike.
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const apiKey = getApiKey();
   const headers: Record<string, string> = {
@@ -27,11 +39,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     // Surface FastAPI's {"detail": "..."} as the message (e.g. GT-001 gate errors).
     try {
       const detail = (JSON.parse(text) as { detail?: string }).detail;
-      if (detail) throw new Error(detail);
+      if (detail) throw new ApiError(detail, res.status);
     } catch (e) {
       if (e instanceof Error && !(e instanceof SyntaxError)) throw e;
     }
-    throw new Error(`${res.status}: ${text}`);
+    throw new ApiError(`${res.status}: ${text}`, res.status);
   }
   return res.json() as Promise<T>;
 }
@@ -186,4 +198,48 @@ export function listStyles(material: string = 'wood'): Promise<Style[]> {
 // Coverage
 export function getCoverage(): Promise<CoverageResponse> {
   return request<CoverageResponse>('/api/coverage');
+}
+
+export function uploadShopifyCsv(file: File): Promise<CoverageResponse> {
+  const form = new FormData();
+  form.append('file', file);
+  return request<CoverageResponse>('/api/coverage/shopify-csv', {
+    method: 'POST',
+    body: form,
+  });
+}
+
+export async function setCanonicalProject(
+  title: string,
+  projectId: string,
+): Promise<CoverageResponse> {
+  return request<CoverageResponse>(
+    `/api/coverage/${encodeURIComponent(title)}/canonical`,
+    { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_id: projectId }) },
+  );
+}
+
+export async function setExclusions(
+  title: string,
+  colors: string[],
+): Promise<CoverageResponse> {
+  return request<CoverageResponse>(
+    `/api/coverage/${encodeURIComponent(title)}/exclusions`,
+    { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ colors }) },
+  );
+}
+
+export async function setSignoff(
+  title: string,
+  gate: 'variations' | 'shopify',
+  value: boolean,
+  acknowledgeGap = false,
+): Promise<CoverageResponse> {
+  return request<CoverageResponse>(
+    `/api/coverage/${encodeURIComponent(title)}/signoff`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gate, value, acknowledge_gap: acknowledgeGap }) },
+  );
 }

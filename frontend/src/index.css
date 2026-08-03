@@ -751,6 +751,26 @@ label {
   color: #065f46;
 }
 
+.badge-approved {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-partial {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-warn {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.badge-muted {
+  background: var(--color-border);
+  color: var(--color-text-muted);
+}
+
 /* Coverage checklist */
 .coverage-table {
   width: 100%;

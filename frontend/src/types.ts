@@ -115,12 +115,28 @@ export interface Style {
   category: string;
 }
 
+export interface CoverageGap {
+  expected: number;
+  generated: number;
+  missing: string[];
+  excluded: string[];
+}
+
 export interface CoverageProduct {
   title: string;
   net_sales: number;
   quantity: number;
   covered: boolean;
   matched_project_ids: string[];
+  approved_count: number;
+  approved_total: number;
+  on_shopify: boolean | null;
+  variations_complete: boolean;
+  in_shopify: boolean;
+  canonical_project_id: string | null;
+  excluded_colors: string[];
+  gap: CoverageGap | null;
+  stale: boolean;
 }
 
 export interface CoverageCategory {
@@ -128,6 +144,8 @@ export interface CoverageCategory {
   label: string;
   covered: number;
   total: number;
+  variations_complete: number;
+  in_shopify_count: number;
   products: CoverageProduct[];
 }
 
