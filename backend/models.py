@@ -1,5 +1,7 @@
 """Pydantic request/response models."""
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -155,3 +157,18 @@ class CoverageCategory(BaseModel):
 
 class CoverageResponse(BaseModel):
     categories: list[CoverageCategory]
+
+
+class CanonicalRequest(BaseModel):
+    project_id: str
+
+
+class ExclusionsRequest(BaseModel):
+    colors: list[str]
+
+
+class SignoffRequest(BaseModel):
+    gate: Literal["variations", "shopify"]
+    value: bool
+    acknowledge_gap: bool = False
+    by: str = "operator"
