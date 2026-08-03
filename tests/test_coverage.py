@@ -80,7 +80,8 @@ def test_matched_project_ids_orders_results_bearing_first(tmp_path):
         '"Shaker Cabinet Door",100.0,5\n'
     )
     empty = _project(id="empty", name="Shaker", results=[])
-    full = _project(id="full", name="Shaker", results=[ResultRecord(image_id="img1", wood_name="Maple")])
+    full = _project(id="full", name="Shaker",
+                    results=[ResultRecord(image_id="img1", wood_name="Maple")])
     cats = compute_coverage([empty, full], data_dir=tmp_path)
     wood_cd = next(c for c in cats if c["key"] == "wood_cabinet_doors")
     row = wood_cd["products"][0]
@@ -98,7 +99,8 @@ def test_compute_coverage_results_alone_do_not_mark_covered(tmp_path: Path):
         '"Revere Cabinet Door",50.0,2\n'
     )
     # Having generated results no longer implies covered -- only a sign-off does.
-    shaker = _project(id="s1", name="Shaker", results=[ResultRecord(image_id="img1", wood_name="Maple")])
+    shaker = _project(id="s1", name="Shaker",
+                      results=[ResultRecord(image_id="img1", wood_name="Maple")])
     revere = _project(id="r1", name="Revere", results=[])
     cats = compute_coverage([shaker, revere], data_dir=tmp_path)
     wood_cd = next(c for c in cats if c["key"] == "wood_cabinet_doors")
@@ -120,7 +122,8 @@ def test_compute_coverage_filters_by_material_and_form(tmp_path: Path):
         '"DRS131 Thermofoil Cabinet Door (Shaker Style)",10.0,1\n'
     )
     # A wood project named "Shaker" must NOT cover an rtf product.
-    wood_shaker = _project(id="w1", name="Shaker", material_type="wood", results=[ResultRecord(image_id="img1", wood_name="M")])
+    wood_shaker = _project(id="w1", name="Shaker", material_type="wood",
+                           results=[ResultRecord(image_id="img1", wood_name="M")])
     cats = compute_coverage([wood_shaker], data_dir=tmp_path)
     tf_cd = next(c for c in cats if c["key"] == "thermofoil_cabinet_doors")
     assert tf_cd["covered"] == 0
@@ -312,7 +315,9 @@ def test_compute_coverage_on_shopify_none_when_no_title_match(tmp_path: Path):
     assert row["on_shopify"] is None
 
 
-def _project_with_colours(pid: str, name: str, colours: list[str], material: str = "rtf") -> ProjectState:
+def _project_with_colours(
+    pid: str, name: str, colours: list[str], material: str = "rtf"
+) -> ProjectState:
     p = ProjectState(id=pid, name=name, product_type="Cabinet Door", material_type=material)
     p.results = [ResultRecord(image_id=f"{pid}-{i}", wood_name=c)
                  for i, c in enumerate(colours)]

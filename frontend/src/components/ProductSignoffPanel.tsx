@@ -34,17 +34,12 @@ export default function ProductSignoffPanel({ product, projects, onChanged }: Pr
       try {
         return await api.setSignoff(product.title, gate, value);
       } catch (err) {
-        // 409 = colours still missing per the backend's gap check. Confirm,
-        // then re-send acknowledged. When there's no canonical project the
-        // backend's message ("N colours still missing") is misleading — it's
-        // comparing against nothing, not reporting a real gap — so show our
-        // own neutral wording instead of the raw server message in that case.
-        const msg = err instanceof Error ? err.message : '';
-        if (gate === 'variations' && value && msg) {
-          const confirmMsg = product.gap
-            ? msg
-            : 'No canonical project selected — nothing to compare against.';
-          if (window.confirm(`${confirmMsg}\n\nSign off anyway?`)) {
+        // Only 409 means "colours still missing" — confirm, then re-send
+        // acknowledged. Every other status (404, 422, 500, network) is a real
+        // failure and must surface as an error, not as a gap prompt whose
+        // confirmation just re-sends the same doomed request.
+        if (gate === 'variations' && value && err instanceof api.ApiError && err.status === 409) {
+          if (window.confirm(`${err.message}\n\nSign off anyway?`)) {
             return api.setSignoff(product.title, gate, value, true);
           }
         }

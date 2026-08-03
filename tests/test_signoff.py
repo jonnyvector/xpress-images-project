@@ -6,8 +6,10 @@ import pytest
 from backend.signoff import (
     GATE_KEYS,
     SIGNOFF_FILENAME,
+    SignoffRecordError,
     is_stale,
     load_signoff,
+    load_signoff_strict,
     save_signoff,
     set_canonical,
     set_exclusions,
@@ -21,6 +23,44 @@ def test_load_missing_file_returns_empty(tmp_path: Path) -> None:
 
 def test_load_malformed_file_returns_empty(tmp_path: Path) -> None:
     (tmp_path / SIGNOFF_FILENAME).write_text("{not json")
+    assert load_signoff(tmp_path) == {}
+
+
+def test_strict_load_missing_file_returns_empty(tmp_path: Path) -> None:
+    # First run: no file yet is not corruption, it is an empty record.
+    assert load_signoff_strict(tmp_path) == {}
+
+
+def test_strict_load_raises_on_unparseable_file(tmp_path: Path) -> None:
+    # e.g. an unresolved merge conflict marker left in the git-tracked record.
+    (tmp_path / SIGNOFF_FILENAME).write_text('<<<<<<< HEAD\n{"A": {}}\n')
+    with pytest.raises(SignoffRecordError):
+        load_signoff_strict(tmp_path)
+
+
+def test_strict_load_raises_when_top_level_is_not_an_object(tmp_path: Path) -> None:
+    (tmp_path / SIGNOFF_FILENAME).write_text('["A"]')
+    with pytest.raises(SignoffRecordError):
+        load_signoff_strict(tmp_path)
+
+
+def test_strict_load_raises_on_non_object_entry(tmp_path: Path) -> None:
+    # Dropping the bad entry would silently delete it on the next save.
+    (tmp_path / SIGNOFF_FILENAME).write_text('{"A": {}, "B": "oops"}')
+    with pytest.raises(SignoffRecordError):
+        load_signoff_strict(tmp_path)
+
+
+def test_strict_load_round_trips_a_good_record(tmp_path: Path) -> None:
+    record = {"Shaker Cabinet Door": {"canonical_project_id": "abc123"}}
+    save_signoff(tmp_path, record)
+    assert load_signoff_strict(tmp_path) == record
+
+
+def test_lenient_load_still_swallows_what_strict_rejects(tmp_path: Path) -> None:
+    # compute_coverage depends on this: a broken file degrades the page to
+    # "nothing reviewed" rather than crashing it.
+    (tmp_path / SIGNOFF_FILENAME).write_text('<<<<<<< HEAD\n{"A": {}}\n')
     assert load_signoff(tmp_path) == {}
 
 
@@ -87,6 +127,14 @@ def test_is_stale_true_when_count_moved() -> None:
 
 def test_is_stale_false_when_never_signed_off() -> None:
     assert is_stale({}, 12) is False
+
+
+def test_is_stale_false_when_count_was_never_measured() -> None:
+    # result_count None = signed off with no canonical project to count. Later
+    # picking a canonical project must not read as "the project changed".
+    entry = {"variations_complete": {"by": "j", "at": "t", "result_count": None,
+                                     "acknowledged_gap": False}}
+    assert is_stale(entry, 43) is False
 
 
 def test_gate_keys_mapping_is_exact() -> None:

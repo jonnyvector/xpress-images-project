@@ -13,12 +13,28 @@ record that must survive a fresh clone and be reviewable in a diff.
 import json
 import os
 import tempfile
+import threading
 from pathlib import Path
 
 SIGNOFF_FILENAME = "coverage_signoff.json"
 
 # Public gate names -> record keys. Callers pass the short name.
 GATE_KEYS = {"variations": "variations_complete", "shopify": "in_shopify"}
+
+# Serialises the load -> mutate -> save sequence. Every writer loads the WHOLE
+# record and saves the WHOLE record, so two overlapping writers would each
+# save their own view and the loser's sign-off would vanish. FastAPI runs sync
+# endpoints in a threadpool, so this is a real interleaving, not a hypothetical.
+# Same pattern as ProjectStore's own lock.
+SIGNOFF_LOCK = threading.Lock()
+
+
+class SignoffRecordError(Exception):
+    """The sign-off file exists but cannot be read as a record.
+
+    Only writers care. A reader degrades to "nothing reviewed"; a writer must
+    stop, because it would save its own one-entry view over the real file.
+    """
 
 
 def load_signoff(data_dir: Path) -> dict[str, dict]:
@@ -37,6 +53,33 @@ def load_signoff(data_dir: Path) -> dict[str, dict]:
     if not isinstance(data, dict):
         return {}
     return {str(k): v for k, v in data.items() if isinstance(v, dict)}
+
+
+def load_signoff_strict(data_dir: Path) -> dict[str, dict]:
+    """Read the sign-off record for a writer, refusing to guess.
+
+    A missing file is the legitimate first-run path and returns {}. Anything
+    else that cannot be read as a record raises, because the caller is about to
+    save the whole record back: silently reading a corrupt file as "no
+    sign-offs" turns one operator click into total, unrecoverable data loss.
+    """
+    path = data_dir / SIGNOFF_FILENAME
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text())
+    except (ValueError, OSError) as exc:
+        raise SignoffRecordError(f"{path} could not be read as JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise SignoffRecordError(
+            f"{path} must hold a JSON object, found {type(data).__name__}"
+        )
+    bad = sorted(str(k) for k, v in data.items() if not isinstance(v, dict))
+    if bad:
+        raise SignoffRecordError(
+            f"{path} has entries that are not objects: {', '.join(bad)}"
+        )
+    return {str(k): v for k, v in data.items()}
 
 
 def save_signoff(data_dir: Path, record: dict[str, dict]) -> None:

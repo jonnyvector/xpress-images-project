@@ -16,9 +16,38 @@ from backend.models import (
 from backend.palette import compute_gap, distinct_generated
 from backend.routers.projects_common import get_store
 from backend.shopify_products import SHOPIFY_CSV_FILENAME, has_recognizable_headers
-from backend.signoff import load_signoff, save_signoff, set_canonical, set_exclusions, set_gate
+from backend.signoff import (
+    SIGNOFF_FILENAME,
+    SIGNOFF_LOCK,
+    SignoffRecordError,
+    load_signoff_strict,
+    save_signoff,
+    set_canonical,
+    set_exclusions,
+    set_gate,
+)
 
 router = APIRouter()
+
+
+def _load_for_write() -> dict[str, dict]:
+    """Load the record on a write path, or refuse to write at all.
+
+    Writers save the whole record back, so a corrupt file must stop the write
+    rather than be quietly replaced by a one-entry file. Readers keep the
+    lenient load_signoff — a broken file degrades the page, not the record.
+    """
+    try:
+        return load_signoff_strict(DATA_DIR)
+    except SignoffRecordError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Refusing to write: {exc}. Fix or restore "
+                f"{DATA_DIR / SIGNOFF_FILENAME} (it is git-tracked) and try again. "
+                "Nothing was written."
+            ),
+        ) from exc
 
 
 def _known_titles() -> dict[str, str]:
@@ -54,14 +83,18 @@ def put_canonical(title: str, body: CanonicalRequest, request: Request) -> Cover
     store = get_store(request)
     if store.get(body.project_id) is None:
         raise HTTPException(status_code=422, detail=f"Unknown project: {body.project_id}")
-    save_signoff(DATA_DIR, set_canonical(load_signoff(DATA_DIR), title, body.project_id))
+    with SIGNOFF_LOCK:
+        record = _load_for_write()
+        save_signoff(DATA_DIR, set_canonical(record, title, body.project_id))
     return _response(request)
 
 
 @router.put("/coverage/{title}/exclusions", response_model=CoverageResponse)
 def put_exclusions(title: str, body: ExclusionsRequest, request: Request) -> CoverageResponse:
     _require_title(title)
-    save_signoff(DATA_DIR, set_exclusions(load_signoff(DATA_DIR), title, body.colors))
+    with SIGNOFF_LOCK:
+        record = _load_for_write()
+        save_signoff(DATA_DIR, set_exclusions(record, title, body.colors))
     return _response(request)
 
 
@@ -69,33 +102,47 @@ def put_exclusions(title: str, body: ExclusionsRequest, request: Request) -> Cov
 def post_signoff(title: str, body: SignoffRequest, request: Request) -> CoverageResponse:
     material = _require_title(title)
     store = get_store(request)
-    record = load_signoff(DATA_DIR)
-    entry = record.get(title) or {}
-    canonical = store.get(entry.get("canonical_project_id") or "")
+    with SIGNOFF_LOCK:
+        record = _load_for_write()
+        entry = record.get(title) or {}
+        canonical = store.get(entry.get("canonical_project_id") or "")
 
-    result_count = len(distinct_generated(canonical)) if canonical else 0
+        # No canonical project means no evidence, not zero colours. Stamping 0
+        # would make is_stale() fire the moment a canonical project is picked;
+        # None records "not measured" and is_stale ignores it.
+        result_count = len(distinct_generated(canonical)) if canonical else None
 
-    # The operator may always override, but never by accident, and the override
-    # is recorded on the stamp.
-    if body.gate == "variations" and body.value and not body.acknowledge_gap:
-        gap = compute_gap(material, list(entry.get("excluded_colors") or []), canonical)
-        if gap["missing"]:
-            preview = ", ".join(gap["missing"][:5])
-            more = "" if len(gap["missing"]) <= 5 else f" (+{len(gap['missing']) - 5} more)"
-            raise HTTPException(
-                status_code=409,
-                detail=f"{len(gap['missing'])} colours still missing: {preview}{more}. "
-                "Re-send with acknowledge_gap to sign off anyway.",
-            )
+        # Likewise there is no gap to guard against or acknowledge — comparing
+        # the palette to nothing would report the whole palette as missing and
+        # record an acknowledgement the operator never actually made.
+        acknowledged_gap = bool(body.acknowledge_gap) and canonical is not None
 
-    record = set_gate(
-        record, title, body.gate, body.value,
-        by=body.by,
-        at=datetime.now(UTC).isoformat(),
-        result_count=result_count,
-        acknowledged_gap=body.acknowledge_gap,
-    )
-    save_signoff(DATA_DIR, record)
+        # The operator may always override a real gap, but never by accident,
+        # and the override is recorded on the stamp.
+        if (
+            canonical is not None
+            and body.gate == "variations"
+            and body.value
+            and not body.acknowledge_gap
+        ):
+            gap = compute_gap(material, list(entry.get("excluded_colors") or []), canonical)
+            if gap["missing"]:
+                preview = ", ".join(gap["missing"][:5])
+                more = "" if len(gap["missing"]) <= 5 else f" (+{len(gap['missing']) - 5} more)"
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"{len(gap['missing'])} colours still missing: {preview}{more}. "
+                    "Re-send with acknowledge_gap to sign off anyway.",
+                )
+
+        record = set_gate(
+            record, title, body.gate, body.value,
+            by=body.by,
+            at=datetime.now(UTC).isoformat(),
+            result_count=result_count,
+            acknowledged_gap=acknowledged_gap,
+        )
+        save_signoff(DATA_DIR, record)
     return _response(request)
 
 
