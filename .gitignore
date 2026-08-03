@@ -22,8 +22,12 @@ output/
 # macOS
 .DS_Store
 
-# Claude IDE files
-.claude/
+# Claude IDE files — local session state stays out, shared guards ship.
+# Ignore the contents rather than the directory itself: git cannot re-include
+# anything whose parent directory is excluded.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
 
 # CodeGraph local index
 .codegraph/

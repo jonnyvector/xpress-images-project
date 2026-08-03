@@ -17,6 +17,10 @@ from pathlib import Path
 
 from backend.runs import sweep_truncated
 
+# Deleted projects are moved here, never erased. Leading dot keeps it out of
+# _load_projects (which requires a top-level manifest.json anyway).
+TRASH_DIRNAME = ".trash"
+
 
 def new_image_id() -> str:
     """Stable identity for one generated image (uuid4 hex)."""
@@ -303,14 +307,37 @@ class ProjectStore:
             return project
 
     def delete(self, project_id: str) -> bool:
+        """Soft-delete: move the project dir into ``.trash/`` instead of erasing it.
+
+        Generated images and learned signatures are irreplaceable (~$0.134 each
+        to regenerate, and a signature cannot be regenerated at all), so nothing
+        here ever calls ``rmtree`` on live project data. The trash dir holds no
+        ``manifest.json`` at its top level, so ``_load_projects`` skips it and
+        trashed projects stay out of the app. Purge it by hand when sure.
+        """
         with self._lock:
             project = self._projects.pop(project_id, None)
             if project is None:
                 return False
             d = self._project_dir(project_id)
             if d.exists():
-                shutil.rmtree(d)
+                self._trash_dir().mkdir(parents=True, exist_ok=True)
+                shutil.move(str(d), str(self._trash_target(project_id)))
             return True
+
+    def _trash_dir(self) -> Path:
+        return self._persist_dir / TRASH_DIRNAME
+
+    def _trash_target(self, project_id: str) -> Path:
+        """Unique destination under ``.trash/`` — never overwrites an earlier delete."""
+        stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        base = self._trash_dir() / f"{project_id}-{stamp}"
+        target = base
+        n = 1
+        while target.exists():
+            target = base.with_name(f"{base.name}-{n}")
+            n += 1
+        return target
 
     def archive_current_version(self, project_id: str) -> int | None:
         """Archive the current signature/base_door/results into versions/v{N}/.
