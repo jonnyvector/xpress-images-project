@@ -5,12 +5,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { CoverageResponse } from '../types';
 import * as api from '../api';
 import CoverageTable from './CoverageTable';
+import { useProjects } from '../context/ProjectsContext';
 
 interface Props {
   onOpenProject: (id: string) => void;
 }
 
 export default function CoveragePage({ onOpenProject }: Props) {
+  const { projects } = useProjects();
   const [data, setData] = useState<CoverageResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeKey, setActiveKey] = useState<string | null>(null);
@@ -110,6 +112,8 @@ export default function CoveragePage({ onOpenProject }: Props) {
           category={active}
           onlyUncovered={onlyUncovered}
           onOpenProject={onOpenProject}
+          projects={projects}
+          onChanged={setData}
         />
       )}
     </div>
