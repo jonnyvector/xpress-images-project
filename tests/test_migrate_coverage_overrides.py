@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from backend.signoff import load_signoff
 from scripts.migrate_coverage_overrides import migrate
 
@@ -32,3 +34,17 @@ def test_does_not_clobber_existing_signoff(tmp_path: Path):
     record = load_signoff(tmp_path)
     assert record["B"]["canonical_project_id"] == "keep"
     assert "A" in record
+
+
+def test_refuses_to_overwrite_corrupted_signoff(tmp_path: Path):
+    malformed_content = '{"broken": json'
+    (tmp_path / "coverage_overrides.json").write_text(
+        json.dumps({"covered": ["A"]})
+    )
+    (tmp_path / "coverage_signoff.json").write_text(malformed_content)
+
+    with pytest.raises(RuntimeError, match="corrupted"):
+        migrate(tmp_path, now="2026-08-03T00:00:00Z")
+
+    # Verify the malformed file is untouched
+    assert (tmp_path / "coverage_signoff.json").read_text() == malformed_content

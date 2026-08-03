@@ -18,6 +18,18 @@ DATA_DIR = Path("docs/sales/data")
 
 
 def migrate(data_dir: Path, *, now: str) -> int:
+    # Guard against silent data loss: if the destination file exists but is
+    # corrupted, refuse to run rather than overwriting with only migrated titles.
+    signoff_path = data_dir / "coverage_signoff.json"
+    if signoff_path.exists():
+        try:
+            json.loads(signoff_path.read_text())
+        except (ValueError, OSError) as e:
+            raise RuntimeError(
+                f"Cannot migrate: {signoff_path} exists but is corrupted. "
+                f"Fix or move the file before running migrate. Error: {e}"
+            ) from e
+
     path = data_dir / "coverage_overrides.json"
     if not path.exists():
         return 0
