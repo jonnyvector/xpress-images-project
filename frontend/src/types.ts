@@ -121,6 +121,9 @@ export interface CoverageProduct {
   quantity: number;
   covered: boolean;
   matched_project_ids: string[];
+  approved_count: number;
+  approved_total: number;
+  on_shopify: boolean | null;
 }
 
 export interface CoverageCategory {

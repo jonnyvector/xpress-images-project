@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+import backend.routers.coverage as coverage_router
 from backend.app import app
 from backend.coverage import (
     CATEGORIES,
@@ -9,8 +10,10 @@ from backend.coverage import (
     extract_match_tokens,
     load_products,
     project_matches,
+    title_matches,
 )
-from backend.state import ProjectState
+from backend.qa.approvals import Approval, ApprovalStore
+from backend.state import ProjectState, ResultRecord
 
 
 def test_extract_tokens_plain_wood_name():
@@ -77,7 +80,7 @@ def test_matched_project_ids_orders_results_bearing_first(tmp_path):
         '"Shaker Cabinet Door",100.0,5\n'
     )
     empty = _project(id="empty", name="Shaker", results=[])
-    full = _project(id="full", name="Shaker", results=[("Maple", b"img")])
+    full = _project(id="full", name="Shaker", results=[ResultRecord(image_id="img1", wood_name="Maple")])
     cats = compute_coverage([empty, full], data_dir=tmp_path)
     wood_cd = next(c for c in cats if c["key"] == "wood_cabinet_doors")
     row = wood_cd["products"][0]
@@ -94,7 +97,7 @@ def test_compute_coverage_marks_covered_only_with_results(tmp_path: Path):
         '"Revere Cabinet Door",50.0,2\n'
     )
     # Shaker project WITH a result -> covered; Revere project WITHOUT results -> matched-not-covered
-    shaker = _project(id="s1", name="Shaker", results=[("Maple", b"img")])
+    shaker = _project(id="s1", name="Shaker", results=[ResultRecord(image_id="img1", wood_name="Maple")])
     revere = _project(id="r1", name="Revere", results=[])
     cats = compute_coverage([shaker, revere], data_dir=tmp_path)
     wood_cd = next(c for c in cats if c["key"] == "wood_cabinet_doors")
@@ -116,7 +119,7 @@ def test_compute_coverage_filters_by_material_and_form(tmp_path: Path):
         '"DRS131 Thermofoil Cabinet Door (Shaker Style)",10.0,1\n'
     )
     # A wood project named "Shaker" must NOT cover an rtf product.
-    wood_shaker = _project(id="w1", name="Shaker", material_type="wood", results=[("M", b"x")])
+    wood_shaker = _project(id="w1", name="Shaker", material_type="wood", results=[ResultRecord(image_id="img1", wood_name="M")])
     cats = compute_coverage([wood_shaker], data_dir=tmp_path)
     tf_cd = next(c for c in cats if c["key"] == "thermofoil_cabinet_doors")
     assert tf_cd["covered"] == 0
@@ -141,3 +144,168 @@ def test_coverage_endpoint_returns_four_categories():
     assert {"title", "net_sales", "quantity", "covered", "matched_project_ids"} <= set(
         wood_cd["products"][0].keys()
     )
+
+
+def test_title_matches_checks_whole_word_overlap():
+    assert title_matches({"shaker"}, "My Shaker Upload") is True
+    assert title_matches({"shaker"}, "door1.jpg") is False
+
+
+def test_compute_coverage_reports_approval_progress(tmp_path: Path):
+    (tmp_path / "wood_cabinet_doors.csv").write_text(
+        '"Product title","Net sales","Quantity ordered"\n'
+        '"Shaker Cabinet Door",100.0,5\n'
+    )
+    records = [
+        ResultRecord(image_id="img1", wood_name="Maple"),
+        ResultRecord(image_id="img2", wood_name="Oak"),
+    ]
+    project = _project(id="s1", name="Shaker", results=records)
+    store = ApprovalStore(path=tmp_path / "approvals.json")
+    store.set(Approval(image_id="img1", project_id="s1", kind="variant", verdict="approved"))
+
+    cats = compute_coverage([project], data_dir=tmp_path, approval_store=store)
+    row = next(c for c in cats if c["key"] == "wood_cabinet_doors")["products"][0]
+    assert row["approved_count"] == 1
+    assert row["approved_total"] == 2
+
+
+def test_compute_coverage_rejected_verdict_does_not_count_as_approved(tmp_path: Path):
+    (tmp_path / "wood_cabinet_doors.csv").write_text(
+        '"Product title","Net sales","Quantity ordered"\n'
+        '"Shaker Cabinet Door",100.0,5\n'
+    )
+    records = [
+        ResultRecord(image_id="img1", wood_name="Maple"),
+        ResultRecord(image_id="img2", wood_name="Oak"),
+    ]
+    project = _project(id="s1", name="Shaker", results=records)
+    store = ApprovalStore(path=tmp_path / "approvals.json")
+    store.set(Approval(image_id="img1", project_id="s1", kind="variant", verdict="approved"))
+    store.set(Approval(image_id="img2", project_id="s1", kind="variant", verdict="rejected"))
+
+    cats = compute_coverage([project], data_dir=tmp_path, approval_store=store)
+    row = next(c for c in cats if c["key"] == "wood_cabinet_doors")["products"][0]
+    assert row["approved_count"] == 1
+    assert row["approved_total"] == 2
+
+
+def test_compute_coverage_approval_zero_total_when_no_results(tmp_path: Path):
+    (tmp_path / "wood_cabinet_doors.csv").write_text(
+        '"Product title","Net sales","Quantity ordered"\n'
+        '"Shaker Cabinet Door",100.0,5\n'
+    )
+    project = _project(id="s1", name="Shaker", results=[])
+    store = ApprovalStore(path=tmp_path / "approvals.json")
+
+    cats = compute_coverage([project], data_dir=tmp_path, approval_store=store)
+    row = next(c for c in cats if c["key"] == "wood_cabinet_doors")["products"][0]
+    assert row["approved_count"] == 0
+    assert row["approved_total"] == 0
+
+
+def test_compute_coverage_on_shopify_true_when_fully_imaged(tmp_path: Path):
+    (tmp_path / "wood_cabinet_doors.csv").write_text(
+        '"Product title","Net sales","Quantity ordered"\n'
+        '"Shaker Cabinet Door",100.0,5\n'
+    )
+    (tmp_path / "shopify_products.csv").write_text(
+        "Handle,Title,Variant SKU,Variant Image\n"
+        "shaker-cabinet-door,Shaker Cabinet Door,SCD-MAPLE,https://cdn/1.jpg\n"
+        "shaker-cabinet-door,,SCD-OAK,https://cdn/2.jpg\n"
+    )
+    store = ApprovalStore(path=tmp_path / "approvals.json")
+
+    cats = compute_coverage([], data_dir=tmp_path, approval_store=store)
+    row = next(c for c in cats if c["key"] == "wood_cabinet_doors")["products"][0]
+    assert row["on_shopify"] is True
+
+
+def test_compute_coverage_on_shopify_false_when_partially_imaged(tmp_path: Path):
+    (tmp_path / "wood_cabinet_doors.csv").write_text(
+        '"Product title","Net sales","Quantity ordered"\n'
+        '"Shaker Cabinet Door",100.0,5\n'
+    )
+    (tmp_path / "shopify_products.csv").write_text(
+        "Handle,Title,Variant SKU,Variant Image\n"
+        "shaker-cabinet-door,Shaker Cabinet Door,SCD-MAPLE,https://cdn/1.jpg\n"
+        "shaker-cabinet-door,,SCD-OAK,\n"
+    )
+    store = ApprovalStore(path=tmp_path / "approvals.json")
+
+    cats = compute_coverage([], data_dir=tmp_path, approval_store=store)
+    row = next(c for c in cats if c["key"] == "wood_cabinet_doors")["products"][0]
+    assert row["on_shopify"] is False
+
+
+def test_compute_coverage_on_shopify_none_when_no_csv_uploaded(tmp_path: Path):
+    (tmp_path / "wood_cabinet_doors.csv").write_text(
+        '"Product title","Net sales","Quantity ordered"\n'
+        '"Shaker Cabinet Door",100.0,5\n'
+    )
+    store = ApprovalStore(path=tmp_path / "approvals.json")
+
+    cats = compute_coverage([], data_dir=tmp_path, approval_store=store)
+    row = next(c for c in cats if c["key"] == "wood_cabinet_doors")["products"][0]
+    assert row["on_shopify"] is None
+
+
+def test_upload_shopify_csv_persists_and_refreshes_coverage(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(coverage_router, "DATA_DIR", tmp_path)
+    (tmp_path / "wood_cabinet_doors.csv").write_text(
+        '"Product title","Net sales","Quantity ordered"\n'
+        '"Shaker Cabinet Door",100.0,5\n'
+    )
+    csv_bytes = (
+        b"Handle,Title,Variant SKU,Variant Image\n"
+        b"shaker-cabinet-door,Shaker Cabinet Door,SCD-MAPLE,https://cdn/1.jpg\n"
+    )
+    with TestClient(app) as client:
+        resp = client.post(
+            "/api/coverage/shopify-csv",
+            files={"file": ("shopify_products.csv", csv_bytes, "text/csv")},
+        )
+    assert resp.status_code == 200
+    assert (tmp_path / "shopify_products.csv").exists()
+    data = resp.json()
+    wood_cd = next(c for c in data["categories"] if c["key"] == "wood_cabinet_doors")
+    row = next(p for p in wood_cd["products"] if p["title"] == "Shaker Cabinet Door")
+    assert row["on_shopify"] is True
+
+
+def test_upload_shopify_csv_rejects_empty_file(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(coverage_router, "DATA_DIR", tmp_path)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/api/coverage/shopify-csv",
+            files={"file": ("shopify_products.csv", b"", "text/csv")},
+        )
+    assert resp.status_code == 400
+    assert not (tmp_path / "shopify_products.csv").exists()
+
+
+def test_upload_shopify_csv_rejects_unrecognized_headers(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(coverage_router, "DATA_DIR", tmp_path)
+    with TestClient(app) as client:
+        resp = client.post(
+            "/api/coverage/shopify-csv",
+            files={"file": ("shopify_products.csv", b"Foo,Bar\nx,y\n", "text/csv")},
+        )
+    assert resp.status_code == 400
+    assert not (tmp_path / "shopify_products.csv").exists()
+
+
+def test_compute_coverage_on_shopify_none_when_no_title_match(tmp_path: Path):
+    (tmp_path / "wood_cabinet_doors.csv").write_text(
+        '"Product title","Net sales","Quantity ordered"\n'
+        '"Shaker Cabinet Door",100.0,5\n'
+    )
+    (tmp_path / "shopify_products.csv").write_text(
+        "Handle,Title,Variant SKU,Variant Image\n"
+        "revere-cabinet-door,Revere Cabinet Door,RCD-MAPLE,https://cdn/1.jpg\n"
+    )
+    store = ApprovalStore(path=tmp_path / "approvals.json")
+
+    cats = compute_coverage([], data_dir=tmp_path, approval_store=store)
+    row = next(c for c in cats if c["key"] == "wood_cabinet_doors")["products"][0]
+    assert row["on_shopify"] is None

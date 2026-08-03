@@ -12,7 +12,11 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from backend.qa.approvals import get_approval_store
+from backend.shopify_products import SHOPIFY_CSV_FILENAME, load_shopify_products
+
 if TYPE_CHECKING:
+    from backend.qa.approvals import ApprovalStore
     from backend.state import ProjectState
 
 # Words that carry no style meaning and must never become match tokens.
@@ -106,9 +110,14 @@ def load_products(csv_path: Path) -> list[tuple[str, float, int]]:
     return rows
 
 
+def title_matches(tokens: set[str], candidate_title: str) -> bool:
+    """True if any token is a whole word in candidate_title."""
+    return bool(tokens & set(_words(candidate_title)))
+
+
 def project_matches(project: ProjectState, tokens: set[str]) -> bool:
     """True if any token is a whole word in the project's name."""
-    return bool(tokens & set(_words(project.name)))
+    return title_matches(tokens, project.name)
 
 
 def load_overrides(data_dir: Path) -> set[str]:
@@ -129,11 +138,26 @@ def load_overrides(data_dir: Path) -> set[str]:
         return set()
 
 
+def _approval_progress(project: ProjectState, approval_store: ApprovalStore) -> tuple[int, int]:
+    """(approved_count, total) for a project's current result records."""
+    total = len(project.results)
+    approved = sum(
+        1
+        for record in project.results
+        if (a := approval_store.get(record.image_id)) is not None and a.verdict == "approved"
+    )
+    return approved, total
+
+
 def compute_coverage(
-    projects: list[ProjectState], data_dir: Path = DATA_DIR
+    projects: list[ProjectState],
+    data_dir: Path = DATA_DIR,
+    approval_store: ApprovalStore | None = None,
 ) -> list[dict]:
     """Build per-category coverage data joining the CSVs with projects."""
     overrides = load_overrides(data_dir)
+    shopify_products = load_shopify_products(data_dir / SHOPIFY_CSV_FILENAME)
+    store = approval_store if approval_store is not None else get_approval_store()
     categories: list[dict] = []
     for cat in CATEGORIES:
         candidates = [
@@ -152,6 +176,19 @@ def compute_coverage(
             is_covered = manual or any(p.results for p in matched)
             if is_covered:
                 covered_count += 1
+
+            primary = next((p for p in matched if p.results), None)
+            approved_count, approved_total = (
+                _approval_progress(primary, store) if primary is not None else (0, 0)
+            )
+
+            shopify_matches = [
+                sp for sp in shopify_products if title_matches(tokens, sp["title"])
+            ]
+            on_shopify = (
+                any(sp["fully_imaged"] for sp in shopify_matches) if shopify_matches else None
+            )
+
             products.append(
                 {
                     "title": title,
@@ -160,6 +197,9 @@ def compute_coverage(
                     "covered": is_covered,
                     "manual": manual,
                     "matched_project_ids": [p.id for p in matched],
+                    "approved_count": approved_count,
+                    "approved_total": approved_total,
+                    "on_shopify": on_shopify,
                 }
             )
         categories.append(
