@@ -3,6 +3,7 @@ import type { Approval, Project } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 import { usePollingTask } from '../hooks/usePollingTask';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import ApprovalControls from './ApprovalControls';
 import ApproveAllButton from './ApproveAllButton';
 import QaBadge from './QaBadge';
@@ -165,14 +166,24 @@ export default function ResultsGrid({ project }: Props) {
     }
   }, [imageScaleStorageKey]);
 
+  // Only the settled offset reaches the server. Dragging emits a value per
+  // step, and every step would re-render every result image (add_watermark is
+  // ~70ms each, uncached) — enough to saturate the backend threadpool and stall
+  // unrelated requests.
+  const renderedWatermarkOffset = useDebouncedValue(watermarkOffset, 300);
+
   useEffect(() => {
     localStorage.setItem(watermarkStorageKey, String(watermarkOffset));
-    setWatermarkCacheBust(Date.now());
   }, [watermarkOffset, watermarkStorageKey]);
 
   useEffect(() => {
-    localStorage.setItem(imageScaleStorageKey, String(imageScale));
     setWatermarkCacheBust(Date.now());
+  }, [renderedWatermarkOffset]);
+
+  // imageScale is preview-only: applied as a CSS transform below, and sent to
+  // the server only on save/zip. It never invalidates the displayed image.
+  useEffect(() => {
+    localStorage.setItem(imageScaleStorageKey, String(imageScale));
   }, [imageScale, imageScaleStorageKey]);
 
   const handleImport = useCallback(async () => {
@@ -382,10 +393,17 @@ export default function ResultsGrid({ project }: Props) {
                       </div>
                     </div>
                   )}
-                  <img
-                    src={`/api/projects/${project.id}/results/${result.index}/image?v=${project.results.length}&watermark_offset=${watermarkOffset}&image_scale=${imageScale}&wmv=${watermarkCacheBust}`}
-                    alt={result.wood_name}
-                  />
+                  <div style={{ overflow: 'hidden' }}>
+                    <img
+                      src={`/api/projects/${project.id}/results/${result.index}/image?v=${project.results.length}&watermark_offset=${renderedWatermarkOffset}&wmv=${watermarkCacheBust}`}
+                      alt={result.wood_name}
+                      style={{
+                        transform: `scale(${imageScale})`,
+                        transformOrigin: 'center',
+                        display: 'block',
+                      }}
+                    />
+                  </div>
                   <div className="caption">
                     {result.wood_name}
                     {result.attempt > 0 && (
