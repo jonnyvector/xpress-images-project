@@ -67,11 +67,17 @@ export default function CoverageTable({ category, onlyUncovered, onOpenProject, 
                     </button>
                   </td>
                   <td>
-                    {p.covered && p.matched_project_ids.length > 0 ? (
+                    {/* Linked once a canonical project is chosen — that is the
+                        project this row is actually about. Linking on `covered`
+                        instead would hide the link until sign-off, and opening
+                        matched_project_ids[0] could land on a fuzzy match (a
+                        stray *-test project) rather than the designated one. */}
+                    {p.canonical_project_id ? (
                       <button
                         type="button"
                         className="link-button"
-                        onClick={() => onOpenProject(p.matched_project_ids[0])}
+                        onClick={() => onOpenProject(p.canonical_project_id as string)}
+                        title="Open the canonical project for this product"
                       >
                         {p.title}
                       </button>
