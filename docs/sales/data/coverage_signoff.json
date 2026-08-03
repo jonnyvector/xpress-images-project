@@ -1,4 +1,50 @@
 {
+  "Adobe Cabinet Door": {
+    "in_shopify": {
+      "at": "2026-08-03T11:46:45.531870+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-03T11:46:44.833240+00:00",
+      "by": "operator",
+      "result_count": null
+    }
+  },
+  "Alpine Cabinet Door": {
+    "in_shopify": {
+      "at": "2026-08-03T11:46:43.176175+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-03T11:46:42.334189+00:00",
+      "by": "operator",
+      "result_count": null
+    }
+  },
+  "Arcadia Cabinet Door": {
+    "canonical_project_id": "599471c0",
+    "in_shopify": {
+      "at": "2026-08-03T11:47:19.775140+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": true,
+      "at": "2026-08-03T11:47:18.172800+00:00",
+      "by": "operator",
+      "result_count": 31
+    }
+  },
+  "Aries Cabinet Door": {
+    "canonical_project_id": "fb1421d0",
+    "variations_complete": {
+      "acknowledged_gap": true,
+      "at": "2026-08-03T11:47:40.259760+00:00",
+      "by": "operator",
+      "result_count": 18
+    }
+  },
   "DR1 Thermofoil Cabinet Door (Artesia Style)": {
     "in_shopify": {
       "at": "2026-08-03T10:43:36.847020+00:00",
@@ -35,6 +81,18 @@
       "result_count": null
     }
   },
+  "Oakley Cabinet Door": {
+    "in_shopify": {
+      "at": "2026-08-03T11:48:37.896260+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-03T11:48:36.682863+00:00",
+      "by": "operator",
+      "result_count": null
+    }
+  },
   "RR980 Thermofoil (Adobe Style) Cabinet Door": {
     "in_shopify": {
       "at": "2026-08-03T10:43:36.847020+00:00",
@@ -44,6 +102,30 @@
       "acknowledged_gap": true,
       "at": "2026-08-03T10:43:36.847020+00:00",
       "by": "migrated",
+      "result_count": null
+    }
+  },
+  "Revere Cabinet Door": {
+    "in_shopify": {
+      "at": "2026-08-03T11:46:40.113640+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-03T11:46:39.249821+00:00",
+      "by": "operator",
+      "result_count": null
+    }
+  },
+  "Shaker Cabinet Door": {
+    "in_shopify": {
+      "at": "2026-08-03T11:45:07.966862+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-03T11:45:07.024095+00:00",
+      "by": "operator",
       "result_count": null
     }
   },
@@ -57,6 +139,19 @@
       "at": "2026-08-03T10:43:36.847020+00:00",
       "by": "migrated",
       "result_count": null
+    }
+  },
+  "True Louver Cabinet Door": {
+    "canonical_project_id": "de0f1094",
+    "in_shopify": {
+      "at": "2026-08-03T11:47:31.020044+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": true,
+      "at": "2026-08-03T11:47:30.019565+00:00",
+      "by": "operator",
+      "result_count": 13
     }
   }
 }
