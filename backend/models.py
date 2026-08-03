@@ -130,19 +130,26 @@ class CoverageProduct(BaseModel):
     title: str
     net_sales: float
     quantity: int
-    covered: bool
-    manual: bool = False  # covered by operator override, not a project match
+    covered: bool  # mirrors variations_complete; kept for the existing filter
     matched_project_ids: list[str]
     approved_count: int = 0
     approved_total: int = 0
     on_shopify: bool | None = None  # None = no Shopify CSV uploaded, or no title match
+    variations_complete: bool = False
+    in_shopify: bool = False
+    canonical_project_id: str | None = None
+    excluded_colors: list[str] = []
+    gap: dict | None = None  # None = no canonical project resolved
+    stale: bool = False
 
 
 class CoverageCategory(BaseModel):
     key: str
     label: str
-    covered: int
+    covered: int  # mirrors variations_complete count
     total: int
+    variations_complete: int = 0
+    in_shopify_count: int = 0
     products: list[CoverageProduct]
 
 

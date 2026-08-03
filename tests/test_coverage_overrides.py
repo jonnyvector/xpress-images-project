@@ -1,4 +1,9 @@
-"""Manual coverage overrides: operator-declared done, no project match needed."""
+"""coverage_overrides.json is retired: sign-off is now the only source of truth.
+
+Task 5 migrates the five titles that used to rely on this file into the
+sign-off record; until then those titles are expected to read as not covered.
+This file now asserts that a leftover coverage_overrides.json is inert.
+"""
 
 import json
 from pathlib import Path
@@ -6,7 +11,7 @@ from pathlib import Path
 from backend.coverage import compute_coverage
 
 
-def test_override_marks_product_covered(tmp_path: Path) -> None:
+def test_leftover_overrides_file_no_longer_marks_product_covered(tmp_path: Path) -> None:
     (tmp_path / "thermofoil_cabinet_doors.csv").write_text(
         '"Product title","Net sales","Quantity ordered"\n'
         '"FS842 Thermofoil Cabinet Door",14112.0,155\n'
@@ -19,10 +24,10 @@ def test_override_marks_product_covered(tmp_path: Path) -> None:
     cat = next(c for c in categories if c["key"] == "thermofoil_cabinet_doors")
     fs842 = next(p for p in cat["products"] if p["title"].startswith("FS842"))
     dr133 = next(p for p in cat["products"] if p["title"].startswith("DR133"))
-    assert fs842["covered"] is True
-    assert fs842["manual"] is True
+    assert "manual" not in fs842
+    assert fs842["covered"] is False
     assert dr133["covered"] is False
-    assert cat["covered"] == 1
+    assert cat["covered"] == 0
 
 
 def test_missing_or_bad_overrides_are_ignored(tmp_path: Path) -> None:
