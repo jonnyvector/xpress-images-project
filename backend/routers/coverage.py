@@ -6,7 +6,14 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile
 
-from backend.coverage import CATEGORIES, DATA_DIR, compute_coverage, load_products
+from backend.coverage import (
+    CATEGORIES,
+    DATA_DIR,
+    compute_coverage,
+    extract_match_tokens,
+    load_products,
+    title_matches,
+)
 from backend.models import (
     CanonicalRequest,
     CoverageResponse,
@@ -15,8 +22,13 @@ from backend.models import (
 )
 from backend.palette import compute_gap, distinct_generated
 from backend.routers.projects_common import get_store
-from backend.shopify_products import SHOPIFY_CSV_FILENAME, has_recognizable_headers
+from backend.shopify_products import (
+    SHOPIFY_CSV_FILENAME,
+    has_recognizable_headers,
+    load_shopify_products,
+)
 from backend.signoff import (
+    GATE_KEYS,
     SIGNOFF_FILENAME,
     SIGNOFF_LOCK,
     SignoffRecordError,
@@ -167,6 +179,43 @@ async def upload_shopify_csv(file: UploadFile, request: Request) -> CoverageResp
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     (DATA_DIR / SHOPIFY_CSV_FILENAME).write_bytes(data)
+    _stamp_shopify_signoffs()
     return CoverageResponse(
         categories=compute_coverage(store.list_projects(), data_dir=DATA_DIR)
     )
+
+
+def _stamp_shopify_signoffs() -> None:
+    """Record an in_shopify sign-off for every fully-imaged product in the export.
+
+    The export is a bulk way for the operator to record a decision they would
+    otherwise tick by hand, so it only ever ADDS stamps. It never revokes a
+    sign-off and never overwrites one already on the record: a human's judgment
+    (or an earlier export's) outranks a later, possibly partial, export. That
+    also means a product dropping out of an export does not silently un-ship it.
+
+    Only the shopify gate is touched. variations_complete stays a human call —
+    nothing here can infer whether every needed colour was generated.
+    """
+    products = load_shopify_products(DATA_DIR / SHOPIFY_CSV_FILENAME)
+    imaged = [p for p in products if p["fully_imaged"]]
+    if not imaged:
+        return
+
+    now = datetime.now(UTC).isoformat()
+    with SIGNOFF_LOCK:
+        try:
+            record = load_signoff_strict(DATA_DIR)
+        except SignoffRecordError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+        for cat in CATEGORIES:
+            for title, _, _ in load_products(DATA_DIR / cat["csv"]):
+                if GATE_KEYS["shopify"] in (record.get(title) or {}):
+                    continue  # already signed off — never overwrite provenance
+                tokens = extract_match_tokens(title)
+                if any(title_matches(tokens, p["title"]) for p in imaged):
+                    record = set_gate(
+                        record, title, "shopify", True, by="shopify-csv", at=now
+                    )
+        save_signoff(DATA_DIR, record)

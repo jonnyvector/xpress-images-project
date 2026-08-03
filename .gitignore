@@ -29,6 +29,11 @@ output/
 !.claude/settings.json
 !.claude/hooks/
 
+# Shopify store export — a regenerable snapshot, not a decision record, and it
+# can carry pricing/SKU/inventory data that does not belong in repo history.
+# The sign-offs it produces are kept in coverage_signoff.json, which IS tracked.
+docs/sales/data/shopify_products.csv
+
 # CodeGraph local index
 .codegraph/
 
