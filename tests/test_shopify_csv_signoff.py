@@ -18,16 +18,17 @@ from backend.state import ProjectStore
 
 TITLE = "AR756 Thermofoil Cabinet Door"
 
-# Matrixify-style export: one row per variant, image column blank when unset.
+# Two wood-type variants. "Imaged" means at least one distinct image per
+# variant, so the second file is one image short.
 CSV_FULLY_IMAGED = (
-    "Handle,Title,Variant Image\n"
-    "ar756,AR756 Thermofoil Cabinet Door,https://cdn/a.png\n"
-    "ar756,,https://cdn/b.png\n"
+    "Handle,Title,Option1 Value,Variant SKU,Variant Image\n"
+    "ar756,AR756 Thermofoil Cabinet Door,Maple,AR756-MAPLE,https://cdn/a.png\n"
+    "ar756,,Oak,AR756-OAK,https://cdn/b.png\n"
 )
 CSV_PARTIALLY_IMAGED = (
-    "Handle,Title,Variant Image\n"
-    "ar756,AR756 Thermofoil Cabinet Door,https://cdn/a.png\n"
-    "ar756,,\n"
+    "Handle,Title,Option1 Value,Variant SKU,Variant Image\n"
+    "ar756,AR756 Thermofoil Cabinet Door,Maple,AR756-MAPLE,https://cdn/a.png\n"
+    "ar756,,Oak,AR756-OAK,\n"
 )
 
 

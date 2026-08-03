@@ -1,4 +1,7 @@
-"""Shopify product image coverage: parse a Matrixify-style variant CSV."""
+"""Shopify product image coverage: parsing, grouping, and malformed input.
+
+The per-variant image rule itself is covered in test_shopify_variant_images.py.
+"""
 
 from pathlib import Path
 
@@ -41,8 +44,8 @@ def test_groups_variants_by_handle_fully_imaged(tmp_path: Path):
     p = products[0]
     assert p["handle"] == "shaker-cabinet-door"
     assert p["title"] == "Shaker Cabinet Door"
-    assert p["total_count"] == 3
-    assert p["imaged_count"] == 3
+    assert p["variant_count"] == 3
+    assert p["image_count"] == 3
     assert p["fully_imaged"] is True
 
 
@@ -55,8 +58,8 @@ def test_partially_imaged_product_is_not_fully_imaged(tmp_path: Path):
     )
     products = load_shopify_products(csv_path)
     p = products[0]
-    assert p["total_count"] == 2
-    assert p["imaged_count"] == 1
+    assert p["variant_count"] == 2
+    assert p["image_count"] == 1
     assert p["fully_imaged"] is False
 
 
@@ -90,9 +93,11 @@ def test_ragged_row_missing_trailing_columns_does_not_raise(tmp_path: Path):
     )
     products = load_shopify_products(csv_path)
     p = products[0]
-    assert p["total_count"] == 2
-    assert p["imaged_count"] == 1
-    assert p["fully_imaged"] is False
+    # The ragged row names no variant and carries no image — it must be counted
+    # as neither, rather than raising on the missing trailing columns.
+    assert p["variant_count"] == 1
+    assert p["image_count"] == 1
+    assert p["fully_imaged"] is True
 
 
 def test_multiple_products_preserve_first_seen_order(tmp_path: Path):
