@@ -9,16 +9,20 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from dotenv import load_dotenv
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.coverage import CATEGORIES, DATA_DIR, load_products
-from backend.filename_parsing import extract_wood_name
-from backend.materials import MIME_MAP, load_material_types
-from backend.routers.projects_media import IMAGE_EXTENSIONS
-from backend.shopify_admin import (
+import httpx  # noqa: E402
+from dotenv import load_dotenv  # noqa: E402
+
+from backend.coverage import CATEGORIES, DATA_DIR, load_products  # noqa: E402
+from backend.filename_parsing import extract_wood_name  # noqa: E402
+from backend.materials import MIME_MAP, load_material_types  # noqa: E402
+from backend.routers.projects_media import IMAGE_EXTENSIONS  # noqa: E402
+from backend.shopify_admin import (  # noqa: E402
     ShopifyApiError,
     Variant,
     append_media_to_variant,
@@ -28,14 +32,13 @@ from backend.shopify_admin import (
     upload_staged_file,
     wait_for_media_ready,
 )
-from backend.signoff import (
+from backend.signoff import (  # noqa: E402
     SIGNOFF_LOCK,
     load_signoff,
     load_signoff_strict,
     save_signoff,
     set_shopify_product,
 )
-import httpx
 
 
 def normalize_name(value: str) -> str:
@@ -49,10 +52,33 @@ class MatchResult:
     variant_id: str | None
 
 
+def find_ambiguous_variants(variants: list[Variant]) -> list[list[Variant]]:
+    """Groups of 2+ variants that share a normalized option value.
+
+    A product with a second option dimension (e.g. Size, Finish) or two
+    variants that normalize to the same wood/color name would otherwise let
+    match_files_to_variants() silently collapse them to "last one wins" —
+    an image could then get pushed to the wrong live variant. Callers must
+    exclude these groups from the match dict entirely."""
+    by_value: dict[str, list[Variant]] = {}
+    for v in variants:
+        by_value.setdefault(normalize_name(v.option_value), []).append(v)
+    return [group for group in by_value.values() if len(group) > 1]
+
+
 def match_files_to_variants(
     files: list[Path], wood_types: dict[str, dict], variants: list[Variant]
 ) -> list[MatchResult]:
-    by_normalized = {normalize_name(v.option_value): v.id for v in variants}
+    """Match each file to a variant by normalized option value.
+
+    Variants whose normalized option value collides with another variant's
+    are ambiguous (see find_ambiguous_variants) and are never used as a
+    match target — files that would have matched them fall through to
+    unmatched, same as today's no-match case."""
+    ambiguous_ids = {v.id for group in find_ambiguous_variants(variants) for v in group}
+    by_normalized = {
+        normalize_name(v.option_value): v.id for v in variants if v.id not in ambiguous_ids
+    }
     results = []
     for path in files:
         wood_name = extract_wood_name(path.stem, wood_types)
@@ -72,7 +98,9 @@ def resolve_material_type(title: str, data_dir: Path = DATA_DIR) -> str:
     raise SystemExit(f"Unknown product title: {title!r} (not found in any sales CSV)")
 
 
-def print_preview(matches: list[MatchResult]) -> None:
+def print_preview(
+    matches: list[MatchResult], ambiguous_groups: list[list[Variant]] | None = None
+) -> None:
     matched = [m for m in matches if m.variant_id is not None]
     unmatched = [m for m in matches if m.variant_id is None]
     print(f"Matched ({len(matched)}):")
@@ -81,6 +109,14 @@ def print_preview(matches: list[MatchResult]) -> None:
     print(f"Unmatched ({len(unmatched)}):")
     for m in unmatched:
         print(f"  {m.path.name} -> {m.wood_name} (no variant match)")
+    ambiguous_groups = ambiguous_groups or []
+    ambiguous_count = sum(len(group) for group in ambiguous_groups)
+    if ambiguous_groups:
+        print(f"Ambiguous (skipped) ({ambiguous_count}):")
+        for group in ambiguous_groups:
+            value = group[0].option_value
+            ids = ", ".join(v.id for v in group)
+            print(f"  {value!r} shared by {len(group)} variants -> {ids} (excluded, not matchable)")
 
 
 def read_shopify_credentials() -> tuple[str, str]:
@@ -151,7 +187,8 @@ def main() -> None:
     with httpx.Client(timeout=30.0) as client:
         variants = fetch_variants(client, store_domain, token, product_id)
         matches = match_files_to_variants(files, wood_types, variants)
-        print_preview(matches)
+        ambiguous_groups = find_ambiguous_variants(variants)
+        print_preview(matches, ambiguous_groups)
 
         if not args.confirm:
             print("\nDry run only — pass --confirm to upload the matched files.")

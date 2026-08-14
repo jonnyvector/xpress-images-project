@@ -214,7 +214,10 @@ def wait_for_media_ready(
 
 
 _APPEND_MEDIA = """
-mutation ProductVariantAppendMedia($productId: ID!, $variantMedia: [ProductVariantAppendMediaInput!]!) {
+mutation ProductVariantAppendMedia(
+  $productId: ID!
+  $variantMedia: [ProductVariantAppendMediaInput!]!
+) {
   productVariantAppendMedia(productId: $productId, variantMedia: $variantMedia) {
     productVariants { id }
     userErrors { field message }

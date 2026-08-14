@@ -152,7 +152,10 @@ def test_create_product_media_raises_on_media_user_errors():
                     "productCreateMedia": {
                         "media": [],
                         "mediaUserErrors": [
-                            {"field": ["media", "0", "originalSource"], "message": "Image URL is invalid"}
+                            {
+                                "field": ["media", "0", "originalSource"],
+                                "message": "Image URL is invalid",
+                            }
                         ],
                     }
                 }
@@ -169,7 +172,9 @@ def test_wait_for_media_ready_returns_when_ready():
         return httpx.Response(200, json={"data": {"node": {"status": "READY"}}})
 
     client = _client(handler)
-    wait_for_media_ready(client, STORE, TOKEN, "gid://shopify/MediaImage/1", attempts=3, delay_seconds=0)
+    wait_for_media_ready(
+        client, STORE, TOKEN, "gid://shopify/MediaImage/1", attempts=3, delay_seconds=0
+    )
 
 
 def test_wait_for_media_ready_raises_on_failed_status():
@@ -178,7 +183,9 @@ def test_wait_for_media_ready_raises_on_failed_status():
 
     client = _client(handler)
     with pytest.raises(ShopifyApiError):
-        wait_for_media_ready(client, STORE, TOKEN, "gid://shopify/MediaImage/1", attempts=3, delay_seconds=0)
+        wait_for_media_ready(
+            client, STORE, TOKEN, "gid://shopify/MediaImage/1", attempts=3, delay_seconds=0
+        )
 
 
 def test_wait_for_media_ready_raises_after_exhausting_attempts():
@@ -187,7 +194,9 @@ def test_wait_for_media_ready_raises_after_exhausting_attempts():
 
     client = _client(handler)
     with pytest.raises(ShopifyApiError):
-        wait_for_media_ready(client, STORE, TOKEN, "gid://shopify/MediaImage/1", attempts=2, delay_seconds=0)
+        wait_for_media_ready(
+            client, STORE, TOKEN, "gid://shopify/MediaImage/1", attempts=2, delay_seconds=0
+        )
 
 
 def test_append_media_to_variant_raises_on_user_errors():

@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import pytest
@@ -6,6 +5,7 @@ import pytest
 from backend.shopify_admin import Variant
 from scripts.upload_to_shopify import (
     MatchResult,
+    find_ambiguous_variants,
     match_files_to_variants,
     normalize_name,
     print_preview,
@@ -33,7 +33,49 @@ def test_match_files_to_variants_flags_unmatched():
     files = [Path("proj_bisque.png")]
     variants = [Variant(id="gid://shopify/ProductVariant/1", option_value="Frosty White")]
     results = match_files_to_variants(files, wood_types, variants)
-    assert results == [MatchResult(path=Path("proj_bisque.png"), wood_name="Bisque", variant_id=None)]
+    assert results == [
+        MatchResult(path=Path("proj_bisque.png"), wood_name="Bisque", variant_id=None)
+    ]
+
+
+def test_match_files_to_variants_excludes_duplicate_option_values():
+    wood_types = {"bisque": {"name": "Bisque"}}
+    files = [Path("proj_bisque.png")]
+    variants = [
+        Variant(id="gid://shopify/ProductVariant/1", option_value="Bisque"),
+        Variant(id="gid://shopify/ProductVariant/2", option_value="  bisque "),
+    ]
+    results = match_files_to_variants(files, wood_types, variants)
+    assert results == [
+        MatchResult(path=Path("proj_bisque.png"), wood_name="Bisque", variant_id=None)
+    ]
+
+
+def test_find_ambiguous_variants_groups_duplicates():
+    variants = [
+        Variant(id="gid://shopify/ProductVariant/1", option_value="Bisque"),
+        Variant(id="gid://shopify/ProductVariant/2", option_value="  bisque "),
+        Variant(id="gid://shopify/ProductVariant/3", option_value="Frosty White"),
+    ]
+    groups = find_ambiguous_variants(variants)
+    assert len(groups) == 1
+    assert {v.id for v in groups[0]} == {
+        "gid://shopify/ProductVariant/1",
+        "gid://shopify/ProductVariant/2",
+    }
+
+
+def test_print_preview_reports_ambiguous_count(capsys):
+    matches = [MatchResult(path=Path("a.png"), wood_name="Bisque", variant_id=None)]
+    ambiguous_groups = [
+        [
+            Variant(id="gid://shopify/ProductVariant/1", option_value="Bisque"),
+            Variant(id="gid://shopify/ProductVariant/2", option_value="  bisque "),
+        ]
+    ]
+    print_preview(matches, ambiguous_groups)
+    out = capsys.readouterr().out
+    assert "Ambiguous (skipped) (2)" in out
 
 
 def test_resolve_material_type_finds_category(tmp_path):
