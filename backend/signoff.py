@@ -140,6 +140,20 @@ def set_canonical(record: dict[str, dict], title: str, project_id: str) -> (
     return {**record, title: entry}
 
 
+def set_shopify_product(
+    record: dict[str, dict], title: str, product_id: str
+) -> dict[str, dict]:
+    """Link this product title to the Shopify product its images upload to.
+
+    Durable, operator-picked, never inferred — this is the write-path
+    counterpart to the read-only fuzzy title matching used elsewhere; a wrong
+    guess here would push an image to the wrong live product.
+    """
+    entry = _entry(record, title)
+    entry["shopify_product_id"] = product_id
+    return {**record, title: entry}
+
+
 def set_exclusions(
     record: dict[str, dict], title: str, colors: list[str]
 ) -> dict[str, dict]:

@@ -14,6 +14,7 @@ from backend.signoff import (
     set_canonical,
     set_exclusions,
     set_gate,
+    set_shopify_product,
 )
 
 
@@ -145,3 +146,29 @@ def test_saved_file_is_readable_json(tmp_path: Path) -> None:
     save_signoff(tmp_path, {"A": {"excluded_colors": []}})
     data = json.loads((tmp_path / SIGNOFF_FILENAME).read_text())
     assert data == {"A": {"excluded_colors": []}}
+
+
+def test_set_shopify_product_stores_the_id() -> None:
+    record = set_shopify_product({}, "A", "gid://shopify/Product/123")
+    assert record["A"]["shopify_product_id"] == "gid://shopify/Product/123"
+
+
+def test_set_shopify_product_preserves_other_fields() -> None:
+    record = set_gate({}, "A", "shopify", True, by="j", at="t")
+    record = set_canonical(record, "A", "proj1")
+    record = set_shopify_product(record, "A", "gid://shopify/Product/123")
+    assert record["A"]["canonical_project_id"] == "proj1"
+    assert record["A"]["in_shopify"]["by"] == "j"
+    assert record["A"]["shopify_product_id"] == "gid://shopify/Product/123"
+
+
+def test_set_shopify_product_round_trips(tmp_path) -> None:
+    record = set_shopify_product({}, "A", "gid://shopify/Product/123")
+    save_signoff(tmp_path, record)
+    assert load_signoff(tmp_path) == record
+
+
+def test_set_shopify_product_does_not_mutate_input() -> None:
+    original = {}
+    set_shopify_product(original, "A", "gid://shopify/Product/123")
+    assert original == {}
