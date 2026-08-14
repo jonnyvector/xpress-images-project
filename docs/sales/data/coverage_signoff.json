@@ -1,15 +1,55 @@
 {
   "AL757 Thermofoil Cabinet Door": {
-    "canonical_project_id": "b4e9f6c8"
+    "canonical_project_id": "b4e9f6c8",
+    "in_shopify": {
+      "at": "2026-08-14T09:16:52.701721+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-14T09:16:51.858076+00:00",
+      "by": "operator",
+      "result_count": 45
+    }
   },
   "AP768 Thermofoil Cabinet Door": {
-    "canonical_project_id": "abdf99a1"
+    "canonical_project_id": "abdf99a1",
+    "in_shopify": {
+      "at": "2026-08-14T08:31:14.812756+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": true,
+      "at": "2026-08-14T08:31:13.934936+00:00",
+      "by": "operator",
+      "result_count": 43
+    }
   },
   "AR756 Thermofoil Cabinet Door": {
-    "canonical_project_id": "eba2ee60"
+    "canonical_project_id": "eba2ee60",
+    "in_shopify": {
+      "at": "2026-08-14T07:30:02.788903+00:00",
+      "by": "shopify-csv"
+    }
+  },
+  "AR756 Thermofoil Drawer Front": {
+    "in_shopify": {
+      "at": "2026-08-14T07:30:02.788903+00:00",
+      "by": "shopify-csv"
+    }
   },
   "AR766 Thermofoil Cabinet Door": {
-    "canonical_project_id": "52e076a8"
+    "canonical_project_id": "52e076a8",
+    "in_shopify": {
+      "at": "2026-08-14T09:44:46.007109+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-14T09:44:45.351980+00:00",
+      "by": "operator",
+      "result_count": 45
+    }
   },
   "Adobe Cabinet Door": {
     "in_shopify": {
@@ -57,11 +97,25 @@
       "result_count": 18
     }
   },
+  "Brighton Cabinet Door": {
+    "canonical_project_id": "b9b4d802"
+  },
+  "Cascade Cabinet Door": {
+    "canonical_project_id": "defe8a7d"
+  },
   "DN917 Thermofoil Cabinet Door (Skinny Shaker Style)": {
-    "canonical_project_id": "be9cf476"
+    "canonical_project_id": "be9cf476",
+    "in_shopify": {
+      "at": "2026-08-14T09:18:50.716073+00:00",
+      "by": "operator"
+    }
   },
   "DP8 Thermofoil Cabinet Door": {
-    "canonical_project_id": "5597d56d"
+    "canonical_project_id": "5597d56d",
+    "in_shopify": {
+      "at": "2026-08-14T08:09:13.299969+00:00",
+      "by": "operator"
+    }
   },
   "DR1 Thermofoil Cabinet Door (Artesia Style)": {
     "in_shopify": {
@@ -76,19 +130,53 @@
     }
   },
   "DR133 Thermofoil Cabinet Door (Victoria Style)": {
-    "canonical_project_id": "e6beca5b"
+    "canonical_project_id": "e6beca5b",
+    "in_shopify": {
+      "at": "2026-08-14T08:15:45.582229+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-14T08:15:44.834791+00:00",
+      "by": "operator",
+      "result_count": 45
+    }
   },
   "DR31 Thermofoil Cabinet Door": {
     "canonical_project_id": "9ee943b4"
   },
   "DR8 Thermofoil Cabinet Door": {
-    "canonical_project_id": "ab56cda7"
+    "canonical_project_id": "ab56cda7",
+    "in_shopify": {
+      "at": "2026-08-14T08:10:07.439793+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-14T08:10:08.213908+00:00",
+      "by": "operator",
+      "result_count": 45
+    }
   },
   "DRS131 Thermofoil Cabinet Door (Shaker Style)": {
-    "canonical_project_id": "be9cf476"
+    "canonical_project_id": "be9cf476",
+    "in_shopify": {
+      "at": "2026-08-14T07:45:15.618485+00:00",
+      "by": "operator"
+    }
+  },
+  "DSS218 Thermofoil Cabinet Door (Shallow Shaker Style)": {
+    "in_shopify": {
+      "at": "2026-08-14T07:45:21.119600+00:00",
+      "by": "operator"
+    }
   },
   "DT223 Thermofoil Cabinet Door (Shallow Artesia Style)": {
-    "canonical_project_id": "fd85daeb"
+    "canonical_project_id": "fd85daeb",
+    "in_shopify": {
+      "at": "2026-08-14T07:48:31.769349+00:00",
+      "by": "operator"
+    }
   },
   "FC712 Thermofoil Cabinet Door": {
     "canonical_project_id": "9bf97152"
@@ -106,29 +194,133 @@
     }
   },
   "FC716 Thermofoil Cabinet Door": {
-    "canonical_project_id": "9e4ef372"
+    "canonical_project_id": "9e4ef372",
+    "in_shopify": {
+      "at": "2026-08-14T08:44:59.029800+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-14T08:44:58.149782+00:00",
+      "by": "operator",
+      "result_count": 45
+    }
   },
   "FR556 Thermofoil Cabinet Door": {
-    "canonical_project_id": "78d4105b"
+    "canonical_project_id": "78d4105b",
+    "in_shopify": {
+      "at": "2026-08-14T08:20:49.037312+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-14T08:20:50.202371+00:00",
+      "by": "operator",
+      "result_count": 45
+    }
   },
   "FS742 Thermofoil Cabinet Door": {
-    "canonical_project_id": "bf30a34f"
+    "canonical_project_id": "bf30a34f",
+    "in_shopify": {
+      "at": "2026-08-14T09:25:32.198751+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-14T09:25:31.393658+00:00",
+      "by": "operator",
+      "result_count": 45
+    }
+  },
+  "FS744 Thermofoil Cabinet Door": {
+    "canonical_project_id": "d3f42411",
+    "in_shopify": {
+      "at": "2026-08-14T09:29:58.046410+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-14T09:29:57.128345+00:00",
+      "by": "operator",
+      "result_count": 45
+    }
   },
   "FS746 Thermofoil Cabinet Door": {
-    "canonical_project_id": "17546aa1"
+    "canonical_project_id": "17546aa1",
+    "in_shopify": {
+      "at": "2026-08-14T09:36:09.871586+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-14T09:36:08.893926+00:00",
+      "by": "operator",
+      "result_count": 45
+    }
   },
-  "FS842 Thermofoil Cabinet Door": {},
+  "FS842 Thermofoil Cabinet Door": {
+    "in_shopify": {
+      "at": "2026-08-14T07:45:12.064215+00:00",
+      "by": "operator"
+    }
+  },
+  "Georgia Cabinet Door": {
+    "canonical_project_id": "fa895f57"
+  },
+  "Isabella Cabinet Door": {
+    "canonical_project_id": "4fdd9a63"
+  },
   "JL7 Thermofoil Cabinet Door (Liberty Style)": {
-    "canonical_project_id": "a9e2fa1e"
+    "canonical_project_id": "a9e2fa1e",
+    "in_shopify": {
+      "at": "2026-08-14T08:40:46.069590+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-14T08:40:45.158187+00:00",
+      "by": "operator",
+      "result_count": 45
+    }
   },
   "JR7 Thermofoil Cabinet Door (Revere Style)": {
-    "canonical_project_id": "f8eed0f7"
+    "canonical_project_id": "f8eed0f7",
+    "in_shopify": {
+      "at": "2026-08-14T09:39:49.227852+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-14T09:39:49.914481+00:00",
+      "by": "operator",
+      "result_count": 45
+    }
   },
   "KB732 Thermofoil Cabinet Door": {
-    "canonical_project_id": "46fb3d64"
+    "canonical_project_id": "46fb3d64",
+    "in_shopify": {
+      "at": "2026-08-14T08:25:18.526466+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-14T08:25:17.844238+00:00",
+      "by": "operator",
+      "result_count": 45
+    }
   },
   "LR981 Thermofoil (Mission Style) Cabinet Door": {
-    "canonical_project_id": "d578fc17"
+    "canonical_project_id": "d578fc17",
+    "in_shopify": {
+      "at": "2026-08-14T08:52:38.135575+00:00",
+      "by": "operator"
+    },
+    "variations_complete": {
+      "acknowledged_gap": false,
+      "at": "2026-08-14T08:52:37.281966+00:00",
+      "by": "operator",
+      "result_count": 45
+    }
   },
   "Oakley Cabinet Door": {
     "in_shopify": {
@@ -177,6 +369,9 @@
       "by": "operator",
       "result_count": null
     }
+  },
+  "Taylor Cabinet Door": {
+    "canonical_project_id": "ccb4b04b"
   },
   "Thermofoil Plank (Tacoma Style) Cabinet Door (DBQ)": {
     "in_shopify": {
