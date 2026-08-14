@@ -175,7 +175,7 @@ def main() -> None:
                     client, store_domain, token, product_id, m.variant_id, media_id
                 )
                 print(f"  uploaded: {m.path.name} -> {m.wood_name}")
-            except ShopifyApiError as exc:
+            except (ShopifyApiError, httpx.HTTPError) as exc:
                 failures.append((m.path.name, str(exc)))
                 print(f"  FAILED: {m.path.name} -> {exc}")
 
