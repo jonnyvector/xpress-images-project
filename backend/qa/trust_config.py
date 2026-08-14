@@ -26,6 +26,7 @@ class TrustConfig:
     small_batch_limit: int = 5
     bulk_unlocked: bool = False
     bulk_unlocked_style_classes: list[str] = field(default_factory=list)
+    bulk_unlocked_door_styles: list[str] = field(default_factory=list)
     max_auto_retries: int = 2
     run_cost_cap_usd: float = 10.0
     image_cost_usd: float = 0.134
@@ -41,6 +42,9 @@ def load_trust_config(path: Path = DEFAULT_TRUST_CONFIG_PATH) -> TrustConfig:
             bulk_unlocked_style_classes=[
                 str(s) for s in data.get("bulk_unlocked_style_classes", [])
             ],
+            bulk_unlocked_door_styles=[
+                str(s) for s in data.get("bulk_unlocked_door_styles", [])
+            ],
             max_auto_retries=int(data.get("max_auto_retries", 2)),
             run_cost_cap_usd=float(data.get("run_cost_cap_usd", 10.0)),
             image_cost_usd=float(data.get("image_cost_usd", 0.134)),
@@ -50,8 +54,10 @@ def load_trust_config(path: Path = DEFAULT_TRUST_CONFIG_PATH) -> TrustConfig:
 
 
 def bulk_unlocked_for(config: TrustConfig, door_style: str | None) -> bool:
-    """Is Stage C (bulk) unlocked for this project's style-class?"""
+    """Is Stage C (bulk) unlocked for this project's door_style or style-class?"""
     if config.bulk_unlocked:
+        return True
+    if door_style in config.bulk_unlocked_door_styles:
         return True
     return style_class(door_style) in config.bulk_unlocked_style_classes
 
