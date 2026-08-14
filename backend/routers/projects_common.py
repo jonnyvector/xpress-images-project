@@ -8,15 +8,16 @@ from fastapi import HTTPException, Request
 
 from backend.materials import MIME_MAP as MIME_TYPES
 from backend.models import ErrorItem, GenerationStatusResponse, ProjectResponse, ResultItem
+from backend.materials import get_catalog_names
 from backend.qa.approvals import get_approval_store
 from backend.runs import latest_run_summary
 from backend.state import ProjectState, ProjectStore
 from backend.styles.catalog import STYLES
 
-SAVE_DIR_DOORS = Path.home() / "Desktop/xpress-images/AI Images/Inset Panel Doors"
-SAVE_DIR_DRAWERS = Path.home() / "Desktop/xpress-images/AI Images/Drawer Fronts"
-SAVE_DIR_RTF_DOORS = Path.home() / "Desktop/xpress-images/AI Images/RTF Doors"
-SAVE_DIR_RTF_DRAWERS = Path.home() / "Desktop/xpress-images/AI Images/RTF Drawer Fronts"
+SAVE_DIR_DOORS = Path.home() / "Desktop/Xpress/Images/AI Images/Inset Panel Doors"
+SAVE_DIR_DRAWERS = Path.home() / "Desktop/Xpress/Images/AI Images/Drawer Fronts"
+SAVE_DIR_RTF_DOORS = Path.home() / "Desktop/Xpress/Images/AI Images/RTF Doors"
+SAVE_DIR_RTF_DRAWERS = Path.home() / "Desktop/Xpress/Images/AI Images/RTF Drawer Fronts"
 
 
 def get_store(request: Request) -> ProjectStore:
@@ -36,6 +37,22 @@ def replica_approved(project: ProjectState) -> bool:
         project.base_image_id is not None
         and project.base_image_id in get_approval_store().approved_ids()
     )
+
+
+def missing_swatches(project: ProjectState) -> list[str]:
+    """Catalog wood names with no current result. Checked against the whole
+    material catalog rather than project.selected_swatches, which is UI
+    selection state and can be empty, stale, or partial independent of what's
+    actually been generated. A discarded result reappears here automatically
+    since it's just a diff against project.results."""
+    have = {r.wood_name for r in project.results}
+    seen: set[str] = set()
+    missing: list[str] = []
+    for name in get_catalog_names(project.material_type):
+        if name not in have and name not in seen:
+            seen.add(name)
+            missing.append(name)
+    return missing
 
 
 def to_project_response(project: ProjectState) -> ProjectResponse:
@@ -74,6 +91,7 @@ def to_project_response(project: ProjectState) -> ProjectResponse:
             if project.project_dir is not None
             else None
         ),
+        missing_swatches=missing_swatches(project),
     )
 
 

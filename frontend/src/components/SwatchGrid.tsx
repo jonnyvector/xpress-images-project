@@ -79,6 +79,7 @@ export default function SwatchGrid({ project }: Props) {
 
   const realSwatches = swatches.filter((s) => !s.is_virtual);
   const virtualSwatches = swatches.filter((s) => s.is_virtual);
+  const missing = new Set(project.missing_swatches);
 
   return (
     <section style={{ marginTop: '1rem' }}>
@@ -111,24 +112,35 @@ export default function SwatchGrid({ project }: Props) {
             {materialType === 'rtf' ? 'Available Colors:' : 'Available Wood Types:'}
           </strong>
           <div className="swatch-grid" style={{ marginTop: '0.5rem' }}>
-            {realSwatches.map((swatch) => (
-              <div
-                key={swatch.key}
-                className={`swatch-item ${selected.has(swatch.key) ? 'selected' : ''}`}
-                onClick={() => toggleSwatch(swatch.key)}
-                style={{ cursor: 'pointer' }}
-              >
-                <img src={swatch.swatch_image_url} alt={swatch.name} />
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={selected.has(swatch.key)}
-                    onChange={() => toggleSwatch(swatch.key)}
-                  />
-                  {swatch.name}
-                </label>
-              </div>
-            ))}
+            {realSwatches.map((swatch) => {
+              const isMissing = missing.has(swatch.name);
+              return (
+                <div
+                  key={swatch.key}
+                  className={`swatch-item ${selected.has(swatch.key) ? 'selected' : ''}`}
+                  onClick={() => toggleSwatch(swatch.key)}
+                  title={isMissing ? 'Not yet generated' : undefined}
+                  style={{
+                    cursor: 'pointer',
+                    outline: isMissing ? '2px solid #c0392b' : undefined,
+                    outlineOffset: isMissing ? '2px' : undefined,
+                  }}
+                >
+                  <img src={swatch.swatch_image_url} alt={swatch.name} />
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(swatch.key)}
+                      onChange={() => toggleSwatch(swatch.key)}
+                    />
+                    {swatch.name}
+                    {isMissing && (
+                      <span style={{ color: '#c0392b', fontWeight: 600 }}> ● not generated</span>
+                    )}
+                  </label>
+                </div>
+              );
+            })}
           </div>
         </>
       )}
@@ -138,25 +150,31 @@ export default function SwatchGrid({ project }: Props) {
           <strong style={{ fontSize: '0.8125rem', display: 'block', marginTop: '1rem' }}>
             Composite Material Types:
           </strong>
-          {virtualSwatches.map((swatch) => (
-            <div key={swatch.key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0.5rem 0' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 'normal' }}>
-                <input
-                  type="checkbox"
-                  checked={selected.has(swatch.key)}
-                  onChange={() => toggleSwatch(swatch.key)}
-                />
-                {swatch.name}
-              </label>
-              {swatch.reference_image_url && (
-                <img
-                  src={swatch.reference_image_url}
-                  alt="Reference"
-                  style={{ width: 60, borderRadius: 4 }}
-                />
-              )}
-            </div>
-          ))}
+          {virtualSwatches.map((swatch) => {
+            const isMissing = missing.has(swatch.name);
+            return (
+              <div key={swatch.key} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0.5rem 0' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 'normal' }}>
+                  <input
+                    type="checkbox"
+                    checked={selected.has(swatch.key)}
+                    onChange={() => toggleSwatch(swatch.key)}
+                  />
+                  {swatch.name}
+                  {isMissing && (
+                    <span style={{ color: '#c0392b', fontWeight: 600 }}> ● not generated</span>
+                  )}
+                </label>
+                {swatch.reference_image_url && (
+                  <img
+                    src={swatch.reference_image_url}
+                    alt="Reference"
+                    style={{ width: 60, borderRadius: 4 }}
+                  />
+                )}
+              </div>
+            );
+          })}
         </>
       )}
 

@@ -62,6 +62,7 @@ class ProjectResponse(BaseModel):
     base_image_id: str | None = None  # the current replica's stable identity
     qa_verdicts: dict[str, dict] = {}  # image_id -> QA verdict (lane schema)
     latest_run: dict | None = None  # newest run manifest summary
+    missing_swatches: list[str] = []  # selected wood names with no current result
 
 
 class VersionSummary(BaseModel):

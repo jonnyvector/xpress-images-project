@@ -26,6 +26,7 @@ export interface Project {
   base_image_id: string | null;
   qa_verdicts: Record<string, QaVerdict>;
   latest_run: RunSummary | null;
+  missing_swatches: string[];
 }
 
 export interface QaVerdict {

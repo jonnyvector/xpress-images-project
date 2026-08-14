@@ -52,6 +52,29 @@ def resolve_swatch_path(swatch_key: str, swatch_files: list[Path]) -> Path | Non
     return None
 
 
+def get_catalog_names(material: str = "wood") -> list[str]:
+    """Every wood/color name in the material's full catalog (physical + virtual
+    swatches) — the same name resolution list_swatches uses, so a project's
+    generated results can be diffed against the whole palette, not just
+    whatever happens to be checked in the selection UI right now."""
+    swatch_files = get_swatch_files(material)
+    material_types = load_material_types(material)
+    swatch_stems = {normalize_material_key(f.stem) for f in swatch_files}
+
+    names = [
+        material_types.get(normalize_material_key(f.stem), {}).get(
+            "name", swatch_name_from_path(f)
+        )
+        for f in swatch_files
+    ]
+    names.extend(
+        data.get("name", key)
+        for key, data in material_types.items()
+        if key not in swatch_stems
+    )
+    return names
+
+
 def get_reference_image_path(key: str, material: str = "wood") -> Path | None:
     key_underscore = key.replace("-", "_")
     ref_dir = Path("swatches/rtf/references") if material == "rtf" else Path("swatches/references")
