@@ -55,7 +55,9 @@ export default function CoveragePage({ onOpenProject }: Props) {
   const approvedCount = active
     ? active.products.filter((p) => p.approved_total > 0 && p.approved_count === p.approved_total).length
     : 0;
-  const onShopifyCount = active ? active.products.filter((p) => p.on_shopify === true).length : 0;
+  const onShopifyCount = active
+    ? active.products.filter((p) => p.in_shopify || p.on_shopify === true).length
+    : 0;
 
   return (
     <div>

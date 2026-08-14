@@ -101,7 +101,7 @@ export default function CoverageTable({ category, onlyUncovered, onOpenProject, 
                     )}
                   </td>
                   <td>
-                    {p.on_shopify === true ? (
+                    {p.in_shopify || p.on_shopify === true ? (
                       <span className="badge badge-approved">On Shopify</span>
                     ) : p.on_shopify === false ? (
                       <span className="badge badge-warn">Missing images</span>
