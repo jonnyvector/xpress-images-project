@@ -166,11 +166,12 @@ export default function ResultsGrid({ project }: Props) {
     }
   }, [imageScaleStorageKey]);
 
-  // Only the settled offset reaches the server. Dragging emits a value per
-  // step, and every step would re-render every result image (add_watermark is
-  // ~70ms each, uncached) — enough to saturate the backend threadpool and stall
-  // unrelated requests.
+  // Only the settled offset/scale reach the server. Dragging emits a value
+  // per step, and every step would re-render every result image (add_watermark
+  // is ~70ms each, uncached) — enough to saturate the backend threadpool and
+  // stall unrelated requests.
   const renderedWatermarkOffset = useDebouncedValue(watermarkOffset, 300);
+  const renderedImageScale = useDebouncedValue(imageScale, 300);
 
   useEffect(() => {
     localStorage.setItem(watermarkStorageKey, String(watermarkOffset));
@@ -178,10 +179,8 @@ export default function ResultsGrid({ project }: Props) {
 
   useEffect(() => {
     setWatermarkCacheBust(Date.now());
-  }, [renderedWatermarkOffset]);
+  }, [renderedWatermarkOffset, renderedImageScale]);
 
-  // imageScale is preview-only: applied as a CSS transform below, and sent to
-  // the server only on save/zip. It never invalidates the displayed image.
   useEffect(() => {
     localStorage.setItem(imageScaleStorageKey, String(imageScale));
   }, [imageScale, imageScaleStorageKey]);
@@ -395,13 +394,9 @@ export default function ResultsGrid({ project }: Props) {
                   )}
                   <div style={{ overflow: 'hidden' }}>
                     <img
-                      src={`/api/projects/${project.id}/results/${result.index}/image?v=${project.results.length}&watermark_offset=${renderedWatermarkOffset}&wmv=${watermarkCacheBust}`}
+                      src={`/api/projects/${project.id}/results/${result.index}/image?v=${project.results.length}&watermark_offset=${renderedWatermarkOffset}&image_scale=${renderedImageScale}&wmv=${watermarkCacheBust}`}
                       alt={result.wood_name}
-                      style={{
-                        transform: `scale(${imageScale})`,
-                        transformOrigin: 'center',
-                        display: 'block',
-                      }}
+                      style={{ display: 'block' }}
                     />
                   </div>
                   <div className="caption">
