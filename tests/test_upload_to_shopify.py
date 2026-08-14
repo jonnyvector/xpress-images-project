@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -8,6 +9,7 @@ from scripts.upload_to_shopify import (
     match_files_to_variants,
     normalize_name,
     print_preview,
+    read_shopify_credentials,
     resolve_material_type,
 )
 
@@ -57,3 +59,20 @@ def test_print_preview_lists_matched_and_unmatched(capsys):
     assert "a.png -> Bisque" in out
     assert "Unmatched (1)" in out
     assert "b.png -> Unknown" in out
+
+
+def test_read_shopify_credentials_raises_when_missing(monkeypatch, tmp_path):
+    monkeypatch.delenv("SHOPIFY_STORE_DOMAIN", raising=False)
+    monkeypatch.delenv("SHOPIFY_ADMIN_API_TOKEN", raising=False)
+    monkeypatch.chdir(tmp_path)  # no .env here to load
+    with pytest.raises(SystemExit):
+        read_shopify_credentials()
+
+
+def test_read_shopify_credentials_returns_env_values(monkeypatch, tmp_path):
+    monkeypatch.setenv("SHOPIFY_STORE_DOMAIN", "test-store.myshopify.com")
+    monkeypatch.setenv("SHOPIFY_ADMIN_API_TOKEN", "shpat_test")
+    monkeypatch.chdir(tmp_path)
+    domain, token = read_shopify_credentials()
+    assert domain == "test-store.myshopify.com"
+    assert token == "shpat_test"
