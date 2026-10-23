@@ -1,4 +1,4 @@
-import type { Project, Swatch, Style, GenerationStatus, SignatureVersion, CoverageResponse, Approval } from './types';
+import type { Project, Swatch, Style, GenerationStatus, SignatureVersion, CoverageResponse, Approval, ReliabilityAggregates, ReviewQueueData } from './types';
 
 function getApiKey(): string {
   return localStorage.getItem('gemini_api_key') ?? '';
@@ -62,13 +62,6 @@ export function createProject(name: string, product_type: string, material_type:
     method: 'POST',
     body: JSON.stringify({ name, product_type, material_type }),
   });
-}
-
-export async function deleteProject(id: string): Promise<void> {
-  const res = await fetch(`/api/projects/${id}`, { method: 'DELETE', headers: authHeaders() });
-  if (!res.ok && res.status !== 404) {
-    throw new Error(`${res.status}: ${await res.text()}`);
-  }
 }
 
 export function updateProject(id: string, data: Partial<Pick<Project, 'name' | 'product_type' | 'material_type' | 'door_style' | 'corner_style' | 'style_notes' | 'gemini_model' | 'selected_swatches'>>): Promise<Project> {
@@ -242,4 +235,12 @@ export async function setSignoff(
     { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gate, value, acknowledge_gap: acknowledgeGap }) },
   );
+}
+
+export function getReviewQueue(): Promise<ReviewQueueData> {
+  return request<ReviewQueueData>('/api/qa/review-queue');
+}
+
+export function getReliability(): Promise<ReliabilityAggregates> {
+  return request<ReliabilityAggregates>('/api/qa/reliability');
 }

@@ -1,6 +1,7 @@
-// Shared project card for the door library. Renders the thumbnail, the
-// inline-rename header row, and a delete button; the variant-specific body
-// (badges/counts) is passed as children by each grid (learned vs imported).
+// Shared project card for the door library. Renders the thumbnail and the
+// inline-rename header row; the variant-specific body (badges/counts) is
+// passed as children by each grid (learned vs imported).
+// No delete button, on purpose: style signatures cannot be recreated.
 import type { ReactNode } from 'react';
 import type { Project } from '../types';
 
@@ -13,8 +14,6 @@ interface Props {
   onRenameSubmit: () => void;
   onCancelEdit: () => void;
   onStartEdit: () => void;
-  isDeleting: boolean;
-  onDelete: () => void;
   onSelect: (id: string) => void;
   children?: ReactNode;
 }
@@ -28,8 +27,6 @@ export default function LibraryCard({
   onRenameSubmit,
   onCancelEdit,
   onStartEdit,
-  isDeleting,
-  onDelete,
   onSelect,
   children,
 }: Props) {
@@ -76,17 +73,6 @@ export default function LibraryCard({
               {project.name}
             </div>
           )}
-          <button
-            type="button"
-            className="library-delete-btn"
-            disabled={isDeleting}
-            onClick={(e) => {
-              e.stopPropagation();
-              void onDelete();
-            }}
-          >
-            {isDeleting ? 'Deleting…' : 'Delete'}
-          </button>
         </div>
         {children}
       </div>

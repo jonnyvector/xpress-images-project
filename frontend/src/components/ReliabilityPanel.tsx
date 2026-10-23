@@ -2,27 +2,17 @@
 // verdicts agree with the operator's. This is the evidence for unlocking
 // bulk generation — deferrals are shown separately so they can't inflate it.
 import { useEffect, useState } from 'react';
+import type { ReliabilityAggregates, ReliabilityRates } from '../types';
+import * as api from '../api';
+import { onError } from '../notify';
 
-interface Rates {
-  decisive_n: number;
-  agreement_rate: number | null;
-  deferral_n: number;
-  deferral_rate: number | null;
-  null_n: number;
-  disagreements: number;
-}
 
-interface Aggregates {
-  total: Rates;
-  by_kind: Record<string, Rates>;
-  by_style_class: Record<string, Rates>;
-}
 
 function pct(v: number | null): string {
   return v === null ? '—' : `${Math.round(v * 100)}%`;
 }
 
-function Row({ label, r }: { label: string; r: Rates }) {
+function Row({ label, r }: { label: string; r: ReliabilityRates }) {
   return (
     <div className="reliability-row">
       <span className="reliability-label">{label}</span>
@@ -35,14 +25,13 @@ function Row({ label, r }: { label: string; r: Rates }) {
 }
 
 export default function ReliabilityPanel() {
-  const [stats, setStats] = useState<Aggregates | null>(null);
+  const [stats, setStats] = useState<ReliabilityAggregates | null>(null);
 
   useEffect(() => {
     let alive = true;
-    fetch('/api/qa/reliability')
-      .then((r) => r.json())
-      .then((s) => { if (alive) setStats(s); })
-      .catch(console.error);
+    api.getReliability()
+      .then((st) => { if (alive) setStats(st); })
+      .catch(onError("Couldn't load pipeline reliability"));
     return () => { alive = false; };
   }, []);
 

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef, memo } from 'react';
 import type { Project, SignatureVersion } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
+import { onError } from '../notify';
 
 interface Props {
   project: Project;
@@ -23,7 +24,7 @@ export default memo(function SignatureHistory({ project }: Props) {
       setVersions(null); // force reload on next expand
       if (expanded) {
         // Reload immediately if panel is open
-        api.listVersions(project.id).then(setVersions).catch(console.error);
+        api.listVersions(project.id).then(setVersions).catch(onError("Couldn't load signature history"));
       }
     }
   }, [project.version_count, project.id, expanded]);
@@ -48,6 +49,7 @@ export default memo(function SignatureHistory({ project }: Props) {
   }, [expanded, loadVersions]);
 
   const handleRestore = useCallback(async (version: number) => {
+    if (!window.confirm(`Restore signature v${version}? It replaces the current signature (which is archived as a new version).`)) return;
     setRestoring(version);
     setError(null);
     try {

@@ -243,7 +243,8 @@ label {
 /* Two-column project layout */
 .project-columns {
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  /* minmax(0, …) lets columns shrink below their content's width */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   gap: 1.5rem;
 }
 
@@ -268,7 +269,7 @@ label {
 /* Swatch grid */
 .swatch-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
@@ -299,7 +300,7 @@ label {
 /* Results grid */
 .results-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -321,6 +322,7 @@ label {
 
 .result-card .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: center;
 }
@@ -348,6 +350,15 @@ label {
 }
 
 /* Status messages */
+.status-warning {
+  padding: 0.75rem 1rem;
+  background: #fff8e1;
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  color: #664d03;
+}
+
 .status-info {
   padding: 0.75rem 1rem;
   background: #e8f4fd;
@@ -612,26 +623,6 @@ label {
   color: var(--color-text);
 }
 
-.library-delete-btn {
-  background: transparent;
-  border: 1px solid #fca5a5;
-  color: #b91c1c;
-  padding: 0.125rem 0.4rem;
-  font-size: 0.6875rem;
-  border-radius: 6px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.library-delete-btn:hover:not(:disabled) {
-  background: #fef2f2;
-}
-
-.library-delete-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 .library-card-style {
   font-size: 0.75rem;
   color: var(--color-text-muted);
@@ -871,3 +862,53 @@ label {
 .review-card figcaption { padding: 0.4rem 0.6rem 0.6rem; font-size: 0.85rem; }
 .review-ok { color: #66bb6a; font-size: 0.75rem; margin-top: 0.25rem; }
 .review-dim { color: #888; font-size: 0.75rem; }
+
+/* Error toasts (notify.ts) */
+.toast-stack {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: min(28rem, calc(100vw - 2rem));
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.toast--error {
+  border: 1px solid var(--color-danger);
+  border-left-width: 4px;
+}
+
+.toast-message {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.toast-count {
+  color: var(--color-text-muted);
+}
+
+.toast-dismiss {
+  flex-shrink: 0;
+  padding: 0 0.25rem;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { showError } from '../notify';
 
 interface UsePollingTaskOptions {
   enabled: boolean;
@@ -21,6 +22,8 @@ export function usePollingTask({
   const errorCountRef = useRef(0);
 
   pollFnRef.current = onPoll;
+  const onExhaustedRef = useRef(onErrorExhausted);
+  onExhaustedRef.current = onErrorExhausted;
 
   const stop = useCallback(() => {
     if (pollRef.current) {
@@ -42,12 +45,13 @@ export function usePollingTask({
       if (errorCountRef.current >= maxErrors) {
         stop();
         setRetrying(false);
-        onErrorExhausted?.();
+        if (onExhaustedRef.current) onExhaustedRef.current();
+        else showError('Lost contact with the server, so updates stopped. Reload the page to resume.');
       } else {
         setRetrying(true);
       }
     }
-  }, [maxErrors, onErrorExhausted, stop]);
+  }, [maxErrors, stop]);
 
   const start = useCallback(() => {
     if (pollRef.current) return;

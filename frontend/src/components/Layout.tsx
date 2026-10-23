@@ -8,6 +8,8 @@ import ProjectTab from './ProjectTab';
 import DoorLibrary from './DoorLibrary';
 import CoveragePage from './CoveragePage';
 import ReviewQueue from './ReviewQueue';
+import ErrorToasts from './ErrorToasts';
+import { showError } from '../notify';
 
 export default function Layout() {
   const { projects, openTabIds, activeProjectId } = useProjects();
@@ -44,7 +46,7 @@ export default function Layout() {
         }
         if (!cancelled) dispatch({ type: 'SET_PROJECTS', projects: list });
       } catch (err) {
-        console.error('Failed to load projects:', err);
+        showError("Couldn't load projects", err);
       }
     }
     load();
@@ -57,33 +59,13 @@ export default function Layout() {
       const p = await api.createProject(name, 'Cabinet Door');
       dispatch({ type: 'ADD_PROJECT', project: p });
     } catch (err) {
-      console.error('Failed to create project:', err);
+      showError("Couldn't create project", err);
     }
   }, [dispatch, projects.length]);
 
   const handleCloseTab = useCallback((id: string) => {
     dispatch({ type: 'CLOSE_TAB', id });
   }, [dispatch]);
-
-  const handleResetAll = useCallback(async () => {
-    // Type-to-confirm guard: mass deletion destroys irreplaceable style
-    // signatures, so require the user to type DELETE before proceeding.
-    const confirmation = window.prompt(
-      `This permanently deletes ALL ${projects.length} project(s) and their ` +
-        `irreplaceable style signatures. This cannot be undone.\n\n` +
-        `Type DELETE to confirm.`,
-    );
-    if (confirmation !== 'DELETE') return;
-    try {
-      for (const p of projects) {
-        await api.deleteProject(p.id);
-      }
-      const p = await api.createProject('Door 1', 'Cabinet Door');
-      dispatch({ type: 'SET_PROJECTS', projects: [p] });
-    } catch (err) {
-      console.error('Failed to reset:', err);
-    }
-  }, [dispatch, projects]);
 
   return (
     <div className="app-layout">
@@ -115,11 +97,6 @@ export default function Layout() {
               <div className="status-info">Enter your API key to enable generation</div>
             )}
             <ReliabilityPanel />
-            <div style={{ marginTop: 'auto' }}>
-              <button className="danger" onClick={handleResetAll} style={{ width: '100%' }}>
-                Reset All
-              </button>
-            </div>
           </>
         )}
         {sidebarCollapsed && (
@@ -169,10 +146,6 @@ export default function Layout() {
                 const updated = await api.updateProject(id, { name: newName });
                 dispatch({ type: 'UPDATE_PROJECT', project: updated });
               }}
-              onDeleteProject={async (id) => {
-                await api.deleteProject(id);
-                dispatch({ type: 'REMOVE_PROJECT', id });
-              }}
             />
           ) : openProjects.length === 0 ? (
             <div className="status-info">No project selected</div>
@@ -188,6 +161,7 @@ export default function Layout() {
           )}
         </div>
       </div>
+      <ErrorToasts />
     </div>
   );
 }

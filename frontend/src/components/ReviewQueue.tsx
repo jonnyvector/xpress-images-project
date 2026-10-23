@@ -3,47 +3,29 @@
 // no tab hunting, no stale views. Each project shows its reference pair
 // (sample + replica) beside the items needing a decision.
 import { useCallback, useEffect, useState } from 'react';
-import type { QaVerdict } from '../types';
+import type { QueueProject, ReviewQueueData } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 import ApprovalControls from './ApprovalControls';
 import ApproveAllButton from './ApproveAllButton';
 import QaBadge from './QaBadge';
+import { showError, onError } from '../notify';
 
-interface QueueVariant {
-  image_id: string;
-  index: number;
-  wood_name: string;
-  attempt: number;
-  verdict: QaVerdict;
-}
 
-interface QueueProject {
-  project_id: string;
-  project_name: string;
-  has_sample: boolean;
-  replica: { image_id: string | null; pending: boolean; verdict: QaVerdict | null };
-  variants: QueueVariant[];
-  pending_count: number;
-}
 
-interface Queue {
-  projects: QueueProject[];
-  total_pending: number;
-}
 
 export default function ReviewQueue() {
   const dispatch = useDispatch();
-  const [queue, setQueue] = useState<Queue | null>(null);
-  const [bust, setBust] = useState(() => Date.now());
+  const [queue, setQueue] = useState<ReviewQueueData | null>(null);
+  // Sample uploads rarely change: bust once per mount. Generated images key
+  // off image_id (new per attempt), so polling never re-downloads them.
+  const [bust] = useState(() => Date.now());
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch('/api/qa/review-queue');
-      setQueue(await res.json());
-      setBust(Date.now());
+      setQueue(await api.getReviewQueue());
     } catch (err) {
-      console.error('review queue fetch failed:', err);
+      showError("Couldn't load review queue", err);
     }
   }, []);
 
@@ -62,7 +44,7 @@ export default function ReviewQueue() {
     // Keep any open project tabs in sync too.
     api.listProjects().then((list) =>
       dispatch({ type: 'SET_PROJECTS', projects: list }),
-    ).catch(console.error);
+    ).catch(onError("Couldn't refresh projects"));
   }, [refresh, dispatch]);
 
   if (!queue) return <div className="status-info">Loading review queue…</div>;
@@ -88,6 +70,7 @@ export default function ReviewQueue() {
             <ApproveAllButton
               projectId={p.project_id}
               imageIds={p.variants.map((v) => v.image_id)}
+              flaggedCount={p.variants.filter((v) => v.verdict.verdict === 'regenerate').length}
               onDone={onChanged}
             />
           </div>
@@ -100,7 +83,7 @@ export default function ReviewQueue() {
             )}
             <figure className={`review-card ${p.replica.pending ? 'pending' : 'reference'}`}>
               <img
-                src={`/api/projects/${p.project_id}/base-image?v=${bust}`}
+                src={`/api/projects/${p.project_id}/base-image?v=${p.replica.image_id ?? bust}`}
                 alt="Replica"
               />
               <figcaption>
@@ -121,7 +104,7 @@ export default function ReviewQueue() {
             {p.variants.map((v) => (
               <figure key={v.image_id} className="review-card pending">
                 <img
-                  src={`/api/projects/${p.project_id}/results/${v.index}/image?watermark=false&v=${bust}`}
+                  src={`/api/projects/${p.project_id}/results/${v.index}/image?watermark=false&v=${v.image_id}`}
                   alt={v.wood_name}
                 />
                 <figcaption>

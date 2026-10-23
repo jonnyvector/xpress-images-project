@@ -12,7 +12,6 @@ type Action =
   | { type: 'SET_ACTIVE'; id: string }
   | { type: 'ADD_PROJECT'; project: Project }
   | { type: 'UPDATE_PROJECT'; project: Project }
-  | { type: 'REMOVE_PROJECT'; id: string }
   | { type: 'OPEN_TAB'; id: string }
   | { type: 'CLOSE_TAB'; id: string };
 
@@ -65,19 +64,6 @@ function reducer(state: ProjectsState, action: Action): ProjectsState {
           p.id === action.project.id ? action.project : p
         ),
       };
-    case 'REMOVE_PROJECT': {
-      const remaining = state.projects.filter((p) => p.id !== action.id);
-      const openRemaining = state.openTabIds.filter((tid) => tid !== action.id);
-      return {
-        ...state,
-        projects: remaining,
-        openTabIds: openRemaining,
-        activeProjectId:
-          state.activeProjectId === action.id
-            ? openRemaining[0] ?? null
-            : state.activeProjectId,
-      };
-    }
     case 'OPEN_TAB': {
       if (state.openTabIds.includes(action.id)) {
         return { ...state, activeProjectId: action.id };

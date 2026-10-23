@@ -155,3 +155,41 @@ export interface CoverageResponse {
 }
 
 export type ActiveView = 'library' | 'project' | 'coverage' | 'review';
+
+// QA endpoints (/api/qa/*)
+export interface ReliabilityRates {
+  decisive_n: number;
+  agreement_rate: number | null;
+  deferral_n: number;
+  deferral_rate: number | null;
+  null_n: number;
+  disagreements: number;
+}
+
+export interface ReliabilityAggregates {
+  total: ReliabilityRates;
+  by_kind: Record<string, ReliabilityRates>;
+  by_style_class: Record<string, ReliabilityRates>;
+}
+
+export interface QueueVariant {
+  image_id: string;
+  index: number;
+  wood_name: string;
+  attempt: number;
+  verdict: QaVerdict;
+}
+
+export interface QueueProject {
+  project_id: string;
+  project_name: string;
+  has_sample: boolean;
+  replica: { image_id: string | null; pending: boolean; verdict: QaVerdict | null };
+  variants: QueueVariant[];
+  pending_count: number;
+}
+
+export interface ReviewQueueData {
+  projects: QueueProject[];
+  total_pending: number;
+}

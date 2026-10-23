@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Approval, Project } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
@@ -7,6 +7,7 @@ import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import ApprovalControls from './ApprovalControls';
 import ApproveAllButton from './ApproveAllButton';
 import QaBadge from './QaBadge';
+import { showError, onError } from '../notify';
 
 interface Props {
   project: Project;
@@ -35,7 +36,7 @@ export default function ResultsGrid({ project }: Props) {
         setVerdicts(new Map(items.map((a) => [a.image_id, a.verdict])));
         setVerdictsLoaded(true);
       })
-      .catch(console.error);
+      .catch(onError("Couldn't load approvals"));
   }, [project.id]);
   useEffect(() => {
     refreshApprovals();
@@ -106,13 +107,14 @@ export default function ResultsGrid({ project }: Props) {
     },
   });
 
-  const handleRetry = useCallback(async (idx: number) => {
+  const handleRetry = useCallback(async (idx: number, woodName: string) => {
+    if (!window.confirm(`Regenerate ${woodName}? This makes a new paid Gemini image call.`)) return;
     setRetryingIndices((prev) => new Set(prev).add(idx));
     try {
       await api.retryVariation(project.id, idx);
       startRetryPoll();
     } catch (err) {
-      console.error('Failed to retry variation:', err);
+      showError("Couldn't start retry", err);
       setRetryingIndices((prev) => {
         const next = new Set(prev);
         next.delete(idx);
@@ -121,13 +123,14 @@ export default function ResultsGrid({ project }: Props) {
     }
   }, [project.id, startRetryPoll]);
 
-  const handleDiscard = useCallback(async (idx: number) => {
+  const handleDiscard = useCallback(async (idx: number, woodName: string) => {
+    if (!window.confirm(`Discard the ${woodName} image? This cannot be undone.`)) return;
     try {
       await api.discardResult(project.id, idx);
       const updated = await api.getProject(project.id);
       dispatch({ type: 'UPDATE_PROJECT', project: updated });
     } catch (err) {
-      console.error('Failed to discard result:', err);
+      showError("Couldn't discard image", err);
     }
   }, [dispatch, project.id]);
 
@@ -144,6 +147,7 @@ export default function ResultsGrid({ project }: Props) {
     });
   }, [sortStorageKey]);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const saveStatusTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [watermarkOffset, setWatermarkOffset] = useState(0);
   const [imageScale, setImageScale] = useState(1.0);
   const [watermarkCacheBust, setWatermarkCacheBust] = useState(() => Date.now());
@@ -206,14 +210,15 @@ export default function ResultsGrid({ project }: Props) {
 
   const handleSaveToFolder = useCallback(async (watermark: boolean) => {
     try {
+      clearTimeout(saveStatusTimer.current);
       setSaveStatus('Saving...');
       const result = await api.saveResultsToFolder(project.id, watermark, watermarkOffset, imageScale);
       setSaveStatus(`Saved ${result.files.length} file(s) to ${result.saved_to}`);
-      setTimeout(() => setSaveStatus(null), 4000);
+      clearTimeout(saveStatusTimer.current);
+      saveStatusTimer.current = setTimeout(() => setSaveStatus(null), 4000);
     } catch (err) {
-      console.error('Failed to save to folder:', err);
-      setSaveStatus('Failed to save — check console');
-      setTimeout(() => setSaveStatus(null), 4000);
+      setSaveStatus(null);
+      showError("Couldn't save to folder", err);
     }
   }, [project.id, watermarkOffset, imageScale]);
 
@@ -293,6 +298,9 @@ export default function ResultsGrid({ project }: Props) {
             <ApproveAllButton
               projectId={project.id}
               imageIds={undecidedVariantIds}
+              flaggedCount={
+                undecidedVariantIds.filter((id) => project.qa_verdicts?.[id]?.verdict === 'regenerate').length
+              }
               onDone={refreshApprovals}
             />
             <button
@@ -394,7 +402,7 @@ export default function ResultsGrid({ project }: Props) {
                   )}
                   <div style={{ overflow: 'hidden' }}>
                     <img
-                      src={`/api/projects/${project.id}/results/${result.index}/image?v=${project.results.length}&watermark_offset=${renderedWatermarkOffset}&image_scale=${renderedImageScale}&wmv=${watermarkCacheBust}`}
+                      src={`/api/projects/${project.id}/results/${result.index}/image?v=${result.image_id}&watermark_offset=${renderedWatermarkOffset}&image_scale=${renderedImageScale}&wmv=${watermarkCacheBust}`}
                       alt={result.wood_name}
                       style={{ display: 'block' }}
                     />
@@ -415,18 +423,18 @@ export default function ResultsGrid({ project }: Props) {
                   />
                   <div className="actions">
                     <a
-                      href={`/api/projects/${project.id}/results/${result.index}/image?watermark=false&v=${project.results.length}`}
+                      href={`/api/projects/${project.id}/results/${result.index}/image?watermark=false&v=${result.image_id}`}
                       download={`${project.name}_${result.wood_name.toLowerCase().replace(/ /g, '_')}.png`}
                     >
                       <button disabled={isRetrying}>Download</button>
                     </a>
                     <button
-                      onClick={() => handleRetry(result.index)}
+                      onClick={() => handleRetry(result.index, result.wood_name)}
                       disabled={isRetrying}
                     >
                       Retry
                     </button>
-                    <button className="danger" onClick={() => handleDiscard(result.index)} disabled={isRetrying}>
+                    <button className="danger" onClick={() => handleDiscard(result.index, result.wood_name)} disabled={isRetrying}>
                       Discard
                     </button>
                   </div>

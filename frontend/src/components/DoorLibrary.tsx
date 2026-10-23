@@ -1,47 +1,37 @@
 import { useState, useMemo, type ReactNode } from 'react';
 import type { Project } from '../types';
 import LibraryCard from './LibraryCard';
+import { showError } from '../notify';
 
 interface Props {
   projects: Project[];
   onSelectProject: (id: string) => void;
-  onRenameProject: (id: string, newName: string) => void;
-  onDeleteProject: (id: string) => Promise<void>;
+  onRenameProject: (id: string, newName: string) => Promise<void>;
 }
 
 type ProductFilter = 'all' | 'Cabinet Door' | 'Drawer Front';
 type MaterialFilter = 'all' | 'wood' | 'rtf';
 type SortOption = 'name-asc' | 'name-desc' | 'variations-desc' | 'variations-asc';
 
-export default function DoorLibrary({ projects, onSelectProject, onRenameProject, onDeleteProject }: Props) {
+export default function DoorLibrary({ projects, onSelectProject, onRenameProject }: Props) {
   const [productFilter, setProductFilter] = useState<ProductFilter>('all');
   const [materialFilter, setMaterialFilter] = useState<MaterialFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  function handleRenameSubmit(p: Project) {
+  async function handleRenameSubmit(p: Project) {
     const trimmed = editName.trim();
     if (trimmed && trimmed !== p.name) {
-      onRenameProject(p.id, trimmed);
+      try {
+        await onRenameProject(p.id, trimmed);
+      } catch (err) {
+        showError("Couldn't rename project", err);
+        return; // keep the editor open with the typed name
+      }
     }
     setEditingId(null);
-  }
-
-  async function handleDeleteProject(p: Project) {
-    const ok = window.confirm(`Delete "${p.name}" and all of its generated variations? This cannot be undone.`);
-    if (!ok) return;
-    setDeletingId(p.id);
-    try {
-      await onDeleteProject(p.id);
-    } catch (err) {
-      console.error('Failed to delete project:', err);
-      window.alert('Failed to delete project. Please try again.');
-    } finally {
-      setDeletingId(null);
-    }
   }
 
   const learned = projects.filter((p) => p.has_signature);
@@ -92,8 +82,6 @@ export default function DoorLibrary({ projects, onSelectProject, onRenameProject
         setEditingId(p.id);
         setEditName(p.name);
       }}
-      isDeleting={deletingId === p.id}
-      onDelete={() => handleDeleteProject(p)}
       onSelect={onSelectProject}
     >
       {body}

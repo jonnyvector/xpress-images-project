@@ -7,6 +7,7 @@ import UploadDropzone from './UploadDropzone';
 import StyleForm from './StyleForm';
 import LearnControls from './LearnControls';
 import { usePollingTask } from '../hooks/usePollingTask';
+import { showError, onError } from '../notify';
 
 interface Props {
   project: Project;
@@ -22,6 +23,7 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
   const [doorStyle, setDoorStyle] = useState(project.door_style ?? '');
   const [cornerStyle, setCornerStyle] = useState(project.corner_style ?? 'sharp');
   const [styleNotes, setStyleNotes] = useState(project.style_notes ?? '');
+  const [styleEdited, setStyleEdited] = useState(false);
   const [geminiModel, setGeminiModel] = useState(project.gemini_model || 'gemini-3-pro-image-preview');
   const [learning, setLearning] = useState(project.learning_status === 'running');
   const [error, setError] = useState<string | null>(project.learning_error);
@@ -36,17 +38,34 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
   // keys on its own field so resyncing one never clobbers another mid-edit.
   useEffect(() => setMaterialType(project.material_type || 'wood'), [project.material_type]);
   useEffect(() => setProductType(project.product_type || 'Cabinet Door'), [project.product_type]);
-  useEffect(() => setDoorStyle(project.door_style ?? ''), [project.door_style]);
+  useEffect(() => {
+    setDoorStyle(project.door_style ?? '');
+    setStyleEdited(false);
+  }, [project.door_style]);
   useEffect(() => setCornerStyle(project.corner_style ?? 'sharp'), [project.corner_style]);
-  useEffect(() => setStyleNotes(project.style_notes ?? ''), [project.style_notes]);
+  useEffect(() => {
+    setStyleNotes(project.style_notes ?? '');
+    setStyleEdited(false);
+  }, [project.style_notes]);
   useEffect(
     () => setGeminiModel(project.gemini_model || 'gemini-3-pro-image-preview'),
     [project.gemini_model],
   );
   useEffect(() => setStyleName(project.name), [project.name]);
 
+  // Style type and notes are only saved by (Re-)learn, because generation reads
+  // them straight from the project: saving early would change a learned door's
+  // next variants without re-learning. So flag edits that haven't been applied.
+  // styleEdited limits this to the user's own edits: doorStyle is also changed
+  // by code (style defaulting, material/product switches).
+  const styleEditsPending =
+    project.has_signature &&
+    styleEdited &&
+    (doorStyle !== (project.door_style ?? '') ||
+      styleNotes.trim() !== (project.style_notes ?? '').trim());
+
   useEffect(() => {
-    api.listStyles(materialType).then(setStyles).catch(console.error);
+    api.listStyles(materialType).then(setStyles).catch(onError("Couldn't load door styles"));
   }, [materialType]);
 
   const category = productType === 'Drawer Front' ? 'drawer' : 'door';
@@ -62,6 +81,11 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
   }, [filteredStyles, doorStyle]);
 
   const handleMaterialTypeChange = useCallback(async (material: string) => {
+    if (material === materialType) return;
+    // Always confirm: a swatch toggle still saving wouldn't be in
+    // project.selected_swatches yet, so a count check could skip the prompt.
+    if (!window.confirm('Switching material clears your selected swatches. Continue?')) return;
+    const previous = { materialType, doorStyle };
     setMaterialType(material);
     setDoorStyle(''); // Reset door style when material changes
     try {
@@ -71,9 +95,11 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
       });
       dispatch({ type: 'UPDATE_PROJECT', project: updated });
     } catch (err) {
-      console.error('Failed to update material type:', err);
+      setMaterialType(previous.materialType);
+      setDoorStyle(previous.doorStyle);
+      showError("Couldn't change material", err);
     }
-  }, [dispatch, project.id]);
+  }, [dispatch, project.id, materialType, doorStyle]);
 
   const handleProductTypeChange = useCallback(async (type: string) => {
     setProductType(type);
@@ -82,7 +108,7 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
       const updated = await api.updateProject(project.id, { product_type: type });
       dispatch({ type: 'UPDATE_PROJECT', project: updated });
     } catch (err) {
-      console.error('Failed to update product type:', err);
+      showError("Couldn't change product type", err);
     }
   }, [dispatch, project.id]);
 
@@ -180,8 +206,13 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
   const handleStyleNameBlur = useCallback(async () => {
     const trimmed = styleName.trim();
     if (trimmed && trimmed !== project.name) {
-      const updated = await api.updateProject(project.id, { name: trimmed });
-      dispatch({ type: 'UPDATE_PROJECT', project: updated });
+      try {
+        const updated = await api.updateProject(project.id, { name: trimmed });
+        dispatch({ type: 'UPDATE_PROJECT', project: updated });
+      } catch (err) {
+        setStyleName(project.name);
+        showError("Couldn't rename project", err);
+      }
     }
   }, [styleName, project.id, project.name, dispatch]);
 
@@ -189,14 +220,14 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
     setCornerStyle(value);
     api.updateProject(project.id, { corner_style: value })
       .then((updated) => dispatch({ type: 'UPDATE_PROJECT', project: updated }))
-      .catch(console.error);
+      .catch(onError("Couldn't save corner style"));
   }, [project.id, dispatch]);
 
   const handleGeminiModelChange = useCallback((value: string) => {
     setGeminiModel(value);
     api.updateProject(project.id, { gemini_model: value })
       .then((updated) => dispatch({ type: 'UPDATE_PROJECT', project: updated }))
-      .catch(console.error);
+      .catch(onError("Couldn't save Gemini model"));
   }, [project.id, dispatch]);
 
   const handleLearnClick = useCallback(() => {
@@ -260,12 +291,12 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
             onStyleNameChange={setStyleName}
             onStyleNameBlur={handleStyleNameBlur}
             doorStyle={doorStyle}
-            onDoorStyleChange={setDoorStyle}
+            onDoorStyleChange={(v) => { setDoorStyle(v); setStyleEdited(true); }}
             filteredStyles={filteredStyles}
             cornerStyle={cornerStyle}
             onCornerStyleChange={handleCornerStyleChange}
             styleNotes={styleNotes}
-            onStyleNotesChange={setStyleNotes}
+            onStyleNotesChange={(v) => { setStyleNotes(v); setStyleEdited(true); }}
             geminiModel={geminiModel}
             onGeminiModelChange={handleGeminiModelChange}
           />
@@ -279,6 +310,12 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
             uploadLabel={uploadLabel}
             onLearn={handleLearnClick}
           />
+          {styleEditsPending && (
+            <div className="status-warning" style={{ marginTop: '0.75rem' }}>
+              Style type or notes changed but not applied. Re-learn to use them, or
+              they&apos;ll be lost when you leave this page.
+            </div>
+          )}
         </>
       )}
 

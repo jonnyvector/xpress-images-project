@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Project, Swatch } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
+import { onError } from '../notify';
 
 interface Props {
   project: Project;
@@ -16,7 +17,7 @@ export default function SwatchGrid({ project }: Props) {
   const materialType = project.material_type || 'wood';
 
   useEffect(() => {
-    api.listSwatches(materialType).then(setSwatches).catch(console.error);
+    api.listSwatches(materialType).then(setSwatches).catch(onError("Couldn't load swatches"));
   }, [materialType]);
 
   // Sync selected from project prop

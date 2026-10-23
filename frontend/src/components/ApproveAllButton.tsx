@@ -8,6 +8,8 @@ import * as api from '../api';
 interface Props {
   projectId: string;
   imageIds: string[];
+  // How many of imageIds the QA judge marked "regenerate" (called out in the confirm).
+  flaggedCount: number;
   onDone: () => void;
 }
 
@@ -16,12 +18,17 @@ interface RunResult {
   failed: number;
 }
 
-export default function ApproveAllButton({ projectId, imageIds, onDone }: Props) {
+export default function ApproveAllButton({ projectId, imageIds, flaggedCount, onDone }: Props) {
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<RunResult | null>(null);
 
   const handleClick = useCallback(async () => {
+    const n = imageIds.length;
+    const warning = flaggedCount > 0
+      ? `\n\nWarning: QA flagged ${flaggedCount} of these for regeneration. They will be approved too.`
+      : '';
+    if (!window.confirm(`Approve all ${n} image${n === 1 ? '' : 's'}?${warning}`)) return;
     setRunning(true);
     setResult(null);
     let succeeded = 0;
@@ -39,7 +46,7 @@ export default function ApproveAllButton({ projectId, imageIds, onDone }: Props)
     setRunning(false);
     setResult({ succeeded, failed });
     onDone();
-  }, [projectId, imageIds, onDone]);
+  }, [projectId, imageIds, flaggedCount, onDone]);
 
   if (imageIds.length === 0) return null;
 
