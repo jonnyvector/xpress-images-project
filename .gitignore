@@ -33,6 +33,7 @@ output/
 # can carry pricing/SKU/inventory data that does not belong in repo history.
 # The sign-offs it produces are kept in coverage_signoff.json, which IS tracked.
 docs/sales/data/shopify_products.csv
+docs/sales/data/shopify_live.json
 
 # CodeGraph local index
 .codegraph/

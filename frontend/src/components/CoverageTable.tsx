@@ -6,6 +6,7 @@
 import { Fragment, useState } from 'react';
 import type { CoverageCategory, CoverageResponse, Project } from '../types';
 import ProductSignoffPanel from './ProductSignoffPanel';
+import { ShopifyBadge, ShopifyDetail } from './ShopifyListings';
 
 interface Props {
   category: CoverageCategory;
@@ -13,9 +14,17 @@ interface Props {
   onOpenProject: (id: string) => void;
   projects: Project[];
   onChanged: (r: CoverageResponse) => void;
+  shopifyAdminUrl: string | null;
 }
 
-export default function CoverageTable({ category, onlyUncovered, onOpenProject, projects, onChanged }: Props) {
+export default function CoverageTable({
+  category,
+  onlyUncovered,
+  onOpenProject,
+  projects,
+  onChanged,
+  shopifyAdminUrl,
+}: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const products = onlyUncovered
@@ -101,18 +110,13 @@ export default function CoverageTable({ category, onlyUncovered, onOpenProject, 
                     )}
                   </td>
                   <td>
-                    {p.in_shopify || p.on_shopify === true ? (
-                      <span className="badge badge-approved">On Shopify</span>
-                    ) : p.on_shopify === false ? (
-                      <span className="badge badge-warn">Missing images</span>
-                    ) : (
-                      <span className="badge badge-muted">—</span>
-                    )}
+                    <ShopifyBadge product={p} />
                   </td>
                 </tr>
                 {expanded === p.title && (
                   <tr>
                     <td colSpan={6}>
+                      <ShopifyDetail listings={p.shopify_listings} adminUrl={shopifyAdminUrl} />
                       <ProductSignoffPanel product={p} projects={projects} onChanged={onChanged} />
                     </td>
                   </tr>

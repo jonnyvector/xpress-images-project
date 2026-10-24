@@ -1,18 +1,19 @@
-"""Best-seller coverage endpoints: read model, operator sign-off, Shopify upload."""
+"""Best-seller coverage endpoints: read model, operator sign-off, Shopify sync."""
 
-import csv
-import io
+import threading
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, HTTPException, Request, UploadFile
+from fastapi import APIRouter, HTTPException, Request
 
 from backend.coverage import (
     CATEGORIES,
     DATA_DIR,
     compute_coverage,
     extract_match_tokens,
+    listings_fully_imaged,
     load_products,
-    title_matches,
+    load_shopify_source,
+    match_shopify_listings,
 )
 from backend.models import (
     CanonicalRequest,
@@ -22,10 +23,12 @@ from backend.models import (
 )
 from backend.palette import compute_gap, distinct_generated
 from backend.routers.projects_common import get_store
-from backend.shopify_products import (
-    SHOPIFY_CSV_FILENAME,
-    has_recognizable_headers,
-    load_shopify_products,
+from backend.shopify_live import (
+    ADMIN_PRODUCTS_URL,
+    ShopifyCliError,
+    drop_archived,
+    fetch_products,
+    save_snapshot,
 )
 from backend.signoff import (
     GATE_KEYS,
@@ -40,6 +43,8 @@ from backend.signoff import (
 )
 
 router = APIRouter()
+# One Shopify refresh at a time: an older, slower read must not overwrite a newer one.
+_REFRESH_LOCK = threading.Lock()
 
 
 def _load_for_write() -> dict[str, dict]:
@@ -80,8 +85,16 @@ def _require_title(title: str) -> str:
 
 def _response(request: Request) -> CoverageResponse:
     store = get_store(request)
+    shopify = load_shopify_source(DATA_DIR)
+    meta = shopify[1]
     # Pydantic v2 coerces the list[dict] from compute_coverage into the models.
-    return CoverageResponse(categories=compute_coverage(store.list_projects(), DATA_DIR))
+    return CoverageResponse(
+        categories=compute_coverage(store.list_projects(), DATA_DIR, shopify=shopify),
+        shopify_source=meta["source"],
+        shopify_synced_at=meta["synced_at"],
+        shopify_admin_url=ADMIN_PRODUCTS_URL,
+        shopify_error=meta.get("error"),
+    )
 
 
 @router.get("/coverage", response_model=CoverageResponse)
@@ -148,7 +161,10 @@ def post_signoff(title: str, body: SignoffRequest, request: Request) -> Coverage
                 )
 
         record = set_gate(
-            record, title, body.gate, body.value,
+            record,
+            title,
+            body.gate,
+            body.value,
             by=body.by,
             at=datetime.now(UTC).isoformat(),
             result_count=result_count,
@@ -158,48 +174,60 @@ def post_signoff(title: str, body: SignoffRequest, request: Request) -> Coverage
     return _response(request)
 
 
-@router.post("/coverage/shopify-csv", response_model=CoverageResponse)
-async def upload_shopify_csv(file: UploadFile, request: Request) -> CoverageResponse:
-    """Persist an operator-exported Shopify product CSV and refresh coverage."""
-    store = get_store(request)
-    data = await file.read()
-    if not data.strip():
-        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+@router.post("/coverage/shopify-refresh", response_model=CoverageResponse)
+def refresh_from_shopify(request: Request) -> CoverageResponse:
+    """Read every product's variant images live from Shopify (read-only).
 
-    text = data.decode("utf-8-sig", errors="replace")
-    header = next(csv.reader(io.StringIO(text)), None)
-    if header is None or not has_recognizable_headers(header):
+    Sync handler on purpose: FastAPI runs it in a worker thread, so the ~15s of
+    CLI calls don't block the event loop.
+    """
+    if not _REFRESH_LOCK.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="A Shopify refresh is already running.")
+    try:
+        return _refresh(request)
+    finally:
+        _REFRESH_LOCK.release()
+
+
+def _refresh(request: Request) -> CoverageResponse:
+    try:
+        products = fetch_products()
+    except ShopifyCliError as exc:
+        if exc.needs_auth:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Shopify login needed ({exc}). Run scripts/shopauth.sh "
+                    "in a terminal, then refresh again."
+                ),
+            ) from exc
+        raise HTTPException(status_code=502, detail=f"Shopify CLI failed: {exc}") from exc
+    if not products:
+        # Never replace good data with an empty store read (wrong store, scope, outage).
         raise HTTPException(
-            status_code=400,
-            detail=(
-                "CSV must include Handle, Title, and a Variant Image or "
-                "Image Src column"
-            ),
+            status_code=502, detail="Shopify returned no products; kept the previous data."
         )
+    products = drop_archived(products)
+    # Stamp first: if the sign-off file can't be written, the refresh fails as a
+    # whole instead of half-applying (new snapshot, no stamps).
+    _stamp_shopify_signoffs(products, by="shopify-live")
+    save_snapshot(DATA_DIR, products)
+    return _response(request)
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    (DATA_DIR / SHOPIFY_CSV_FILENAME).write_bytes(data)
-    _stamp_shopify_signoffs()
-    return CoverageResponse(
-        categories=compute_coverage(store.list_projects(), data_dir=DATA_DIR)
-    )
 
+def _stamp_shopify_signoffs(products: list[dict], by: str) -> None:
+    """Record an in_shopify sign-off for every fully-imaged Shopify product.
 
-def _stamp_shopify_signoffs() -> None:
-    """Record an in_shopify sign-off for every fully-imaged product in the export.
-
-    The export is a bulk way for the operator to record a decision they would
+    A sync is a bulk way for the operator to record a decision they would
     otherwise tick by hand, so it only ever ADDS stamps. It never revokes a
     sign-off and never overwrites one already on the record: a human's judgment
-    (or an earlier export's) outranks a later, possibly partial, export. That
-    also means a product dropping out of an export does not silently un-ship it.
+    (or an earlier sync's) outranks a later one. That also means a product
+    dropping off the store does not silently un-ship it.
 
     Only the shopify gate is touched. variations_complete stays a human call —
     nothing here can infer whether every needed colour was generated.
     """
-    products = load_shopify_products(DATA_DIR / SHOPIFY_CSV_FILENAME)
-    imaged = [p for p in products if p["fully_imaged"]]
-    if not imaged:
+    if not any(p["fully_imaged"] for p in products):
         return
 
     now = datetime.now(UTC).isoformat()
@@ -214,8 +242,6 @@ def _stamp_shopify_signoffs() -> None:
                 if GATE_KEYS["shopify"] in (record.get(title) or {}):
                     continue  # already signed off — never overwrite provenance
                 tokens = extract_match_tokens(title)
-                if any(title_matches(tokens, p["title"]) for p in imaged):
-                    record = set_gate(
-                        record, title, "shopify", True, by="shopify-csv", at=now
-                    )
+                if listings_fully_imaged(match_shopify_listings(cat, tokens, products)):
+                    record = set_gate(record, title, "shopify", True, by=by, at=now)
         save_signoff(DATA_DIR, record)

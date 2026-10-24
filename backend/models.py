@@ -129,6 +129,19 @@ class ImportResultsResponse(BaseModel):
     wood_names: list[str]
 
 
+class ShopifyListing(BaseModel):
+    """One live Shopify product matched to a coverage row, with per-wood AI status."""
+
+    handle: str
+    title: str
+    status: str
+    wood_count: int
+    ai_wood_count: int
+    fully_imaged: bool  # every wood done AND no variants cut off by the fetch limit
+    missing_woods: list[str] = []  # no AI image (wrong-wood images are in mismatched_woods)
+    mismatched_woods: list[str] = []  # an AI image of a different wood is attached
+
+
 class CoverageProduct(BaseModel):
     title: str
     net_sales: float
@@ -137,7 +150,8 @@ class CoverageProduct(BaseModel):
     matched_project_ids: list[str]
     approved_count: int = 0
     approved_total: int = 0
-    on_shopify: bool | None = None  # None = no Shopify CSV uploaded, or no title match
+    on_shopify: bool | None = None  # None = no Shopify data yet, or no title match
+    shopify_listings: list[ShopifyListing] = []
     variations_complete: bool = False
     in_shopify: bool = False
     canonical_project_id: str | None = None
@@ -158,6 +172,10 @@ class CoverageCategory(BaseModel):
 
 class CoverageResponse(BaseModel):
     categories: list[CoverageCategory]
+    shopify_source: Literal["live", "csv"] | None = None
+    shopify_synced_at: str | None = None  # ISO time of the last live refresh
+    shopify_admin_url: str | None = None  # base URL for linking listings in Shopify admin
+    shopify_error: str | None = None  # e.g. the saved live snapshot is unreadable
 
 
 class CanonicalRequest(BaseModel):

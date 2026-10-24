@@ -1,7 +1,7 @@
 // Top-level Coverage view: fetches /api/coverage once, holds the active
 // sub-tab and the "only uncovered" filter, renders the active category, and
-// hosts the Shopify CSV upload control.
-import { useState, useEffect, useRef, useCallback } from 'react';
+// hosts the Refresh from Shopify control.
+import { useState, useEffect, useCallback } from 'react';
 import type { CoverageResponse } from '../types';
 import * as api from '../api';
 import CoverageTable from './CoverageTable';
@@ -17,9 +17,8 @@ export default function CoveragePage({ onOpenProject }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [onlyUncovered, setOnlyUncovered] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     api
@@ -31,21 +30,15 @@ export default function CoveragePage({ onOpenProject }: Props) {
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load coverage'));
   }, []);
 
-  const handleUploadClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleFileSelected = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = ''; // allow re-uploading a file with the same name
-    if (!file) return;
-    setUploading(true);
-    setUploadError(null);
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    setRefreshError(null);
     api
-      .uploadShopifyCsv(file)
+      .refreshShopify()
       .then(setData)
-      .catch((err) => setUploadError(err instanceof Error ? err.message : 'Upload failed'))
-      .finally(() => setUploading(false));
+      // Shown inline rather than as a toast: a lapsed login says which script to run.
+      .catch((err) => setRefreshError(err instanceof Error ? err.message : 'Refresh failed'))
+      .finally(() => setRefreshing(false));
   }, []);
 
   if (error) return <div className="status-error">{error}</div>;
@@ -89,23 +82,19 @@ export default function CoveragePage({ onOpenProject }: Props) {
           </span>
         )}
 
-        <div style={{ marginLeft: 'auto' }}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            style={{ display: 'none' }}
-            onChange={handleFileSelected}
-          />
-          <button type="button" onClick={handleUploadClick} disabled={uploading}>
-            {uploading ? 'Uploading…' : 'Upload Shopify CSV'}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
+            {syncLabel(data)}
+          </span>
+          <button type="button" onClick={handleRefresh} disabled={refreshing}>
+            {refreshing ? 'Reading Shopify…' : 'Refresh from Shopify'}
           </button>
         </div>
       </div>
 
-      {uploadError && (
+      {refreshError && (
         <div className="status-error" style={{ marginBottom: '0.75rem' }}>
-          {uploadError}
+          {refreshError}
         </div>
       )}
 
@@ -116,8 +105,22 @@ export default function CoveragePage({ onOpenProject }: Props) {
           onOpenProject={onOpenProject}
           projects={projects}
           onChanged={setData}
+          shopifyAdminUrl={data.shopify_admin_url}
         />
       )}
     </div>
   );
+}
+
+function syncLabel(data: CoverageResponse): string {
+  if (data.shopify_error) return `${data.shopify_error}. Refresh to fix.`;
+  if (data.shopify_source === 'live' && data.shopify_synced_at) {
+    const mins = Math.round((Date.now() - new Date(data.shopify_synced_at).getTime()) / 60000);
+    if (mins < 1) return 'Synced just now';
+    if (mins < 60) return `Synced ${mins} min ago`;
+    if (mins < 60 * 24) return `Synced ${Math.round(mins / 60)} h ago`;
+    return `Synced ${new Date(data.shopify_synced_at).toLocaleDateString()}`;
+  }
+  if (data.shopify_source === 'csv') return 'Using old CSV upload';
+  return 'Not synced with Shopify yet';
 }

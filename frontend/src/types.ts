@@ -132,6 +132,7 @@ export interface CoverageProduct {
   approved_count: number;
   approved_total: number;
   on_shopify: boolean | null;
+  shopify_listings: ShopifyListing[];
   variations_complete: boolean;
   in_shopify: boolean;
   canonical_project_id: string | null;
@@ -152,6 +153,22 @@ export interface CoverageCategory {
 
 export interface CoverageResponse {
   categories: CoverageCategory[];
+  shopify_source: 'live' | 'csv' | null;
+  shopify_synced_at: string | null;
+  shopify_admin_url: string | null;
+  shopify_error: string | null;
+}
+
+// A live Shopify product matched to a coverage row (from Refresh from Shopify).
+export interface ShopifyListing {
+  handle: string;
+  title: string;
+  status: string;
+  wood_count: number;
+  ai_wood_count: number;
+  fully_imaged: boolean;
+  missing_woods: string[];
+  mismatched_woods: string[];
 }
 
 export type ActiveView = 'library' | 'project' | 'coverage' | 'review';

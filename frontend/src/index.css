@@ -912,3 +912,56 @@ label {
   line-height: 1;
   cursor: pointer;
 }
+
+/* Live Shopify detail in an expanded coverage row */
+.shopify-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.shopify-listing-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.shopify-listing-count {
+  color: var(--color-text-muted);
+}
+
+.shopify-woods {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+}
+
+.shopify-woods-label {
+  color: var(--color-text-muted);
+  margin-right: 0.125rem;
+}
+
+.wood-chip {
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+}
+
+.wood-chip--warn {
+  border-color: var(--color-warning);
+  background: #fef3c7;
+}
+
+.shopify-badges {
+  display: inline-flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}

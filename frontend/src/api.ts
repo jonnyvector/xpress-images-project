@@ -193,13 +193,9 @@ export function getCoverage(): Promise<CoverageResponse> {
   return request<CoverageResponse>('/api/coverage');
 }
 
-export function uploadShopifyCsv(file: File): Promise<CoverageResponse> {
-  const form = new FormData();
-  form.append('file', file);
-  return request<CoverageResponse>('/api/coverage/shopify-csv', {
-    method: 'POST',
-    body: form,
-  });
+// Reads every product's variant images live from Shopify (~15s, read-only).
+export function refreshShopify(): Promise<CoverageResponse> {
+  return request<CoverageResponse>('/api/coverage/shopify-refresh', { method: 'POST' });
 }
 
 export async function setCanonicalProject(
