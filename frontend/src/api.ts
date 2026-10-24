@@ -1,7 +1,13 @@
 import type { Project, Swatch, Style, GenerationStatus, SignatureVersion, CoverageResponse, Approval, ReliabilityAggregates, ReviewQueueData } from './types';
 
-function getApiKey(): string {
-  return localStorage.getItem('gemini_api_key') ?? '';
+export const API_KEY_STORAGE_KEY = 'gemini_api_key';
+
+export function getApiKey(): string {
+  try {
+    return localStorage.getItem(API_KEY_STORAGE_KEY) ?? '';
+  } catch {
+    return '';
+  }
 }
 
 // Auth headers for raw fetch() calls that can't use request() (blob/204 responses).

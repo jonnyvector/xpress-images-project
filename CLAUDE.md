@@ -8,21 +8,27 @@ FastAPI + React app that generates cabinet door image variations across differen
 ### Backend (FastAPI)
 - `backend/app.py` - FastAPI entry point with CORS, static files, router mounts
 - `backend/generator.py` - Core `DoorGenerator` class wrapping Gemini 3 Pro Image API
-- `backend/routers/projects.py` - Project CRUD & generation endpoints
+- `backend/routers/projects*.py` - Project endpoints, split by area (crud, generation, media, versions)
+- `backend/routers/coverage.py` - Coverage + live Shopify sync (`backend/shopify_live.py`, via Shopify CLI)
+- `backend/routers/qa.py` - QA review queue & approvals
+- `backend/qa/` - QA judgment pipeline (judge, geometry, policy, approvals)
 - `backend/routers/swatches.py` - Wood swatch listing endpoints
 - `backend/models.py` - Pydantic models
 - `backend/state.py` - `ProjectStore` for persistent project state
 - `backend/worker.py` - Background generation worker
 
 ### Frontend (React + Vite + TypeScript)
-- `frontend/src/App.tsx` - Root app component
+- `frontend/src/App.tsx` - Routes (react-router): `/library`, `/review`, `/coverage`, `/doors/:id?step=style|replica|variants`
 - `frontend/src/api.ts` - API client functions
 - `frontend/src/types.ts` - TypeScript type definitions
 - `frontend/src/context/ProjectsContext.tsx` - Projects state context
 - `frontend/src/components/` - UI components:
-  - `Layout.tsx` - App layout shell
-  - `TabBar.tsx` - Project tab navigation
-  - `ProjectTab.tsx` - Individual project view
+  - `AppShell.tsx` - Left nav (views, recent doors, settings) + routed page
+  - `DoorPage.tsx` - `/doors/:id` loader; renders `ProjectTab`
+  - `ProjectTab.tsx` - Door workspace: Style / Replica / Variants steps
+  - `Segmented.tsx` - Shared filter buttons
+  - `CoveragePage.tsx` / `CoverageTable.tsx` - Coverage by category
+  - `ReviewQueue.tsx` - Pending verdicts
   - `UploadStep.tsx` - Door image upload
   - `SwatchGrid.tsx` - Wood type swatch selection
   - `GenerateStep.tsx` - Generation trigger & progress

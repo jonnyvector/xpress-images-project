@@ -84,7 +84,7 @@ export default function SwatchGrid({ project }: Props) {
 
   return (
     <section style={{ marginTop: '1rem' }}>
-      <h3>2. Select {materialType === 'rtf' ? 'Colors' : 'Wood Types'}</h3>
+      <h3>{materialType === 'rtf' ? 'Colors' : 'Wood types'}</h3>
 
       {saveError && (
         <div
@@ -120,14 +120,13 @@ export default function SwatchGrid({ project }: Props) {
                   key={swatch.key}
                   className={`swatch-item ${selected.has(swatch.key) ? 'selected' : ''}`}
                   onClick={() => toggleSwatch(swatch.key)}
-                  title={isMissing ? 'Not yet generated' : undefined}
-                  style={{
-                    cursor: 'pointer',
-                    outline: isMissing ? '2px solid #c0392b' : undefined,
-                    outlineOffset: isMissing ? '2px' : undefined,
-                  }}
+                  title={isMissing ? 'No variant generated for this yet' : undefined}
+                  style={{ cursor: 'pointer' }}
                 >
-                  <img src={swatch.swatch_image_url} alt={swatch.name} />
+                  <div className="swatch-thumb">
+                    <img src={swatch.swatch_image_url} alt={swatch.name} />
+                    {isMissing && <span className="swatch-missing">Not generated</span>}
+                  </div>
                   <label>
                     <input
                       type="checkbox"
@@ -135,9 +134,6 @@ export default function SwatchGrid({ project }: Props) {
                       onChange={() => toggleSwatch(swatch.key)}
                     />
                     {swatch.name}
-                    {isMissing && (
-                      <span style={{ color: '#c0392b', fontWeight: 600 }}> ● not generated</span>
-                    )}
                   </label>
                 </div>
               );

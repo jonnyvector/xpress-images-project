@@ -1,22 +1,21 @@
-// Top-level Coverage view: fetches /api/coverage once, holds the active
-// sub-tab and the "only uncovered" filter, renders the active category, and
-// hosts the Refresh from Shopify control.
+// Coverage: per category, how many best-selling products are done (variants
+// signed off AND on Shopify signed off), with live Shopify data alongside.
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router';
 import type { CoverageResponse } from '../types';
 import * as api from '../api';
-import CoverageTable from './CoverageTable';
 import { useProjects } from '../context/ProjectsContext';
+import { isDone, shopifyDisagrees } from '../coverageStatus';
+import CoverageTable, { type CoverageFilter } from './CoverageTable';
+import Segmented from './Segmented';
 
-interface Props {
-  onOpenProject: (id: string) => void;
-}
-
-export default function CoveragePage({ onOpenProject }: Props) {
+export default function CoveragePage() {
+  const navigate = useNavigate();
   const { projects } = useProjects();
   const [data, setData] = useState<CoverageResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeKey, setActiveKey] = useState<string | null>(null);
-  const [onlyUncovered, setOnlyUncovered] = useState(false);
+  const [filter, setFilter] = useState<CoverageFilter>('all');
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -45,52 +44,24 @@ export default function CoveragePage({ onOpenProject }: Props) {
   if (!data) return <div className="status-info">Loading coverage…</div>;
 
   const active = data.categories.find((c) => c.key === activeKey) ?? data.categories[0];
-  const approvedCount = active
-    ? active.products.filter((p) => p.approved_total > 0 && p.approved_count === p.approved_total).length
-    : 0;
-  const onShopifyCount = active
-    ? active.products.filter((p) => p.in_shopify || p.on_shopify === true).length
-    : 0;
+  const products = active?.products ?? [];
+  const done = products.filter(isDone).length;
+  const variantsSigned = products.filter((p) => p.variations_complete).length;
+  const shopifySigned = products.filter((p) => p.in_shopify).length;
+  const disagree = products.filter(shopifyDisagrees).length;
+  const pct = products.length ? Math.round((done / products.length) * 100) : 0;
 
   return (
-    <div>
-      <div className="tab-bar" style={{ marginBottom: '1rem' }}>
-        {data.categories.map((c) => (
-          <button
-            key={c.key}
-            className={`tab-item ${c.key === active?.key ? 'active' : ''}`}
-            onClick={() => setActiveKey(c.key)}
-          >
-            {c.label} ({c.covered}/{c.total})
-          </button>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.875rem' }}>
-          <input
-            type="checkbox"
-            checked={onlyUncovered}
-            onChange={(e) => setOnlyUncovered(e.target.checked)}
-          />
-          Show only not-yet-generated
-        </label>
-
-        {active && (
-          <span style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-            {approvedCount}/{active.total} approved · {onShopifyCount}/{active.total} on Shopify
-          </span>
-        )}
-
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
-            {syncLabel(data)}
-          </span>
+    <div className="page">
+      <header className="page-header">
+        <h1>Coverage</h1>
+        <div className="coverage-sync">
+          <span>{syncLabel(data)}</span>
           <button type="button" onClick={handleRefresh} disabled={refreshing}>
             {refreshing ? 'Reading Shopify…' : 'Refresh from Shopify'}
           </button>
         </div>
-      </div>
+      </header>
 
       {refreshError && (
         <div className="status-error" style={{ marginBottom: '0.75rem' }}>
@@ -98,15 +69,55 @@ export default function CoveragePage({ onOpenProject }: Props) {
         </div>
       )}
 
+      <div className="tab-bar coverage-tabs">
+        {data.categories.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            className={`tab-item ${c.key === active?.key ? 'active' : ''}`}
+            onClick={() => setActiveKey(c.key)}
+          >
+            {c.label} <span className="coverage-tab-count">{c.products.filter(isDone).length}/{c.total}</span>
+          </button>
+        ))}
+      </div>
+
       {active && (
-        <CoverageTable
-          category={active}
-          onlyUncovered={onlyUncovered}
-          onOpenProject={onOpenProject}
-          projects={projects}
-          onChanged={setData}
-          shopifyAdminUrl={data.shopify_admin_url}
-        />
+        <>
+          <div className="coverage-summary">
+            <div className="coverage-done">
+              <strong>{done}</strong> of {products.length} done
+              <div className="progress-bar">
+                <div className="fill" style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+            <div className="coverage-parts">
+              Done = variants signed off <em>and</em> on Shopify signed off.
+              <br />
+              {variantsSigned} have variants signed off · {shopifySigned} signed off as on Shopify
+            </div>
+          </div>
+
+          <Segmented<CoverageFilter>
+            className="coverage-filter"
+            value={filter}
+            onChange={setFilter}
+            options={[
+              ['all', `All (${products.length})`],
+              ['not_done', `Not done (${products.length - done})`],
+              ['disagree', `Shopify disagrees (${disagree})`],
+            ]}
+          />
+
+          <CoverageTable
+            category={active}
+            filter={filter}
+            onOpenProject={(id) => navigate(`/doors/${id}`)}
+            projects={projects}
+            onChanged={setData}
+            shopifyAdminUrl={data.shopify_admin_url}
+          />
+        </>
       )}
     </div>
   );
@@ -114,13 +125,14 @@ export default function CoveragePage({ onOpenProject }: Props) {
 
 function syncLabel(data: CoverageResponse): string {
   if (data.shopify_error) return `${data.shopify_error}. Refresh to fix.`;
-  if (data.shopify_source === 'live' && data.shopify_synced_at) {
-    const mins = Math.round((Date.now() - new Date(data.shopify_synced_at).getTime()) / 60000);
-    if (mins < 1) return 'Synced just now';
-    if (mins < 60) return `Synced ${mins} min ago`;
-    if (mins < 60 * 24) return `Synced ${Math.round(mins / 60)} h ago`;
-    return `Synced ${new Date(data.shopify_synced_at).toLocaleDateString()}`;
+  const syncedAt = data.shopify_synced_at ? new Date(data.shopify_synced_at) : null;
+  if (data.shopify_source === 'live' && syncedAt && !Number.isNaN(syncedAt.getTime())) {
+    const mins = Math.round((Date.now() - syncedAt.getTime()) / 60000);
+    if (mins < 1) return 'Shopify synced just now';
+    if (mins < 60) return `Shopify synced ${mins} min ago`;
+    if (mins < 60 * 24) return `Shopify synced ${Math.round(mins / 60)} h ago`;
+    return `Shopify synced ${syncedAt.toLocaleDateString()}`;
   }
-  if (data.shopify_source === 'csv') return 'Using old CSV upload';
+  if (data.shopify_source === 'csv') return 'Using an old Shopify CSV';
   return 'Not synced with Shopify yet';
 }

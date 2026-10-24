@@ -171,8 +171,6 @@ export interface ShopifyListing {
   mismatched_woods: string[];
 }
 
-export type ActiveView = 'library' | 'project' | 'coverage' | 'review';
-
 // QA endpoints (/api/qa/*)
 export interface ReliabilityRates {
   decisive_n: number;

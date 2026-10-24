@@ -1,80 +1,95 @@
-// Shared project card for the door library. Renders the thumbnail and the
-// inline-rename header row; the variant-specific body (badges/counts) is
-// passed as children by each grid (learned vs imported).
+// One door in the library. Click to open; double-click the name to rename.
 // No delete button, on purpose: style signatures cannot be recreated.
-import type { ReactNode } from 'react';
+import { useRef, useState } from 'react';
 import type { Project } from '../types';
+import { displayName } from '../doorNames';
+import { doorStage, doorThumb, materialLabel, productLabel, stageLabel } from '../doorStatus';
 
 interface Props {
   project: Project;
-  thumbUrl: string | null;
-  isEditing: boolean;
-  editName: string;
-  onEditNameChange: (value: string) => void;
-  onRenameSubmit: () => void;
-  onCancelEdit: () => void;
-  onStartEdit: () => void;
-  onSelect: (id: string) => void;
-  children?: ReactNode;
+  productTitle?: string; // set for a product's main (canonical) door
+  onOpen: (id: string) => void;
+  onRename: (id: string, name: string) => Promise<boolean>;
 }
 
-export default function LibraryCard({
-  project,
-  thumbUrl,
-  isEditing,
-  editName,
-  onEditNameChange,
-  onRenameSubmit,
-  onCancelEdit,
-  onStartEdit,
-  onSelect,
-  children,
-}: Props) {
+const STAGE_CLASS = {
+  empty: 'badge-muted',
+  not_learned: 'badge-warn',
+  replica_pending: 'badge-partial',
+  ready: 'badge-product',
+  variants: 'badge-approved',
+} as const;
+
+export default function LibraryCard({ project, productTitle, onOpen, onRename }: Props) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(project.name);
+  const thumb = doorThumb(project);
+  // Escape unmounts the input, which fires blur; this stops that blur saving.
+  const cancelled = useRef(false);
+
+  const submit = async () => {
+    if (cancelled.current) return;
+    const name = draft.trim();
+    if (name && name !== project.name && !(await onRename(project.id, name))) return;
+    setEditing(false);
+  };
+
   return (
     <div
       className="library-card"
-      role="button"
+      role="link"
       tabIndex={0}
-      onClick={() => onSelect(project.id)}
+      onClick={() => !editing && onOpen(project.id)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (!editing && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault();
-          onSelect(project.id);
+          onOpen(project.id);
         }
       }}
     >
-      {thumbUrl && (
-        <img src={thumbUrl} alt={project.name} className="library-card-thumb" />
-      )}
+      <div className="library-card-thumb">
+        {thumb ? <img src={thumb} alt="" loading="lazy" /> : <span>No image</span>}
+      </div>
       <div className="library-card-info">
-        <div className="library-card-header-row">
-          {isEditing ? (
-            <input
-              className="library-card-name-input"
-              value={editName}
-              onChange={(e) => onEditNameChange(e.target.value)}
-              onBlur={onRenameSubmit}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') onRenameSubmit();
-                if (e.key === 'Escape') onCancelEdit();
-              }}
-              onClick={(e) => e.stopPropagation()}
-              autoFocus
-            />
-          ) : (
-            <div
-              className="library-card-name"
-              onDoubleClick={(e) => {
-                e.stopPropagation();
-                onStartEdit();
-              }}
-              title="Double-click to rename"
-            >
-              {project.name}
-            </div>
-          )}
+        {productTitle && <div className="library-card-product">{productTitle}</div>}
+        {editing ? (
+          <input
+            className="library-card-name-input"
+            value={draft}
+            autoFocus
+            onChange={(e) => setDraft(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onBlur={submit}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter') e.currentTarget.blur(); // blur submits, exactly once
+              if (e.key === 'Escape') {
+                cancelled.current = true;
+                setDraft(project.name);
+                setEditing(false);
+              }
+            }}
+          />
+        ) : (
+          <div
+            className={productTitle ? 'library-card-sub' : 'library-card-name'}
+            title={`${project.name} (double-click to rename)`}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              cancelled.current = false;
+              setDraft(project.name);
+              setEditing(true);
+            }}
+          >
+            {displayName(project.name)}
+          </div>
+        )}
+        <div className="library-card-meta">
+          <span className={`badge ${STAGE_CLASS[doorStage(project)]}`}>{stageLabel(project)}</span>
+          <span className="library-card-kind">
+            {materialLabel(project)} · {productLabel(project)}
+          </span>
         </div>
-        {children}
       </div>
     </div>
   );

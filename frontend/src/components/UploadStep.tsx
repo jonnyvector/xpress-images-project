@@ -8,6 +8,7 @@ import StyleForm from './StyleForm';
 import LearnControls from './LearnControls';
 import { usePollingTask } from '../hooks/usePollingTask';
 import { showError, onError } from '../notify';
+import { NEW_DOOR_NAME } from '../doorNames';
 
 interface Props {
   project: Project;
@@ -115,9 +116,21 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
   const uploadFile = useCallback(async (file: File) => {
     setError(null);
     try {
-      const updated = await api.uploadDoorImage(project.id, file);
-      dispatch({ type: 'UPDATE_PROJECT', project: updated });
-      setStyleName(file.name.replace(/\.[^.]+$/, ''));
+      const uploaded = await api.uploadDoorImage(project.id, file);
+      dispatch({ type: 'UPDATE_PROJECT', project: uploaded });
+      setStyleName(uploaded.name);
+      const fileName = file.name.replace(/\.[^.]+$/, '');
+      // A fresh "+ New door" takes its name from the upload, so the recent list
+      // and library aren't full of identical "New door" entries.
+      if (uploaded.name === NEW_DOOR_NAME && fileName) {
+        try {
+          const renamed = await api.updateProject(project.id, { name: fileName });
+          dispatch({ type: 'UPDATE_PROJECT', project: renamed });
+          setStyleName(renamed.name);
+        } catch (err) {
+          showError("Uploaded, but couldn't rename the door", err);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
     }
@@ -241,7 +254,7 @@ export default memo(function UploadStep({ project, apiKey }: Props) {
 
   return (
     <section>
-      <h3>1. Upload & Learn Style</h3>
+      <h3>Upload &amp; learn the style</h3>
 
       <div className="form-group">
         <label>Material</label>

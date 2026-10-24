@@ -99,17 +99,17 @@ export default function GenerateStep({ project, apiKey }: Props) {
 
   return (
     <section>
-      <h3>3. Generate Variations</h3>
+      <h3>Generate</h3>
 
-      {!apiKey && <div className="status-info">Enter your API key in the sidebar</div>}
-      {apiKey && !hasSignature && <div className="status-info">Learn a style first (Step 1)</div>}
+      {!apiKey && <div className="status-info">Add your Gemini API key under Settings (bottom left)</div>}
+      {apiKey && !hasSignature && <div className="status-info">Learn the style first (Style step)</div>}
       {apiKey && hasSignature && !replicaApproved && (
         <div className="status-error">
-          Variants locked — approve the replica first (Stage A gate)
+          Variants are locked until the replica is approved (Replica step)
         </div>
       )}
       {apiKey && hasSignature && replicaApproved && !hasSwatches && (
-        <div className="status-info">Select at least one wood type (Step 2)</div>
+        <div className="status-info">Pick at least one {project.material_type === 'rtf' ? 'color' : 'wood type'} below</div>
       )}
 
       <button

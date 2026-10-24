@@ -3,116 +3,99 @@ import type { Project } from '../types';
 
 interface ProjectsState {
   projects: Project[];
-  openTabIds: string[];
-  activeProjectId: string | null;
+  loaded: boolean;
+  // Doors opened lately, newest first. Shown in the sidebar for quick return.
+  recentIds: string[];
 }
 
 type Action =
   | { type: 'SET_PROJECTS'; projects: Project[] }
-  | { type: 'SET_ACTIVE'; id: string }
+  | { type: 'LOAD_FAILED' }
   | { type: 'ADD_PROJECT'; project: Project }
   | { type: 'UPDATE_PROJECT'; project: Project }
-  | { type: 'OPEN_TAB'; id: string }
-  | { type: 'CLOSE_TAB'; id: string };
+  | { type: 'VISIT'; id: string }
+  | { type: 'FORGET_RECENT'; id: string };
 
-const OPEN_TABS_KEY = 'openTabIds';
+const RECENT_KEY = 'recentDoorIds';
+const LEGACY_TABS_KEY = 'openTabIds';
+const MAX_RECENT = 8;
 
-function loadOpenTabIds(): string[] | null {
+function loadRecent(): string[] {
   try {
-    const stored = localStorage.getItem(OPEN_TABS_KEY);
-    return stored ? JSON.parse(stored) : null;
+    // One-time move from the old open-tabs list (removed once saveRecent runs).
+    const stored = localStorage.getItem(RECENT_KEY) ?? localStorage.getItem(LEGACY_TABS_KEY);
+    const ids: unknown = stored ? JSON.parse(stored) : [];
+    if (!Array.isArray(ids)) return [];
+    return ids.filter((id): id is string => typeof id === 'string').slice(0, MAX_RECENT);
   } catch {
-    return null;
+    return [];
   }
 }
 
-function saveOpenTabIds(ids: string[]) {
+function saveRecent(ids: string[]) {
   try {
-    localStorage.setItem(OPEN_TABS_KEY, JSON.stringify(ids));
-  } catch { /* ignore quota errors */ }
+    localStorage.setItem(RECENT_KEY, JSON.stringify(ids));
+    localStorage.removeItem(LEGACY_TABS_KEY);
+  } catch {
+    /* storage unavailable: recents just won't persist */
+  }
 }
 
 function reducer(state: ProjectsState, action: Action): ProjectsState {
   switch (action.type) {
     case 'SET_PROJECTS': {
       const ids = new Set(action.projects.map((p) => p.id));
-      const activeStillExists = state.activeProjectId && ids.has(state.activeProjectId);
-      const openTabIds = state.openTabIds.filter((id) => ids.has(id));
-
+      // Doors are never deleted, so any door added while the list was in
+      // flight (e.g. "+ New door") is kept rather than dropped.
+      const added = state.projects.filter((p) => !ids.has(p.id));
       return {
-        ...state,
-        projects: action.projects,
-        openTabIds,
-        activeProjectId: activeStillExists ? state.activeProjectId : openTabIds[0] ?? null,
+        projects: [...action.projects, ...added],
+        loaded: true,
+        recentIds: state.recentIds.filter((id) => ids.has(id) || added.some((p) => p.id === id)),
       };
     }
-    case 'SET_ACTIVE':
-      return { ...state, activeProjectId: action.id };
-    case 'ADD_PROJECT': {
-      const newOpen = [...state.openTabIds, action.project.id];
+    case 'LOAD_FAILED':
+      // Stop showing "Loading…" forever; pages render empty and the error toast explains.
+      return { ...state, loaded: true };
+    case 'ADD_PROJECT':
+      return { ...state, projects: [...state.projects, action.project] };
+    case 'UPDATE_PROJECT': {
+      // Upsert: a door opened by link before (or without) the list loading.
+      const known = state.projects.some((p) => p.id === action.project.id);
       return {
         ...state,
-        projects: [...state.projects, action.project],
-        openTabIds: newOpen,
-        activeProjectId: action.project.id,
+        projects: known
+          ? state.projects.map((p) => (p.id === action.project.id ? action.project : p))
+          : [...state.projects, action.project],
       };
     }
-    case 'UPDATE_PROJECT':
-      return {
-        ...state,
-        projects: state.projects.map((p) =>
-          p.id === action.project.id ? action.project : p
-        ),
-      };
-    case 'OPEN_TAB': {
-      if (state.openTabIds.includes(action.id)) {
-        return { ...state, activeProjectId: action.id };
-      }
-      const newOpen = [...state.openTabIds, action.id];
-      return {
-        ...state,
-        openTabIds: newOpen,
-        activeProjectId: action.id,
-      };
+    case 'VISIT': {
+      if (state.recentIds[0] === action.id) return state;
+      const rest = state.recentIds.filter((id) => id !== action.id);
+      return { ...state, recentIds: [action.id, ...rest].slice(0, MAX_RECENT) };
     }
-    case 'CLOSE_TAB': {
-      const openRemaining = state.openTabIds.filter((tid) => tid !== action.id);
-      return {
-        ...state,
-        openTabIds: openRemaining,
-        activeProjectId:
-          state.activeProjectId === action.id
-            ? openRemaining[0] ?? null
-            : state.activeProjectId,
-      };
-    }
+    case 'FORGET_RECENT':
+      return { ...state, recentIds: state.recentIds.filter((id) => id !== action.id) };
   }
 }
 
-const ProjectsContext = createContext<ProjectsState>({
-  projects: [],
-  openTabIds: [],
-  activeProjectId: null,
-});
-
+const ProjectsContext = createContext<ProjectsState>({ projects: [], loaded: false, recentIds: [] });
 const DispatchContext = createContext<Dispatch<Action>>(() => {});
 
 export function ProjectsProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, () => ({
     projects: [],
-    openTabIds: loadOpenTabIds() ?? [],
-    activeProjectId: null,
+    loaded: false,
+    recentIds: loadRecent(),
   }));
 
   useEffect(() => {
-    saveOpenTabIds(state.openTabIds);
-  }, [state.openTabIds]);
+    saveRecent(state.recentIds);
+  }, [state.recentIds]);
 
   return (
     <ProjectsContext.Provider value={state}>
-      <DispatchContext.Provider value={dispatch}>
-        {children}
-      </DispatchContext.Provider>
+      <DispatchContext.Provider value={dispatch}>{children}</DispatchContext.Provider>
     </ProjectsContext.Provider>
   );
 }

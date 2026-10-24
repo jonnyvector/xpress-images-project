@@ -41,7 +41,7 @@ export default function ReviewQueue() {
 
   const onChanged = useCallback(() => {
     refresh();
-    // Keep any open project tabs in sync too.
+    // Keep the cached door list in sync too.
     api.listProjects().then((list) =>
       dispatch({ type: 'SET_PROJECTS', projects: list }),
     ).catch(onError("Couldn't refresh projects"));

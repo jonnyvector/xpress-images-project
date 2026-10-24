@@ -1,205 +1,199 @@
-import { useState, useMemo, type ReactNode } from 'react';
+// The door library. Main doors (each product's canonical door, from Coverage)
+// come first under their product name; experiments and older attempts sit
+// behind "Other versions". Search always covers every door.
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import type { Project } from '../types';
-import LibraryCard from './LibraryCard';
+import * as api from '../api';
+import { useDispatch, useProjects } from '../context/ProjectsContext';
 import { showError } from '../notify';
+import { displayName } from '../doorNames';
+import { needsAttention } from '../doorStatus';
+import LibraryCard from './LibraryCard';
+import Segmented from './Segmented';
 
-interface Props {
-  projects: Project[];
-  onSelectProject: (id: string) => void;
-  onRenameProject: (id: string, newName: string) => Promise<void>;
-}
+type Show = 'main' | 'attention' | 'all';
+type Kind = 'all' | Project['product_type'];
+type Material = 'all' | Project['material_type'];
+const PAGE = 60;
 
-type ProductFilter = 'all' | 'Cabinet Door' | 'Drawer Front';
-type MaterialFilter = 'all' | 'wood' | 'rtf';
-type SortOption = 'name-asc' | 'name-desc' | 'variations-desc' | 'variations-asc';
+// Which doors are main doors comes from Coverage. Kept between visits so the
+// library shows at once on return; refreshed in the background each time.
+let mainDoorsCache: Map<string, string> | null = null;
 
-export default function DoorLibrary({ projects, onSelectProject, onRenameProject }: Props) {
-  const [productFilter, setProductFilter] = useState<ProductFilter>('all');
-  const [materialFilter, setMaterialFilter] = useState<MaterialFilter>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<SortOption>('name-asc');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
-
-  async function handleRenameSubmit(p: Project) {
-    const trimmed = editName.trim();
-    if (trimmed && trimmed !== p.name) {
-      try {
-        await onRenameProject(p.id, trimmed);
-      } catch (err) {
-        showError("Couldn't rename project", err);
-        return; // keep the editor open with the typed name
-      }
-    }
-    setEditingId(null);
-  }
-
-  const learned = projects.filter((p) => p.has_signature);
-  const imported = projects.filter((p) => !p.has_signature && p.results.length > 0);
-
-  const filtered = useMemo(() => {
-    let items = learned;
-    if (productFilter !== 'all') {
-      items = items.filter((p) => p.product_type === productFilter);
-    }
-    if (materialFilter !== 'all') {
-      items = items.filter((p) => p.material_type === materialFilter);
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      items = items.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          (p.door_style && p.door_style.toLowerCase().includes(q))
-      );
-    }
-    items.sort((a, b) => {
-      switch (sortBy) {
-        case 'name-asc':
-          return a.name.localeCompare(b.name);
-        case 'name-desc':
-          return b.name.localeCompare(a.name);
-        case 'variations-desc':
-          return b.results.length - a.results.length;
-        case 'variations-asc':
-          return a.results.length - b.results.length;
-      }
-    });
-    return items;
-  }, [learned, productFilter, materialFilter, searchQuery, sortBy]);
-
-  const renderCard = (p: Project, thumbUrl: string | null, body: ReactNode) => (
-    <LibraryCard
-      key={p.id}
-      project={p}
-      thumbUrl={thumbUrl}
-      isEditing={editingId === p.id}
-      editName={editName}
-      onEditNameChange={setEditName}
-      onRenameSubmit={() => handleRenameSubmit(p)}
-      onCancelEdit={() => setEditingId(null)}
-      onStartEdit={() => {
-        setEditingId(p.id);
-        setEditName(p.name);
-      }}
-      onSelect={onSelectProject}
-    >
-      {body}
-    </LibraryCard>
-  );
-
-  const importedDoors = imported.filter((p) => p.product_type !== 'Drawer Front');
-  const importedDrawers = imported.filter((p) => p.product_type === 'Drawer Front');
-  const importedSections: { label: string; items: Project[] }[] = [];
-  if (importedDoors.length > 0) importedSections.push({ label: 'Imported Doors', items: importedDoors });
-  if (importedDrawers.length > 0) importedSections.push({ label: 'Imported Drawer Fronts', items: importedDrawers });
-  if (importedSections.length === 0 && imported.length > 0) {
-    importedSections.push({ label: 'Imported', items: imported });
-  }
-
-  if (learned.length === 0 && imported.length === 0) {
-    return (
-      <div className="status-info">
-        No door styles yet. Upload a door image and learn its style in a project tab to see it here.
-      </div>
+export default function DoorLibrary() {
+  const { projects, loaded } = useProjects();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  // Filters live in the URL so Back from a door returns to the same view.
+  const [params, setParams] = useSearchParams();
+  const show = (params.get('show') as Show | null) ?? 'main';
+  const kind = (params.get('kind') as Kind | null) ?? 'all';
+  const material = (params.get('material') as Material | null) ?? 'all';
+  const query = params.get('q') ?? '';
+  const setParam = (key: string, value: string, fallback: string) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value === fallback) next.delete(key);
+        else next.set(key, value);
+        return next;
+      },
+      { replace: true },
     );
-  }
+  const setShow = (v: Show) => setParam('show', v, 'main');
+  const setKind = (v: Kind) => setParam('kind', v, 'all');
+  const setMaterial = (v: Material) => setParam('material', v, 'all');
+  const setQuery = (v: string) => setParam('q', v, '');
+  const [limit, setLimit] = useState(PAGE);
+  // project id -> product title for each product's canonical door, in sales order
+  const [mainDoors, setMainDoors] = useState<Map<string, string> | null>(mainDoorsCache);
+
+  useEffect(() => {
+    api
+      .getCoverage()
+      .then((cov) => {
+        const map = new Map<string, string>();
+        for (const cat of cov.categories) {
+          for (const p of cat.products) {
+            if (p.canonical_project_id && !map.has(p.canonical_project_id)) {
+              map.set(p.canonical_project_id, p.title);
+            }
+          }
+        }
+        mainDoorsCache = map;
+        setMainDoors(map);
+      })
+      .catch((err) => {
+        setMainDoors((prev) => prev ?? new Map());
+        showError("Couldn't load which doors are main doors", err);
+      });
+  }, []);
+
+  useEffect(() => setLimit(PAGE), [show, kind, material, query]);
+
+  const rename = async (id: string, name: string) => {
+    try {
+      const updated = await api.updateProject(id, { name });
+      dispatch({ type: 'UPDATE_PROJECT', project: updated });
+      return true;
+    } catch (err) {
+      showError("Couldn't rename door", err);
+      return false;
+    }
+  };
+
+  const searching = query.trim().length > 0;
+
+  const visible = useMemo(() => {
+    const mains = mainDoors ?? new Map<string, string>();
+    const rank = new Map([...mains.keys()].map((id, i) => [id, i]));
+    const q = query.trim().toLowerCase();
+    const items = projects.filter((p) => {
+      if (kind !== 'all' && p.product_type !== kind) return false;
+      if (material !== 'all' && p.material_type !== material) return false;
+      if (q) {
+        const text = `${p.name} ${displayName(p.name)} ${mains.get(p.id) ?? ''} ${p.door_style ?? ''}`;
+        return text.toLowerCase().includes(q);
+      }
+      if (show === 'main') return mains.has(p.id);
+      if (show === 'attention') return needsAttention(p);
+      return true;
+    });
+    // Main doors keep Coverage's sales order and lead; everything else by name.
+    return items.sort((a, b) => {
+      const ra = rank.get(a.id) ?? Infinity;
+      const rb = rank.get(b.id) ?? Infinity;
+      if (ra !== rb) return ra - rb;
+      return displayName(a.name).localeCompare(displayName(b.name));
+    });
+  }, [projects, mainDoors, kind, material, query, show]);
+
+  if (!loaded || mainDoors === null) return <div className="status-info">Loading library…</div>;
+
+  const counts = {
+    main: projects.filter((p) => mainDoors.has(p.id)).length,
+    attention: projects.filter(needsAttention).length,
+    all: projects.length,
+  };
 
   return (
-    <div>
-      <div className="library-toolbar">
+    <div className="page">
+      <header className="page-header">
+        <h1>Library</h1>
         <input
-          type="text"
+          type="search"
           className="library-search"
-          placeholder="Search by name or style..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search every door by name or product…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
         />
-        <div className="filter-group">
-          {(['all', 'Cabinet Door', 'Drawer Front'] as ProductFilter[]).map((v) => (
-            <button
-              key={v}
-              className={`filter-btn${productFilter === v ? ' active' : ''}`}
-              onClick={() => setProductFilter(v)}
-            >
-              {v === 'all' ? 'All' : v === 'Cabinet Door' ? 'Cabinet Doors' : 'Drawer Fronts'}
-            </button>
-          ))}
-        </div>
-        <div className="filter-group">
-          {(['all', 'wood', 'rtf'] as MaterialFilter[]).map((v) => (
-            <button
-              key={v}
-              className={`filter-btn${materialFilter === v ? ' active' : ''}`}
-              onClick={() => setMaterialFilter(v)}
-            >
-              {v === 'all' ? 'All' : v === 'wood' ? 'Wood' : 'RTF'}
-            </button>
-          ))}
-        </div>
-        <select
-          className="library-sort"
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as SortOption)}
-        >
-          <option value="name-asc">Name (A→Z)</option>
-          <option value="name-desc">Name (Z→A)</option>
-          <option value="variations-desc">Most variations</option>
-          <option value="variations-asc">Fewest variations</option>
-        </select>
+      </header>
+
+      <div className="library-toolbar">
+        <Segmented
+          value={searching ? null : show}
+          onChange={setShow}
+          options={[
+            ['main', `Main doors (${counts.main})`],
+            ['attention', `Needs attention (${counts.attention})`],
+            ['all', `All (${counts.all})`],
+          ]}
+        />
+        <Segmented
+          value={kind}
+          onChange={setKind}
+          options={[
+            ['all', 'Doors & fronts'],
+            ['Cabinet Door', 'Doors'],
+            ['Drawer Front', 'Drawer fronts'],
+          ]}
+        />
+        <Segmented
+          value={material}
+          onChange={setMaterial}
+          options={[
+            ['all', 'Any material'],
+            ['wood', 'Wood'],
+            ['rtf', 'Thermofoil'],
+          ]}
+        />
       </div>
 
-      <div className="library-result-count">
-        Showing {filtered.length} of {learned.length}
-      </div>
+      {searching && <div className="library-hint">Searching all {counts.all} doors</div>}
 
-      {filtered.length === 0 ? (
+      {visible.length === 0 ? (
         <div className="status-info">
-          No matches — try adjusting your filters
+          {!searching && show === 'main'
+            ? "No main doors yet. A product's main door is chosen on the Coverage page."
+            : 'No doors match.'}
         </div>
       ) : (
-        <div className="library-grid">
-          {filtered.map((p) =>
-            renderCard(
-              p,
-              p.has_base_image ? `/api/projects/${p.id}/base-image` : null,
-              <>
-                {p.door_style && (
-                  <div className="library-card-style">{p.door_style}</div>
-                )}
-                <div className="library-card-badges">
-                  <span className="badge badge-product">{p.product_type}</span>
-                  <span className="badge badge-material">
-                    {p.material_type === 'rtf' ? 'RTF' : 'Wood'}
-                  </span>
-                </div>
-                <div className="library-card-count">
-                  {p.results.length} variation{p.results.length !== 1 ? 's' : ''}
-                </div>
-              </>,
-            ),
+        <>
+          <div className="library-grid">
+            {visible.slice(0, limit).map((p) => (
+              <LibraryCard
+                key={p.id}
+                project={p}
+                productTitle={mainDoors.get(p.id)}
+                onOpen={(id) => navigate(`/doors/${id}`)}
+                onRename={rename}
+              />
+            ))}
+          </div>
+          {visible.length > limit && (
+            <button type="button" className="library-more" onClick={() => setLimit((n) => n + PAGE)}>
+              Show more ({visible.length - limit} left)
+            </button>
           )}
-        </div>
+        </>
       )}
 
-      {importedSections.map((section) => (
-        <div key={section.label}>
-          <h3 style={{ marginTop: '2rem', marginBottom: '0.75rem' }}>{section.label}</h3>
-          <div className="library-grid">
-            {section.items.map((p) =>
-              renderCard(
-                p,
-                p.results.length > 0
-                  ? `/api/projects/${p.id}/results/0/image?watermark=false`
-                  : null,
-                <div className="library-card-count">
-                  {p.results.length} image{p.results.length !== 1 ? 's' : ''}
-                </div>,
-              ),
-            )}
-          </div>
-        </div>
-      ))}
+      {!searching && show === 'main' && counts.all > counts.main && (
+        <button type="button" className="link-button library-others" onClick={() => setShow('all')}>
+          Show the {counts.all - counts.main} other versions and experiments
+        </button>
+      )}
     </div>
   );
 }

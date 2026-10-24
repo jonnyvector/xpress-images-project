@@ -58,13 +58,11 @@ export default function ApprovalControls({ project, imageId, verdict, onChanged,
         {verdict === 'rejected' && (
           <span className="approval-badge rejected" title="Operator rejected">✗ Rejected</span>
         )}
-        <button
-          onClick={() => submit('approved', [])}
-          disabled={busy || verdict === 'approved'}
-          style={{ ...size, background: verdict === 'approved' ? undefined : '#2e7d32', color: '#fff' }}
-        >
-          Approve
-        </button>
+        {verdict !== 'approved' && (
+          <button className="approve-btn" onClick={() => submit('approved', [])} disabled={busy} style={size}>
+            Approve
+          </button>
+        )}
         <button
           className="danger"
           onClick={() => setRejecting((v) => !v)}

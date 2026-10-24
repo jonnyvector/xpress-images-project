@@ -11,13 +11,17 @@ import { showError, onError } from '../notify';
 
 interface Props {
   project: Project;
+  // The door page shows the replica and the variants on separate tabs.
+  part: 'replica' | 'variants';
 }
 
-export default function ResultsGrid({ project }: Props) {
+export default function ResultsGrid({ project, part }: Props) {
   const dispatch = useDispatch();
   const [importFolder, setImportFolder] = useState('');
   const [importing, setImporting] = useState(false);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const importStatusTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(importStatusTimer.current), []);
 
   // Cache-bust base image URL when re-learning completes
   const [baseImageCacheBust, setBaseImageCacheBust] = useState(() => Date.now());
@@ -69,9 +73,10 @@ export default function ResultsGrid({ project }: Props) {
       );
     },
   });
+  // Both panels mount this component; only the variants one polls.
   useEffect(() => {
-    if (hasPendingQa) startQaPoll();
-  }, [hasPendingQa, startQaPoll]);
+    if (hasPendingQa && part === 'variants') startQaPoll();
+  }, [hasPendingQa, part, startQaPoll]);
 
   const [retryingIndices, setRetryingIndices] = useState<Set<number>>(
     () => new Set(project.retrying_indices ?? []),
@@ -193,16 +198,20 @@ export default function ResultsGrid({ project }: Props) {
     if (!importFolder.trim()) return;
     setImporting(true);
     setImportStatus(null);
+    clearTimeout(importStatusTimer.current);
+    const clearLater = () => {
+      importStatusTimer.current = setTimeout(() => setImportStatus(null), 4000);
+    };
     try {
       const result = await api.importResultsFromFolder(project.id, importFolder.trim());
       setImportStatus(`Imported ${result.imported} image(s)`);
       const updated = await api.getProject(project.id);
       dispatch({ type: 'UPDATE_PROJECT', project: updated });
       setImportFolder('');
-      setTimeout(() => setImportStatus(null), 4000);
+      clearLater();
     } catch (err) {
       setImportStatus(err instanceof Error ? err.message : 'Import failed');
-      setTimeout(() => setImportStatus(null), 4000);
+      clearLater();
     } finally {
       setImporting(false);
     }
@@ -223,51 +232,55 @@ export default function ResultsGrid({ project }: Props) {
   }, [project.id, watermarkOffset, imageScale]);
 
   return (
-    <section style={{ marginTop: '1rem' }}>
-      {project.truncated_runs.length > 0 && (
+    <section>
+      {part === 'variants' && project.truncated_runs.length > 0 && (
         <div className="status-error" style={{ marginBottom: '0.75rem' }}>
           ⚠ {project.truncated_runs.length} generation run
           {project.truncated_runs.length > 1 ? 's were' : ' was'} cut short by a
           crash — this batch may be incomplete. Review before shipping.
         </div>
       )}
-      {project.has_base_image && (
+      {part === 'replica' && !project.has_base_image && (
+        <div className="status-info">Learn the style first. The replica appears here once it&apos;s ready.</div>
+      )}
+      {part === 'replica' && project.has_base_image && (
         <>
-          <h3>Base {project.product_type === 'Drawer Front' ? 'Drawer Front' : 'Door'} (Learned Style)</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '1rem' }}>
-            <img
-              src={`/api/projects/${project.id}/base-image?v=${baseImageCacheBust}`}
-              alt="Base door"
-              style={{ maxWidth: '60%', borderRadius: 'var(--radius)' }}
-            />
-            {project.base_image_id && (
-              <QaBadge verdict={project.qa_verdicts?.[project.base_image_id]} />
+          <p className="door-hint">
+            The replica is the model&apos;s copy of your door. Approve it only if it matches the
+            sample&apos;s shape exactly: every variant is built from it.
+          </p>
+          <div className="replica-compare">
+            {project.upload_filename && (
+              <figure>
+                <img src={`/api/projects/${project.id}/upload`} alt="Your sample" />
+                <figcaption>Your sample</figcaption>
+              </figure>
             )}
-            {project.base_image_id && (
+            <figure>
+              <img src={`/api/projects/${project.id}/base-image?v=${baseImageCacheBust}`} alt="Replica" />
+              <figcaption>
+                Replica{' '}
+                {project.base_image_id && <QaBadge verdict={project.qa_verdicts?.[project.base_image_id]} />}
+              </figcaption>
+            </figure>
+          </div>
+          {project.base_image_id && (
+            <div className="replica-actions">
               <ApprovalControls
                 project={project}
                 imageId={project.base_image_id}
-                verdict={
-                  project.replica_approved
-                    ? 'approved'
-                    : verdicts.get(project.base_image_id) ?? null
-                }
+                verdict={project.replica_approved ? 'approved' : verdicts.get(project.base_image_id) ?? null}
                 onChanged={refreshApprovals}
               />
-            )}
-            {!project.replica_approved && (
-              <div className="status-error" style={{ marginTop: '0.5rem', textAlign: 'center' }}>
-                Variants locked — approve the replica first
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </>
       )}
 
-      <details style={{ marginBottom: '1rem' }}>
-        <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' }}>
-          Import images from folder
-        </summary>
+      {part === 'variants' && (
+      <>
+      <details className="door-tools">
+        <summary>Import images from a folder</summary>
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
           <input
             type="text"
@@ -294,7 +307,7 @@ export default function ResultsGrid({ project }: Props) {
       {project.results.length > 0 && (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
-            <h3 style={{ margin: 0 }}>Wood Variations ({project.results.length})</h3>
+            <h3 style={{ margin: 0 }}>Variants ({project.results.length})</h3>
             <ApproveAllButton
               projectId={project.id}
               imageIds={undecidedVariantIds}
@@ -311,7 +324,8 @@ export default function ResultsGrid({ project }: Props) {
             </button>
           </div>
 
-          {project.results.length > 0 && (
+          <details className="door-tools">
+            <summary>Export &amp; watermark</summary>
             <>
               <div className="control-row">
                 <label style={{ fontSize: '0.875rem', fontWeight: 600 }}>
@@ -382,7 +396,7 @@ export default function ResultsGrid({ project }: Props) {
                 </div>
               )}
             </>
-          )}
+          </details>
 
           <div className="results-grid">
             {(sortAlpha
@@ -404,6 +418,7 @@ export default function ResultsGrid({ project }: Props) {
                     <img
                       src={`/api/projects/${project.id}/results/${result.index}/image?v=${result.image_id}&watermark_offset=${renderedWatermarkOffset}&image_scale=${renderedImageScale}&wmv=${watermarkCacheBust}`}
                       alt={result.wood_name}
+                      loading="lazy"
                       style={{ display: 'block' }}
                     />
                   </div>
@@ -421,23 +436,28 @@ export default function ResultsGrid({ project }: Props) {
                     onChanged={refreshApprovals}
                     compact
                   />
-                  <div className="actions">
-                    <a
-                      href={`/api/projects/${project.id}/results/${result.index}/image?watermark=false&v=${result.image_id}`}
-                      download={`${project.name}_${result.wood_name.toLowerCase().replace(/ /g, '_')}.png`}
-                    >
-                      <button disabled={isRetrying}>Download</button>
-                    </a>
-                    <button
-                      onClick={() => handleRetry(result.index, result.wood_name)}
-                      disabled={isRetrying}
-                    >
-                      Retry
-                    </button>
-                    <button className="danger" onClick={() => handleDiscard(result.index, result.wood_name)} disabled={isRetrying}>
-                      Discard
-                    </button>
-                  </div>
+                  <details className="result-more">
+                    <summary aria-label={`More actions for ${result.wood_name}`}>⋯</summary>
+                    <div className="result-more-menu">
+                      <a
+                        href={`/api/projects/${project.id}/results/${result.index}/image?watermark=false&v=${result.image_id}`}
+                        download={`${project.name}_${result.wood_name.toLowerCase().replace(/ /g, '_')}.png`}
+                      >
+                        Download
+                      </a>
+                      <button type="button" onClick={() => handleRetry(result.index, result.wood_name)} disabled={isRetrying}>
+                        Retry (paid)
+                      </button>
+                      <button
+                        type="button"
+                        className="danger"
+                        onClick={() => handleDiscard(result.index, result.wood_name)}
+                        disabled={isRetrying}
+                      >
+                        Discard
+                      </button>
+                    </div>
+                  </details>
                 </div>
               );
             })}
@@ -456,6 +476,8 @@ export default function ResultsGrid({ project }: Props) {
             </div>
           ))}
         </details>
+      )}
+      </>
       )}
     </section>
   );

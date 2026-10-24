@@ -7,10 +7,13 @@ import { Fragment, useState } from 'react';
 import type { CoverageCategory, CoverageResponse, Project } from '../types';
 import ProductSignoffPanel from './ProductSignoffPanel';
 import { ShopifyBadge, ShopifyDetail } from './ShopifyListings';
+import { isDone, shopifyDisagrees } from '../coverageStatus';
+
+export type CoverageFilter = 'all' | 'not_done' | 'disagree';
 
 interface Props {
   category: CoverageCategory;
-  onlyUncovered: boolean;
+  filter: CoverageFilter;
   onOpenProject: (id: string) => void;
   projects: Project[];
   onChanged: (r: CoverageResponse) => void;
@@ -19,7 +22,7 @@ interface Props {
 
 export default function CoverageTable({
   category,
-  onlyUncovered,
+  filter,
   onOpenProject,
   projects,
   onChanged,
@@ -27,28 +30,19 @@ export default function CoverageTable({
 }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const products = onlyUncovered
-    ? category.products.filter((p) => !p.variations_complete)
-    : category.products;
-
-  const pct = category.total > 0 ? Math.round((category.variations_complete / category.total) * 100) : 0;
+  const products = category.products.filter((p) =>
+    filter === 'not_done' ? !isDone(p) : filter === 'disagree' ? shopifyDisagrees(p) : true,
+  );
 
   return (
     <section>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-        <h3 style={{ margin: 0 }}>
-          {category.variations_complete} / {category.total} variations complete
-          {' · '}
-          {category.in_shopify_count} / {category.total} in Shopify
-        </h3>
-        <div className="progress-bar" style={{ flex: 1, maxWidth: 240 }}>
-          <div className="fill" style={{ width: `${pct}%` }} />
-        </div>
-      </div>
-
       {products.length === 0 ? (
         <div className="status-info">
-          {onlyUncovered ? 'Everything in this category has been generated.' : 'No products.'}
+          {filter === 'not_done'
+            ? 'Everything in this category is done.'
+            : filter === 'disagree'
+              ? 'Shopify agrees with every sign-off here.'
+              : 'No products.'}
         </div>
       ) : (
         <table className="coverage-table">
