@@ -81,15 +81,6 @@ export interface GenerationStatus {
   qa_verdicts: Record<string, QaVerdict>;
 }
 
-// Fixed reject-reason vocabulary — mirrors backend/qa/labels.py REASONS.
-export const REJECT_REASONS = [
-  'geometry_drift',
-  'profile_character',
-  'material_realism',
-  'artifacts',
-  'other',
-] as const;
-
 export interface Approval {
   image_id: string;
   project_id: string;
@@ -108,6 +99,14 @@ export interface Swatch {
   reference_image_url?: string;
   is_virtual: boolean;
   swatch_key?: string;
+}
+
+// GET /api/projects/{id}/shopify-colors
+export interface DoorShopifyColors {
+  listings: { handle: string; title: string }[];
+  colors: string[];
+  swatch_keys: string[];
+  unmatched: string[];
 }
 
 export interface Style {
@@ -224,6 +223,8 @@ export interface CatalogProduct {
   title: string;
   category: string;
   category_label: string;
+  product_type: string;
+  material_type: string;
   units: number;
   net_sales: number;
   other_units: number;

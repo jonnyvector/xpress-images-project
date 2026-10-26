@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 
 from fastapi import HTTPException, Request
 
+from backend.coverage import words
 from backend.materials import MIME_MAP as MIME_TYPES
 from backend.materials import get_catalog_names
 from backend.models import ErrorItem, GenerationStatusResponse, ProjectResponse, ResultItem
@@ -39,17 +41,25 @@ def replica_approved(project: ProjectState) -> bool:
     )
 
 
+@lru_cache(maxsize=1024)
+def _wood_name_key(name: str) -> str:
+    """Spelling-tolerant wood name: 'Pecan Hickory Natural' == 'Pecan-Hickory Natural',
+    'Natural Birch' == 'Birch Natural', 'MDF Panel / X' == 'MDF Panel w/ X'.
+    "(New Sample)" still counts, so a new-sample swatch stays its own entry."""
+    return "+".join(sorted(w for w in words(name) if w != "w"))
+
+
 def missing_swatches(project: ProjectState) -> list[str]:
     """Catalog wood names with no current result. Checked against the whole
     material catalog rather than project.selected_swatches, which is UI
     selection state and can be empty, stale, or partial independent of what's
     actually been generated. A discarded result reappears here automatically
     since it's just a diff against project.results."""
-    have = {r.wood_name for r in project.results}
+    have = {_wood_name_key(r.wood_name) for r in project.results}
     seen: set[str] = set()
     missing: list[str] = []
     for name in get_catalog_names(project.material_type):
-        if name not in have and name not in seen:
+        if _wood_name_key(name) not in have and name not in seen:
             seen.add(name)
             missing.append(name)
     return missing

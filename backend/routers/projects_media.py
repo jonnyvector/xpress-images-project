@@ -25,6 +25,7 @@ from backend.routers.projects_common import (
     is_drawer_style,
     to_project_response,
 )
+from backend.state import RetryInProgressError
 
 router = APIRouter()
 
@@ -152,14 +153,17 @@ def save_results_to_folder(
     return SaveToFolderResponse(saved_to=str(folder), files=saved_files)
 
 
-@router.delete("/projects/{project_id}/results/{idx}", status_code=204)
-def discard_result(project_id: str, idx: int, request: Request) -> None:
+@router.delete("/projects/{project_id}/images/{image_id}", status_code=204)
+def trash_result(project_id: str, image_id: str, request: Request) -> None:
+    """Delete one variant image (moved to the project trash, recoverable by hand)."""
     store = get_store(request)
-    project = get_project_or_404(store, project_id)
-    if idx < 0 or idx >= len(project.results):
-        raise HTTPException(status_code=404, detail="Result not found")
-    project.results.pop(idx)
-    store.save(project_id)
+    get_project_or_404(store, project_id)
+    try:
+        trashed = store.trash_result(project_id, image_id)
+    except RetryInProgressError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if not trashed:
+        raise HTTPException(status_code=404, detail="Image not found")
 
 
 @router.get("/projects/{project_id}/results/zip")

@@ -23,7 +23,7 @@ export default function ApproveAllButton({ projectId, imageIds, onDone }: Props)
 
   const handleClick = useCallback(async () => {
     const n = imageIds.length;
-    if (!window.confirm(`Approve all ${n} image${n === 1 ? '' : 's'}?`)) return;
+    if (!window.confirm(`Keep all ${n} image${n === 1 ? '' : 's'} not yet decided?`)) return;
     setRunning(true);
     setResult(null);
     let succeeded = 0;
@@ -52,7 +52,7 @@ export default function ApproveAllButton({ projectId, imageIds, onDone }: Props)
         disabled={running}
         style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
       >
-        {running ? `Approving… (${progress}/${imageIds.length})` : `Approve All (${imageIds.length})`}
+        {running ? `Keeping… (${progress}/${imageIds.length})` : `Keep all (${imageIds.length})`}
       </button>
       {result && result.failed > 0 && (
         <span className="status-error" style={{ fontSize: '0.75rem', padding: '0.15rem 0.4rem' }}>

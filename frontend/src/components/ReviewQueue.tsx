@@ -7,6 +7,7 @@ import type { QueueProject, ReviewQueueData } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 import ApprovalControls from './ApprovalControls';
+import VariantActions from './VariantActions';
 import ApproveAllButton from './ApproveAllButton';
 import { showError, onError } from '../notify';
 
@@ -108,12 +109,12 @@ export default function ReviewQueue() {
                 <figcaption>
                   {v.wood_name}
                   {v.attempt > 0 && <span className="review-dim"> (attempt {v.attempt})</span>}{' '}
-                  <ApprovalControls
-                    project={projectStub(p)}
+                  <VariantActions
+                    projectId={p.project_id}
                     imageId={v.image_id}
-                    verdict={null}
-                    onChanged={onChanged}
-                    compact
+                    kept={false}
+                    onKept={onChanged}
+                    onDeleted={onChanged}
                   />
                 </figcaption>
               </figure>

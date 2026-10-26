@@ -7,6 +7,7 @@ import ImageViewer, { type ViewerImage } from './ImageViewer';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import ApprovalControls from './ApprovalControls';
 import ApproveAllButton from './ApproveAllButton';
+import VariantActions from './VariantActions';
 import { showError, onError } from '../notify';
 
 interface Props {
@@ -129,16 +130,15 @@ export default function ResultsGrid({ project, part }: Props) {
     }
   }, [project.id, startRetryPoll]);
 
-  const handleDiscard = useCallback(async (idx: number, woodName: string) => {
-    if (!window.confirm(`Discard the ${woodName} image? This cannot be undone.`)) return;
-    try {
-      await api.discardResult(project.id, idx);
-      const updated = await api.getProject(project.id);
-      dispatch({ type: 'UPDATE_PROJECT', project: updated });
-    } catch (err) {
-      showError("Couldn't discard image", err);
-    }
+  const refreshProject = useCallback(() => {
+    api
+      .getProject(project.id)
+      .then((updated) => dispatch({ type: 'UPDATE_PROJECT', project: updated }))
+      .catch(onError("Couldn't reload the door"));
   }, [dispatch, project.id]);
+
+  // Woods with more than one image, so the bad copies are easy to find.
+  const [dupOnly, setDupOnly] = useState(false);
 
   const sortStorageKey = `sort_alpha_${project.id}`;
   const [sortAlpha, setSortAlpha] = useState(
@@ -237,9 +237,16 @@ export default function ResultsGrid({ project, part }: Props) {
     ...(project.upload_filename ? [{ src: `/api/projects/${project.id}/upload`, caption: 'Your sample' }] : []),
     { src: replicaSrc, caption: 'Replica' },
   ];
-  const sortedResults = sortAlpha
-    ? [...project.results].sort((a, b) => a.wood_name.localeCompare(b.wood_name))
-    : project.results;
+  const copies = new Map<string, number>();
+  for (const r of project.results) copies.set(r.wood_name, (copies.get(r.wood_name) ?? 0) + 1);
+  const duplicateWoods = [...copies.values()].filter((n) => n > 1).length;
+  const sortedResults = dupOnly
+    ? project.results
+        .filter((r) => (copies.get(r.wood_name) ?? 0) > 1)
+        .sort((a, b) => a.wood_name.localeCompare(b.wood_name) || a.index - b.index)
+    : sortAlpha
+      ? [...project.results].sort((a, b) => a.wood_name.localeCompare(b.wood_name))
+      : project.results;
   // Unwatermarked full-size files, for checking detail.
   const variantImages: ViewerImage[] = sortedResults.map((r) => ({
     src: `/api/projects/${project.id}/results/${r.index}/image?watermark=false&v=${r.image_id}`,
@@ -339,10 +346,23 @@ export default function ResultsGrid({ project, part }: Props) {
             />
             <button
               onClick={toggleSort}
+              disabled={dupOnly}
               style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
             >
               {sortAlpha ? 'Sort: Original' : 'Sort: A–Z'}
             </button>
+            {(duplicateWoods > 0 || dupOnly) && (
+              <button
+                type="button"
+                className={dupOnly ? 'filter-btn active' : 'filter-btn'}
+                aria-pressed={dupOnly}
+                onClick={() => setDupOnly((v) => !v)}
+                style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                title="Show only woods that have more than one image, grouped together"
+              >
+                Duplicates only ({duplicateWoods} {duplicateWoods === 1 ? 'wood' : 'woods'})
+              </button>
+            )}
           </div>
 
           <details className="door-tools">
@@ -445,16 +465,21 @@ export default function ResultsGrid({ project, part }: Props) {
                   </div>
                   <div className="caption">
                     {result.wood_name}
+                    {(copies.get(result.wood_name) ?? 0) > 1 && (
+                      <span className="dup-count" title="Images of this wood in this door">
+                        {' '}×{copies.get(result.wood_name)}
+                      </span>
+                    )}
                     {result.attempt > 0 && (
                       <span style={{ color: '#888', fontSize: '0.75rem' }}> (attempt {result.attempt})</span>
                     )}{' '}
                   </div>
-                  <ApprovalControls
-                    project={project}
+                  <VariantActions
+                    projectId={project.id}
                     imageId={result.image_id}
-                    verdict={verdicts.get(result.image_id) ?? null}
-                    onChanged={refreshApprovals}
-                    compact
+                    kept={verdicts.get(result.image_id) === 'approved'}
+                    onKept={refreshApprovals}
+                    onDeleted={refreshProject}
                   />
                   <details className="result-more">
                     <summary aria-label={`More actions for ${result.wood_name}`}>⋯</summary>
@@ -467,14 +492,6 @@ export default function ResultsGrid({ project, part }: Props) {
                       </a>
                       <button type="button" onClick={() => handleRetry(result.index, result.wood_name)} disabled={isRetrying}>
                         Retry (paid)
-                      </button>
-                      <button
-                        type="button"
-                        className="danger"
-                        onClick={() => handleDiscard(result.index, result.wood_name)}
-                        disabled={isRetrying}
-                      >
-                        Discard
                       </button>
                     </div>
                   </details>

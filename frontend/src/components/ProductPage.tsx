@@ -2,9 +2,11 @@
 // A cell shows the AI image live on Shopify, else the image generated here
 // but not uploaded yet, else stays blank. Click any image to zoom in.
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import type { CatalogProduct, CatalogVariant } from '../types';
 import * as api from '../api';
+import { useDispatch } from '../context/ProjectsContext';
+import { showError } from '../notify';
 import ImageViewer, { type ViewerImage } from './ImageViewer';
 import Segmented from './Segmented';
 import CellBar from './CellBar';
@@ -42,6 +44,9 @@ export default function ProductPage() {
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<RowOrder>('sales');
   const [viewing, setViewing] = useState<number | null>(null);
+  const [starting, setStarting] = useState(false);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   useEffect(() => {
     setProduct(null);
@@ -67,6 +72,19 @@ export default function ProductPage() {
   if (error) return <div className="status-error">{error}</div>;
   if (!product || !grid) return <div className="status-info">Loading…</div>;
 
+  // Named after the listing, so the catalog links the new door back to this product.
+  const startDoor = async () => {
+    setStarting(true);
+    try {
+      const p = await api.createProject(product.title, product.product_type, product.material_type);
+      dispatch({ type: 'ADD_PROJECT', project: p });
+      navigate(`/doors/${p.id}`);
+    } catch (err) {
+      showError("Couldn't create a door", err);
+      setStarting(false);
+    }
+  };
+
   const open = (v: CatalogVariant) => {
     const i = viewable.indexOf(v);
     if (i >= 0) setViewing(i);
@@ -91,14 +109,22 @@ export default function ProductPage() {
           </div>
         </div>
         <div className="product-links">
-          {product.project_id && (
-            <Link to={`/doors/${product.project_id}`} title="Generated images come from this door">
-              Door: {product.project_name}
-            </Link>
-          )}
           <a href={product.admin_url} target="_blank" rel="noreferrer">
             Open in Shopify
           </a>
+          {product.project_id ? (
+            <Link
+              to={`/doors/${product.project_id}`}
+              className="button-link primary"
+              title={`Upload, learn the style and generate in "${product.project_name}"`}
+            >
+              Open door workspace
+            </Link>
+          ) : (
+            <button type="button" className="primary" onClick={startDoor} disabled={starting}>
+              {starting ? 'Creating…' : 'Start a door'}
+            </button>
+          )}
         </div>
       </header>
 
@@ -122,7 +148,7 @@ export default function ProductPage() {
       </div>
       {!product.project_id && (
         <div className="status-info products-notice">
-          No door in this app matches this product yet, so only Shopify images can show.
+          No door for this product yet. Start one to upload the sample photo and generate its variants.
         </div>
       )}
 
@@ -141,7 +167,7 @@ export default function ProductPage() {
       ) : (
         <div className="variant-grid">
           {grid.rows.map((row) => (
-            <VariantCell key={row.material} variant={row.cells[0]} title={row.material} onOpen={open} />
+            <VariantCell key={row.material} variant={row.cells[0]!} title={row.material} onOpen={open} />
           ))}
         </div>
       )}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { Project, Swatch } from '../types';
+import type { DoorShopifyColors, Project, Swatch } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 import { onError } from '../notify';
@@ -19,6 +19,33 @@ export default function SwatchGrid({ project }: Props) {
   useEffect(() => {
     api.listSwatches(materialType).then(setSwatches).catch(onError("Couldn't load swatches"));
   }, [materialType]);
+
+  // Only the colours this door's Shopify listing sells are worth generating.
+  const [onShopify, setOnShopify] = useState<DoorShopifyColors | null>(null);
+  const [scopeError, setScopeError] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  useEffect(() => {
+    let stale = false;
+    setOnShopify(null);
+    setScopeError(null);
+    api
+      .getDoorShopifyColors(project.id)
+      .then((c) => !stale && setOnShopify(c))
+      .catch((e) => {
+        if (stale) return;
+        // 409 = no per-variant snapshot yet: an expected state, not a failure.
+        if (!(e instanceof api.ApiError && e.status === 409)) onError("Couldn't read the Shopify colours")(e);
+        setScopeError(e instanceof Error ? e.message : String(e));
+      });
+    return () => {
+      stale = true;
+    };
+  }, [project.id]);
+  const listingKeys = onShopify?.listings.length ? new Set(onShopify.swatch_keys) : null;
+  // Selected swatches stay visible even when off-listing, so nothing is picked unseen.
+  const visible = listingKeys && !showAll
+    ? swatches.filter((s) => listingKeys.has(s.key) || selected.has(s.key))
+    : swatches;
 
   // Sync selected from project prop
   useEffect(() => {
@@ -67,10 +94,10 @@ export default function SwatchGrid({ project }: Props) {
   }, [saveSelections]);
 
   const selectAll = useCallback(() => {
-    const all = new Set(swatches.map((s) => s.key));
+    const all = new Set(visible.map((s) => s.key));
     setSelected(all);
     saveSelections(all);
-  }, [swatches, saveSelections]);
+  }, [visible, saveSelections]);
 
   const clearAll = useCallback(() => {
     const empty = new Set<string>();
@@ -78,8 +105,9 @@ export default function SwatchGrid({ project }: Props) {
     saveSelections(empty);
   }, [saveSelections]);
 
-  const realSwatches = swatches.filter((s) => !s.is_virtual);
-  const virtualSwatches = swatches.filter((s) => s.is_virtual);
+  const realSwatches = visible.filter((s) => !s.is_virtual);
+  const virtualSwatches = visible.filter((s) => s.is_virtual);
+  const noun = materialType === 'rtf' ? 'colors' : 'wood types';
   const missing = new Set(project.missing_swatches);
 
   return (
@@ -102,8 +130,42 @@ export default function SwatchGrid({ project }: Props) {
         </div>
       )}
 
+      {listingKeys ? (
+        <div className="swatch-scope">
+          {showAll ? `Showing all ${swatches.length} ${noun}.` : (
+            <>
+              Showing the {listingKeys.size} {noun} sold on{' '}
+              {onShopify!.listings.map((l) => l.title).join(', ')}.
+            </>
+          )}{' '}
+          <button type="button" className="link-button" onClick={() => setShowAll((v) => !v)}>
+            {showAll ? 'Only Shopify ones' : `Show all ${swatches.length}`}
+          </button>
+          {onShopify!.unmatched.length > 0 && (
+            <div className="swatch-scope-missing">
+              On Shopify but no swatch here: {onShopify!.unmatched.join(', ')}
+            </div>
+          )}
+        </div>
+      ) : onShopify ? (
+        <div className="swatch-scope">
+          No Shopify listing matches this door, so all {noun} are shown.
+        </div>
+      ) : scopeError && (
+        <div className="swatch-scope">
+          All {noun} shown: {scopeError}
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-        <button onClick={selectAll} style={{ flex: 1 }}>Select All</button>
+        <button
+          onClick={selectAll}
+          disabled={!onShopify && !scopeError}
+          title={!onShopify && !scopeError ? 'Reading the Shopify colours…' : undefined}
+          style={{ flex: 1 }}
+        >
+          Select All
+        </button>
         <button onClick={clearAll} style={{ flex: 1 }}>Clear</button>
       </div>
 
@@ -176,7 +238,7 @@ export default function SwatchGrid({ project }: Props) {
       )}
 
       <div style={{ marginTop: '0.75rem', fontSize: '0.875rem', fontWeight: 600 }}>
-        Selected: {selected.size} / {swatches.length}
+        Selected: {selected.size} / {visible.length}
         {selected.size > 5 && (
           <div style={{ color: '#b59f3b', fontWeight: 400 }}>
             Stage B limit: batches over 5 are blocked until bulk is unlocked

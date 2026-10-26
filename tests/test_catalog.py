@@ -130,3 +130,28 @@ def test_rejected_images_never_fill_a_cell():
     exact, _ = local_images(project, store)
     assert color_key("Red Oak Select") not in exact  # operator rejected it
     assert exact[color_key("Alder Natural")]["verdict"] is None
+
+
+def test_match_swatches_to_shopify_colors():
+    from backend.catalog import match_swatches
+
+    colors = ["Red Oak Select", "Pecan-Hickory Natural", "Rain Cloud", "Walnut Rustic Knotty"]
+    swatches = [
+        ("red-oak-select", "Red Oak Select"),
+        ("red-oak-select-new", "Red Oak Select (New Sample)"),
+        ("pecan", "Pecan Hickory Natural"),
+        ("raincloud", "Raincloud"),
+        ("maple-select", "Maple Select"),
+    ]
+    keys, unmatched = match_swatches(colors, swatches)
+    assert keys == ["red-oak-select", "red-oak-select-new", "pecan", "raincloud"]
+    assert unmatched == ["Walnut Rustic Knotty"]
+
+
+def test_not_generated_badge_tolerates_spelling():
+    from backend.routers.projects_common import _wood_name_key as key
+
+    assert key("Pecan Hickory Natural") == key("Pecan-Hickory Natural")
+    assert key("Natural Birch") == key("Birch Natural")
+    assert key("MDF Panel / Soft Maple Frame") == key("MDF Panel w/ Soft Maple Frame")
+    assert key("Alder Natural") != key("Alder Natural (New Sample)")  # its own swatch

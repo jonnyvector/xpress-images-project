@@ -1355,3 +1355,20 @@ label {
 .variant-cell-tag--missing { color: var(--color-text-muted); }
 .variant-matrix .variant-cell-image { aspect-ratio: auto; height: 9rem; }
 .variant-cell-tag--rejected { color: var(--color-danger); }
+/* A link styled as the primary button (navigation that reads as an action) */
+a.button-link.primary {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  background: var(--color-primary);
+  color: white;
+  text-decoration: none;
+}
+a.button-link.primary:hover { background: var(--color-primary-hover); }
+.product-links { align-items: center; }
+.variant-actions { display: flex; gap: 0.4rem; align-items: center; justify-content: center; flex-wrap: wrap; margin-top: 0.25rem; }
+.variant-actions button { padding: 0.2rem 0.6rem; font-size: 0.75rem; }
+.dup-count { color: var(--color-danger); font-weight: 600; font-size: 0.8rem; }
+.swatch-scope { font-size: 0.8125rem; color: var(--color-text-muted); margin-bottom: 0.75rem; line-height: 1.5; }
+.swatch-scope-missing { color: var(--color-danger); margin-top: 0.25rem; }

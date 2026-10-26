@@ -509,3 +509,34 @@ def test_automatic_judging_skipped_when_off(monkeypatch) -> None:
 
     lane = qa_lane.QaLane.__new__(qa_lane.QaLane)
     assert lane.enqueue(NoStore(), "p", "i", "k", kind="variant").result() is None
+
+
+def test_deleting_a_variant_keeps_a_copy_in_trash(client) -> None:
+    store = client.app.state.project_store
+    project = _learned_project(client)
+    keep = store.record_result(project.id, "Oak", image_data=b"oak")
+    gone = store.record_result(project.id, "Oak", image_data=b"oak-dup")
+
+    resp = client.delete(f"/api/projects/{project.id}/images/{gone.image_id}")
+    assert resp.status_code == 204
+    assert [r.image_id for r in store.get(project.id).results] == [keep.image_id]
+    trash = store._trash_dir() / "results" / project.id
+    assert (trash / f"{gone.image_id}.jpg").read_bytes() == b"oak-dup"
+    assert client.delete(f"/api/projects/{project.id}/images/{gone.image_id}").status_code == 404
+
+
+def test_no_delete_while_a_retry_is_running(client) -> None:
+    """Retries write back by list position, so a delete mid-retry would shift them."""
+    store = client.app.state.project_store
+    project = _learned_project(client)
+    first = store.record_result(project.id, "Oak", image_data=b"oak")
+    store.record_result(project.id, "Ash", image_data=b"ash")
+    last = store.record_result(project.id, "Elm", image_data=b"elm")
+    store.update(project.id, retrying_indices=[1])
+
+    resp = client.delete(f"/api/projects/{project.id}/images/{first.image_id}")
+    assert resp.status_code == 409
+    assert len(store.get(project.id).results) == 3
+    assert not (store._trash_dir() / "results" / project.id).exists()
+    # After the retried position nothing shifts, so that delete is fine.
+    assert client.delete(f"/api/projects/{project.id}/images/{last.image_id}").status_code == 204

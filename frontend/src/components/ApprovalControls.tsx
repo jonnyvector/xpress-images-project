@@ -1,9 +1,7 @@
-// Approve/Reject controls for one image (replica or variant) — the human half
-// of the graduated-trust pipeline. Rejects require reasons from the fixed
-// vocabulary so disagreements feed the reliability ledger cleanly.
+// Approve/Reject for a replica. Approving it unlocks generation (GT-001).
+// Variants use VariantActions (Keep / Delete) instead.
 import { useCallback, useState } from 'react';
 import type { Project } from '../types';
-import { REJECT_REASONS } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 
@@ -17,19 +15,15 @@ interface Props {
 
 export default function ApprovalControls({ project, imageId, verdict, onChanged, compact }: Props) {
   const dispatch = useDispatch();
-  const [rejecting, setRejecting] = useState(false);
-  const [reasons, setReasons] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const submit = useCallback(async (v: 'approved' | 'rejected', rs: string[]) => {
+  const submit = useCallback(async (v: 'approved' | 'rejected') => {
     setBusy(true);
     setError(null);
     try {
-      const updated = await api.setApproval(project.id, imageId, v, rs);
+      const updated = await api.setApproval(project.id, imageId, v);
       dispatch({ type: 'UPDATE_PROJECT', project: updated });
-      setRejecting(false);
-      setReasons(new Set());
       onChanged?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save approval');
@@ -37,15 +31,6 @@ export default function ApprovalControls({ project, imageId, verdict, onChanged,
       setBusy(false);
     }
   }, [project.id, imageId, dispatch, onChanged]);
-
-  const toggleReason = useCallback((r: string) => {
-    setReasons((prev) => {
-      const next = new Set(prev);
-      if (next.has(r)) next.delete(r);
-      else next.add(r);
-      return next;
-    });
-  }, []);
 
   const size = compact ? { padding: '0.2rem 0.5rem', fontSize: '0.75rem' } : {};
 
@@ -59,41 +44,19 @@ export default function ApprovalControls({ project, imageId, verdict, onChanged,
           <span className="approval-badge rejected" title="Operator rejected">✗ Rejected</span>
         )}
         {verdict !== 'approved' && (
-          <button className="approve-btn" onClick={() => submit('approved', [])} disabled={busy} style={size}>
+          <button className="approve-btn" onClick={() => submit('approved')} disabled={busy} style={size}>
             Approve
           </button>
         )}
         <button
           className="danger"
-          onClick={() => setRejecting((v) => !v)}
+          onClick={() => submit('rejected')}
           disabled={busy}
           style={size}
         >
           Reject
         </button>
       </div>
-      {rejecting && (
-        <div style={{ marginTop: '0.4rem', fontSize: '0.8rem' }}>
-          {REJECT_REASONS.map((r) => (
-            <label key={r} style={{ display: 'block', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={reasons.has(r)}
-                onChange={() => toggleReason(r)}
-              />{' '}
-              {r.replace(/_/g, ' ')}
-            </label>
-          ))}
-          <button
-            className="danger"
-            onClick={() => submit('rejected', Array.from(reasons))}
-            disabled={busy || reasons.size === 0}
-            style={{ ...size, marginTop: '0.25rem' }}
-          >
-            Confirm reject
-          </button>
-        </div>
-      )}
       {error && <div className="status-error" style={{ marginTop: '0.4rem' }}>{error}</div>}
     </div>
   );

@@ -222,6 +222,8 @@ class CatalogProduct(BaseModel):
     title: str
     category: str
     category_label: str
+    product_type: str  # "Cabinet Door" | "Drawer Front": what a new door for it is created as
+    material_type: str  # "wood" | "rtf"
     units: int = 0
     net_sales: float = 0.0
     other_units: int = 0  # sales of variants since deleted from the listing
@@ -242,3 +244,12 @@ class CatalogResponse(BaseModel):
     sales_error: str | None = None
     error: str | None = None
     shopify_admin_url: str
+
+
+class DoorShopifyColors(BaseModel):
+    """The wood types / colours a door's Shopify listing sells."""
+
+    listings: list[dict[str, str]]  # [{handle, title}]; empty = no matching listing
+    colors: list[str]  # option values on Shopify, in listing order
+    swatch_keys: list[str]  # swatches that match those colours
+    unmatched: list[str]  # Shopify colours with no swatch in the app

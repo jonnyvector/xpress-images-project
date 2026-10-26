@@ -130,20 +130,18 @@ def project_style(project_name: str) -> str | None:
 
 
 def listing_projects(canonical_id, matched_ids, title: str, by_id: dict) -> list:
-    """Projects whose images can fill this listing's cells, best first: the
-    canonical pick on Coverage, then name-matched projects that fit."""
+    """This listing's doors, best first: the canonical pick on Coverage, then
+    name-matched doors that fit, those with images before those without
+    (a door just started still belongs on its product page)."""
     out = []
     if canonical_id in by_id:
         out.append(by_id[canonical_id])
-    for pid in matched_ids:
-        project = by_id.get(pid)
-        if (
-            project is not None
-            and project.results
-            and project not in out
-            and fits_listing(project.name, title)
-        ):
-            out.append(project)
+    fitting = [
+        by_id[pid]
+        for pid in matched_ids
+        if pid in by_id and by_id[pid] not in out and fits_listing(by_id[pid].name, title)
+    ]
+    out.extend(sorted(fitting, key=lambda p: not p.results))  # stable: keeps coverage order
     return out
 
 
@@ -161,6 +159,68 @@ def _project_for_variant(projects: list[tuple[ProjectState, str | None]], style:
     return None
 
 
+def _coverage_doors(projects, store, data_dir) -> dict[str, tuple[str | None, list[str]]]:
+    """Listing handle -> (canonical door id, name-matched door ids), as Coverage decides."""
+    shopify = load_shopify_source(data_dir)
+    out: dict[str, tuple[str | None, list[str]]] = {}
+    for category in compute_coverage(projects, data_dir, approval_store=store, shopify=shopify):
+        for row in category["products"]:
+            for listing in row["shopify_listings"]:
+                out.setdefault(
+                    listing["handle"], (row["canonical_project_id"], row["matched_project_ids"])
+                )
+    return out
+
+
+def door_listings(
+    projects: list[ProjectState], snapshot: dict, store: ApprovalStore, data_dir, door_id: str
+) -> list[dict]:
+    """The active Shopify listings this door's images belong to."""
+    by_id = {p.id: p for p in projects}
+    doors = _coverage_doors(projects, store, data_dir)
+    out = []
+    for product in snapshot["products"]:
+        if product.get("status") != "ACTIVE" or not any(
+            is_catalog_listing(c, product["title"]) for c in CATEGORIES
+        ):
+            continue
+        canonical_id, matched_ids = doors.get(product["handle"], (None, []))
+        if door_id in (canonical_id, *matched_ids) and any(
+            p.id == door_id
+            for p in listing_projects(canonical_id, matched_ids, product["title"], by_id)
+        ):
+            out.append(product)
+    return out
+
+
+def listing_colors(listings: list[dict]) -> list[str]:
+    """Distinct wood/colour option values across the listings, in Shopify order."""
+    seen: dict[str, None] = {}
+    for product in listings:
+        for v in product["variants"]:
+            seen.setdefault(_material_value(v), None)
+    return list(seen)
+
+
+def match_swatches(
+    colors: list[str], swatches: list[tuple[str, str]]
+) -> tuple[list[str], list[str]]:
+    """(swatch keys sold on the listing, Shopify colours with no swatch).
+
+    swatches are (key, display name) pairs; matching uses the same colour
+    keys as the Products page.
+    """
+    by_key = {color_key(c): c for c in colors}
+    by_unordered = {unordered_color_key(c): c for c in colors}
+    keys, matched = [], set()
+    for swatch_key, name in swatches:
+        color = by_key.get(color_key(name)) or by_unordered.get(unordered_color_key(name))
+        if color is not None:
+            keys.append(swatch_key)
+            matched.add(color)
+    return keys, [c for c in colors if c not in matched]
+
+
 def build_catalog(
     projects: list[ProjectState],
     snapshot: dict,
@@ -175,20 +235,11 @@ def build_catalog(
     handle= builds just that listing; include_variants=False keeps only the
     per-product counts (the list page).
     """
-    shopify = load_shopify_source(data_dir)
     sales = snapshot.get("sales") or {}
     by_variant = sales.get("by_variant") or {}
     by_product = sales.get("by_product") or {}
     by_id = {p.id: p for p in projects}
-
-    # Coverage already decides which project belongs to which listing.
-    projects_by_handle: dict[str, tuple[str | None, list[str]]] = {}
-    for category in compute_coverage(projects, data_dir, approval_store=store, shopify=shopify):
-        for row in category["products"]:
-            for listing in row["shopify_listings"]:
-                projects_by_handle.setdefault(
-                    listing["handle"], (row["canonical_project_id"], row["matched_project_ids"])
-                )
+    projects_by_handle = _coverage_doors(projects, store, data_dir)
 
     image_cache: dict[str, tuple[dict, dict]] = {}
     out: list[dict] = []
@@ -247,6 +298,8 @@ def build_catalog(
                 "title": product["title"],
                 "category": category["key"],
                 "category_label": category["label"],
+                "product_type": category["product_type"],
+                "material_type": category["material"],
                 "units": units,
                 "net_sales": round(net, 2),
                 # Sales of variants since deleted, which have no cell.

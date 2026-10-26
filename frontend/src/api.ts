@@ -1,4 +1,4 @@
-import type { Project, Swatch, Style, GenerationStatus, SignatureVersion, CoverageResponse, CatalogResponse, CatalogProduct, Approval, ReviewQueueData } from './types';
+import type { Project, Swatch, Style, GenerationStatus, SignatureVersion, CoverageResponse, CatalogResponse, CatalogProduct, DoorShopifyColors, Approval, ReviewQueueData } from './types';
 
 export const API_KEY_STORAGE_KEY = 'gemini_api_key';
 
@@ -40,18 +40,20 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers['Content-Type'] = headers['Content-Type'] ?? 'application/json';
   }
   const res = await fetch(path, { ...options, headers });
-  if (!res.ok) {
-    const text = await res.text();
-    // Surface FastAPI's {"detail": "..."} as the message (e.g. GT-001 gate errors).
-    try {
-      const detail = (JSON.parse(text) as { detail?: string }).detail;
-      if (detail) throw new ApiError(detail, res.status);
-    } catch (e) {
-      if (e instanceof Error && !(e instanceof SyntaxError)) throw e;
-    }
-    throw new ApiError(`${res.status}: ${text}`, res.status);
-  }
+  if (!res.ok) throw await apiError(res);
   return res.json() as Promise<T>;
+}
+
+// Surface FastAPI's {"detail": "..."} as the message (e.g. GT-001 gate errors).
+async function apiError(res: Response): Promise<ApiError> {
+  const text = await res.text();
+  try {
+    const detail = (JSON.parse(text) as { detail?: string }).detail;
+    if (typeof detail === 'string') return new ApiError(detail, res.status);
+  } catch {
+    // not JSON
+  }
+  return new ApiError(`${res.status}: ${text}`, res.status);
 }
 
 // Projects
@@ -107,9 +109,9 @@ export function retryVariation(id: string, idx: number): Promise<GenerationStatu
   return request<GenerationStatus>(`/api/projects/${id}/results/${idx}/retry`, { method: 'POST' });
 }
 
-export async function discardResult(id: string, idx: number): Promise<void> {
-  const res = await fetch(`/api/projects/${id}/results/${idx}`, { method: 'DELETE', headers: authHeaders() });
-  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+export async function deleteImage(id: string, imageId: string): Promise<void> {
+  const res = await fetch(`/api/projects/${id}/images/${imageId}`, { method: 'DELETE', headers: authHeaders() });
+  if (!res.ok) throw await apiError(res);
 }
 
 export async function getResultsZip(
@@ -197,6 +199,10 @@ export function listStyles(material: string = 'wood'): Promise<Style[]> {
 // Coverage
 export function getCoverage(): Promise<CoverageResponse> {
   return request<CoverageResponse>('/api/coverage');
+}
+
+export function getDoorShopifyColors(id: string): Promise<DoorShopifyColors> {
+  return request<DoorShopifyColors>(`/api/projects/${id}/shopify-colors`);
 }
 
 // Reads every product's variant images live from Shopify (~15s, read-only).

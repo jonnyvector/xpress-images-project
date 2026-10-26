@@ -31,6 +31,10 @@ def _now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+class RetryInProgressError(Exception):
+    """A retry at or after this position is running; retries write back by index."""
+
+
 @dataclass
 class ResultRecord:
     """One generated variant image: identity + metadata + bytes.
@@ -794,6 +798,41 @@ class ProjectStore:
             if idx in project.retrying_indices:
                 project.retrying_indices.remove(idx)
             self._save_project(project)
+
+    def trash_result(self, project_id: str, image_id: str) -> bool:
+        """Remove one generated image, keeping a copy in ``.trash/results/``.
+
+        Same rule as delete(): images cost money to regenerate, so the bytes
+        and their metadata are moved aside, never erased. Keyed by image_id
+        (not list position) so back-to-back deletes can't hit the wrong image.
+        """
+        with self._lock:
+            project = self._projects.get(project_id)
+            if project is None:
+                return False
+            idx = next(
+                (i for i, r in enumerate(project.results) if r.image_id == image_id), None
+            )
+            if idx is None:
+                return False
+            if any(i >= idx for i in project.retrying_indices):
+                raise RetryInProgressError("A retry is running on this door; delete after it ends.")
+            record = project.results[idx]
+            dest = self._trash_dir() / "results" / project_id
+            dest.mkdir(parents=True, exist_ok=True)
+            ext = "png" if record.image_data.startswith(b"\x89PNG") else "jpg"
+            (dest / f"{image_id}.{ext}").write_bytes(record.image_data)
+            meta = {
+                "project_name": project.name,
+                "wood_name": record.wood_name,
+                "attempt": record.attempt,
+                "created_at": record.created_at,
+                "deleted_at": _now(),
+            }
+            (dest / f"{image_id}.json").write_text(json.dumps(meta, indent=1))
+            project.results.pop(idx)
+            self._save_project(project)
+            return True
 
     def save(self, project_id: str) -> None:
         """Explicitly persist a project (call after mutation outside the store)."""
