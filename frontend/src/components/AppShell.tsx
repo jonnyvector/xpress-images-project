@@ -7,7 +7,6 @@ import { useApiKey } from '../hooks/useApiKey';
 import * as api from '../api';
 import { showError } from '../notify';
 import { displayName, NEW_DOOR_NAME } from '../doorNames';
-import ReliabilityPanel from './ReliabilityPanel';
 import ReviewCountBadge from './ReviewCountBadge';
 import ErrorToasts from './ErrorToasts';
 
@@ -69,6 +68,9 @@ export default function AppShell() {
           <NavLink to="/review" className={navClass}>
             Review <ReviewCountBadge />
           </NavLink>
+          <NavLink to="/products" className={navClass}>
+            Products
+          </NavLink>
           <NavLink to="/coverage" className={navClass}>
             Coverage
           </NavLink>
@@ -108,7 +110,6 @@ export default function AppShell() {
               placeholder="Needed to learn and generate"
             />
           </div>
-          <ReliabilityPanel />
         </details>
       </nav>
 

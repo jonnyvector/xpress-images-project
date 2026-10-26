@@ -230,7 +230,10 @@ def test_rejudge_endpoint_validates_and_enqueues(client, monkeypatch) -> None:
     enqueued: list[tuple[str, str]] = []
 
     class FakeLane:
-        def enqueue(self, store, project_id, image_id, api_key, *, kind, swatch_path=None):
+        def enqueue(
+            self, store, project_id, image_id, api_key, *, kind, swatch_path=None, automatic=True
+        ):
+            assert automatic is False  # an explicit re-judge runs even with auto_judge off
             enqueued.append((image_id, kind))
 
     monkeypatch.setattr(qa_router, "get_qa_lane", lambda: FakeLane())
@@ -332,6 +335,7 @@ def test_estimate_reports_gate_and_costs(client, monkeypatch) -> None:
 
 def _write_trust_config(path: Path, **overrides) -> Path:
     base = {
+        "auto_judge": True,
         "small_batch_limit": 5, "bulk_unlocked": False,
         "bulk_unlocked_style_classes": [], "max_auto_retries": 2,
         "run_cost_cap_usd": 10.0, "image_cost_usd": 0.134,
@@ -457,3 +461,51 @@ def test_review_queue_shared_replica_identity_decided_once(client) -> None:
         "same image identity is decided everywhere — library must not stay pending"
     )
     assert queue["total_pending"] == 0
+
+
+def test_bulk_lock_does_not_depend_on_the_judge(client, monkeypatch) -> None:
+    """Turning the AI judge off must not lift the small-batch spending guard."""
+    monkeypatch.setattr(gen_mod, "load_trust_config", lambda: TrustConfig(auto_judge=False))
+    project = _learned_project(client, swatches=6)
+    _approve_replica(client, project)
+    monkeypatch.setattr(gen_mod, "build_selections", _fake_resolver(6))
+    resp = client.post(f"/api/projects/{project.id}/generate", headers={"X-API-Key": "k"})
+    assert resp.status_code == 422
+
+
+def test_review_queue_takes_unjudged_images_made_after_switch_off(client, monkeypatch) -> None:
+    import backend.routers.qa as qa_router
+
+    store = client.app.state.project_store
+    project = _learned_project(client)
+    client.post(
+        f"/api/projects/{project.id}/approvals",
+        json={"image_id": project.base_image_id, "verdict": "approved"},
+    )
+    store.record_result(project.id, "Oak", image_data=b"a")  # no QA verdict
+
+    def config(since: str):
+        monkeypatch.setattr(
+            qa_router, "load_trust_config", lambda: TrustConfig(review_all_since=since)
+        )
+
+    config("2000-01-01T00:00:00+00:00")
+    queue = client.get("/api/qa/review-queue").json()
+    entry = next(p for p in queue["projects"] if p["project_id"] == project.id)
+    assert [(v["wood_name"], v["verdict"]) for v in entry["variants"]] == [("Oak", None)]
+
+    config("2999-01-01T00:00:00+00:00")  # made before the switch-off: stays out
+    assert client.get("/api/qa/review-queue").json()["total_pending"] == 0
+
+
+def test_automatic_judging_skipped_when_off(monkeypatch) -> None:
+    import backend.qa.qa_lane as qa_lane
+
+    monkeypatch.setattr(qa_lane, "load_trust_config", lambda: TrustConfig(auto_judge=False))
+
+    class NoStore:
+        def set_qa_verdict(self, *args):
+            raise AssertionError("must not mark the image as being judged")
+
+    lane = qa_lane.QaLane.__new__(qa_lane.QaLane)
+    assert lane.enqueue(NoStore(), "p", "i", "k", kind="variant").result() is None

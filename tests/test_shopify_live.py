@@ -1,4 +1,4 @@
-"""Live Shopify image status: image classification, per-wood summary, paging."""
+"""Live Shopify image status: per-variant unique-image summary, paging, CLI errors."""
 
 import json
 
@@ -7,7 +7,6 @@ import pytest
 from backend.shopify_live import (
     ShopifyCliError,
     _cli_error,
-    classify_image,
     fetch_products,
     load_snapshot,
     save_snapshot,
@@ -32,90 +31,62 @@ def _product(variants, title="Shaker Cabinet Door", handle="shaker"):
     return {"handle": handle, "title": title, "status": "ACTIVE", "variants": {"nodes": variants}}
 
 
-@pytest.mark.parametrize(
-    "url, own, expected",
-    [
-        (CDN + "Shaker_new_wm_maple_paint_grade.png?v=1", ["Maple Paint Grade"], "ai"),
-        # "w/ " becomes "w__" in exports; Shopify's dedupe UUID suffix is ignored
-        (
-            CDN + "Shaker_new_wm_mdf_panel_w__maple_paint_grade_frame_"
-            "82692594-a3b3-40d4-b573-9a025fdbee94.png",
-            ["MDF Panel w/ Maple Paint Grade Frame"],
-            "ai",
-        ),
-        # tool's "(New Sample)" swatch tail
-        (
-            CDN + "Shaker_flat_panel_alder_rustic_knotty__new_sample.png",
-            ["Alder Rustic Knotty"],
-            "ai",
-        ),
-        # store and tool name some woods differently
-        (CDN + "Shaker_new_wm_red_oak_rift.png", ["Red Oak Rift Sawn"], "ai"),
-        (CDN + "Shaker_new_wm_red_oak_quarter_sawn.png", ["Red Oak Quarter Sawn"], "ai"),
-        (CDN + "auburn_natural_birch.png", ["Birch Natural"], "ai"),
-        (CDN + "thermofoil_cabinet_door_white_high_gloss.png", ["High Gloss White"], "ai"),
-        (CDN + "drs131_df_slab_949w_white.png", ["949W White (Smooth)"], "ai"),
-        (
-            CDN + "bronco_mdf_panel_maple_paint_grade_frame.png",
-            ["MDF Panel w/ Maple Paint Grade Frame"],
-            "ai",
-        ),
-        # a different oak is not this wood
-        (CDN + "Shaker_new_wm_white_oak_rift.png", ["Red Oak Rift Sawn"], "photo"),
-        (CDN + "840R_Mission_ALDS_wL.jpg", ["Alder Select"], "photo"),
-        (CDN + "century.png", ["Maple Select"], "photo"),
-        (None, ["Maple Select"], "none"),
-    ],
-)
-def test_classify_image(url, own, expected):
-    assert classify_image(url, own, own) == expected
-
-
-def test_classify_flags_another_variants_wood_as_mismatch():
-    url = CDN + "revere_drawer_front_maple_select.png"
-    assert (
-        classify_image(url, ["Maple Natural", "Solid"], ["Maple Natural", "Maple Select"])
-        == "mismatch"
-    )
-
-
-def test_summary_reports_missing_and_mismatched_woods():
-    p = summarize_product(
-        _product(
-            [
-                _variant("Maple Select", CDN + "Shaker_maple_select.png"),
-                _variant("Cherry Natural", CDN + "supplier_cherry.jpg"),
-                _variant("Walnut Natural"),
-                _variant("Red Oak Select", CDN + "Shaker_maple_select.png"),
-            ]
-        )
-    )
-    assert p["wood_count"] == 4
-    assert p["ai_wood_count"] == 1
-    assert p["missing_woods"] == ["Cherry Natural", "Walnut Natural"]
-    assert p["mismatched_woods"] == ["Red Oak Select"]
-    assert p["fully_imaged"] is False
-
-
-def test_wood_counts_only_when_every_front_style_has_its_image():
+def test_every_variant_with_its_own_image_is_fully_imaged():
     p = summarize_product(
         _product(
             [
                 _variant("Maple Select", CDN + "Revere_routed_maple_select.png", "Routed"),
-                _variant("Maple Select", None, "Solid"),
-                _variant("Cherry Select", CDN + "Revere_routed_cherry_select.png", "Routed"),
-                _variant("Cherry Select", CDN + "Revere_solid_cherry_select.png", "Solid"),
+                _variant("Maple Select", CDN + "Revere_solid_maple_select.png", "Solid"),
+                _variant("Cherry Select", CDN + "anything_at_all.jpg", "Routed"),
             ]
         )
     )
-    assert p["wood_count"] == 2
-    assert p["missing_woods"] == ["Maple Select"]
-    assert p["ai_wood_count"] == 1
+    assert p["variant_count"] == 3
+    assert p["own_image_count"] == 3
+    assert p["fully_imaged"] is True
 
 
-def test_fully_imaged_needs_every_wood_and_at_least_one():
-    done = summarize_product(_product([_variant("Maple Select", CDN + "X_maple_select.png")]))
-    assert done["fully_imaged"] is True
+OLD_PHOTO = CDN + "811P_Arcadia_MAPL_wL.jpg"
+WOODS = ["Maple Select", "Cherry Select", "Red Oak Select", "Ash Select"]
+
+
+def test_photo_reused_across_many_variants_and_missing_image_are_reported():
+    p = summarize_product(
+        _product(
+            [_variant(w, OLD_PHOTO) for w in WOODS]
+            + [_variant("Walnut Natural"), _variant("Alder Select", CDN + "a_alder_select.png")]
+        )
+    )
+    assert p["own_image_count"] == 1
+    assert p["shared_variants"] == WOODS
+    assert p["missing_variants"] == ["Walnut Natural"]
+    assert p["fully_imaged"] is False
+
+
+def test_pair_of_look_alike_options_may_share_an_image():
+    # The store gives "MDF Panel w/ Maple Paint Grade Frame / Routed" the
+    # "Maple Paint Grade / Routed" image on purpose.
+    image = CDN + "heritage_routed_maple_paint_grade.png"
+    p = summarize_product(
+        _product(
+            [
+                _variant("Maple Paint Grade", image, "Routed"),
+                _variant("MDF Panel w/ Maple Paint Grade Frame", image, "Routed"),
+            ]
+        )
+    )
+    assert p["shared_variants"] == []
+    assert p["fully_imaged"] is True
+
+
+def test_reupload_suffix_does_not_hide_a_reused_photo():
+    uploads = [OLD_PHOTO, OLD_PHOTO.replace(".jpg", "_82692594-a3b3-40d4-b573-9a025fdbee94.jpg")]
+    p = summarize_product(_product([_variant(w, uploads[i % 2]) for i, w in enumerate(WOODS)]))
+    assert p["shared_variants"] == WOODS
+    assert p["fully_imaged"] is False
+
+
+def test_product_with_no_variants_is_not_fully_imaged():
     assert summarize_product(_product([]))["fully_imaged"] is False
 
 
@@ -268,12 +239,6 @@ def test_zmc_listings_are_never_matched():
     assert _match(WOOD_DOORS, "Shaker Cabinet Door", ["ZMC | Shaker Cabinet Door"]) == []
 
 
-def test_front_style_value_never_makes_an_image_count():
-    # "Routed" is a front style; only the wood ("Maple Select") may match.
-    node = _product([_variant("Maple Select", CDN + "door_routed.png", "Routed")])
-    assert summarize_product(node)["ai_wood_count"] == 0
-
-
 from backend.coverage import listings_fully_imaged  # noqa: E402
 
 
@@ -284,3 +249,12 @@ def test_tied_listings_must_all_be_complete():
     assert listings_fully_imaged([done, done]) is True
     assert listings_fully_imaged([]) is None
     assert listings_fully_imaged([{"fully_imaged": True, "status": "DRAFT"}]) is False
+
+
+def test_snapshot_from_an_older_version_asks_for_a_refresh(tmp_path):
+    from backend.coverage import load_shopify_source
+
+    save_snapshot(tmp_path, [{"handle": "a", "title": "A", "status": "ACTIVE", "wood_count": 2}])
+    products, meta = load_shopify_source(tmp_path)
+    assert products == []
+    assert meta["error"] == "Saved Shopify data is from an older version"

@@ -1,15 +1,13 @@
-// Renders one best-seller category as a coverage checklist: a header summary
-// with a progress bar, then one row per product showing covered status, sales
-// figures, approval progress, Shopify status, and a link to the matched
-// project. Each row expands into a ProductSignoffPanel for recording the two
-// sign-off gates. Presentational only — projects/onChanged are passed through.
+// One coverage category: a row per product with sales, live Shopify image
+// status, and a link to its canonical project. Each row expands into the
+// Shopify detail and a ProductSignoffPanel. Presentational only.
 import { Fragment, useState } from 'react';
 import type { CoverageCategory, CoverageResponse, Project } from '../types';
 import ProductSignoffPanel from './ProductSignoffPanel';
 import { ShopifyBadge, ShopifyDetail } from './ShopifyListings';
-import { isDone, shopifyDisagrees } from '../coverageStatus';
+import { isDone } from '../coverageStatus';
 
-export type CoverageFilter = 'all' | 'not_done' | 'disagree';
+export type CoverageFilter = 'all' | 'done' | 'not_done';
 
 interface Props {
   category: CoverageCategory;
@@ -31,7 +29,7 @@ export default function CoverageTable({
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const products = category.products.filter((p) =>
-    filter === 'not_done' ? !isDone(p) : filter === 'disagree' ? shopifyDisagrees(p) : true,
+    filter === 'not_done' ? !isDone(p) : filter === 'done' ? isDone(p) : true,
   );
 
   return (
@@ -40,8 +38,8 @@ export default function CoverageTable({
         <div className="status-info">
           {filter === 'not_done'
             ? 'Everything in this category is done.'
-            : filter === 'disagree'
-              ? 'Shopify agrees with every sign-off here.'
+            : filter === 'done'
+              ? 'Nothing in this category is done yet.'
               : 'No products.'}
         </div>
       ) : (
@@ -52,14 +50,13 @@ export default function CoverageTable({
               <th>Product</th>
               <th style={{ textAlign: 'right' }}>Net sales</th>
               <th style={{ textAlign: 'right' }}>Units</th>
-              <th>Approved</th>
-              <th>On Shopify</th>
+              <th>Shopify AI images</th>
             </tr>
           </thead>
           <tbody>
             {products.map((p) => (
               <Fragment key={p.title}>
-                <tr className={p.variations_complete ? 'covered' : ''}>
+                <tr className={isDone(p) ? 'covered' : ''}>
                   <td style={{ textAlign: 'center' }}>
                     <button
                       type="button"
@@ -88,28 +85,20 @@ export default function CoverageTable({
                       p.title
                     )}
                   </td>
+                  {/* Store products outside the sales CSV have no sales figures. */}
                   <td style={{ textAlign: 'right' }}>
-                    ${p.net_sales.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    {p.quantity
+                      ? `$${p.net_sales.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+                      : '—'}
                   </td>
-                  <td style={{ textAlign: 'right' }}>{p.quantity.toLocaleString()}</td>
-                  <td>
-                    {p.approved_total > 0 ? (
-                      <span
-                        className={`badge ${p.approved_count === p.approved_total ? 'badge-approved' : 'badge-partial'}`}
-                      >
-                        {p.approved_count}/{p.approved_total} approved
-                      </span>
-                    ) : (
-                      <span className="badge badge-muted">—</span>
-                    )}
-                  </td>
+                  <td style={{ textAlign: 'right' }}>{p.quantity ? p.quantity.toLocaleString() : '—'}</td>
                   <td>
                     <ShopifyBadge product={p} />
                   </td>
                 </tr>
                 {expanded === p.title && (
                   <tr>
-                    <td colSpan={6}>
+                    <td colSpan={5}>
                       <ShopifyDetail listings={p.shopify_listings} adminUrl={shopifyAdminUrl} />
                       <ProductSignoffPanel product={p} projects={projects} onChanged={onChanged} />
                     </td>

@@ -1,6 +1,7 @@
 // Per-product sign-off: canonical project, palette checklist, two gates.
-// Coverage is decided ONLY by the two gates here — the palette grid is
-// evidence to make that judgment fast, never an input to it.
+// The gates are a record only: "Done" on Coverage comes from the live Shopify
+// images (coverageStatus.isDone). The canonical project picked here is what
+// the Products page uses for generated images.
 import { useState } from 'react';
 import type { CoverageProduct, CoverageResponse, Project } from '../types';
 import * as api from '../api';

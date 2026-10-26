@@ -5,6 +5,8 @@ import DoorLibrary from './components/DoorLibrary';
 import ReviewQueue from './components/ReviewQueue';
 import CoveragePage from './components/CoveragePage';
 import DoorPage from './components/DoorPage';
+import ProductsPage from './components/ProductsPage';
+import ProductPage from './components/ProductPage';
 
 export default function App() {
   return (
@@ -14,6 +16,8 @@ export default function App() {
           <Route index element={<Navigate to="/library" replace />} />
           <Route path="library" element={<DoorLibrary />} />
           <Route path="review" element={<ReviewQueue />} />
+          <Route path="products" element={<ProductsPage />} />
+          <Route path="products/:handle" element={<ProductPage />} />
           <Route path="coverage" element={<CoveragePage />} />
           <Route path="doors/:id" element={<DoorPage />} />
           <Route path="*" element={<Navigate to="/library" replace />} />

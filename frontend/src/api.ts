@@ -1,4 +1,4 @@
-import type { Project, Swatch, Style, GenerationStatus, SignatureVersion, CoverageResponse, Approval, ReliabilityAggregates, ReviewQueueData } from './types';
+import type { Project, Swatch, Style, GenerationStatus, SignatureVersion, CoverageResponse, CatalogResponse, CatalogProduct, Approval, ReviewQueueData } from './types';
 
 export const API_KEY_STORAGE_KEY = 'gemini_api_key';
 
@@ -200,6 +200,14 @@ export function getCoverage(): Promise<CoverageResponse> {
 }
 
 // Reads every product's variant images live from Shopify (~15s, read-only).
+export function getCatalog(): Promise<CatalogResponse> {
+  return request<CatalogResponse>('/api/catalog');
+}
+
+export function getCatalogProduct(handle: string): Promise<CatalogProduct> {
+  return request<CatalogProduct>(`/api/catalog/${encodeURIComponent(handle)}`);
+}
+
 export function refreshShopify(): Promise<CoverageResponse> {
   return request<CoverageResponse>('/api/coverage/shopify-refresh', { method: 'POST' });
 }
@@ -243,6 +251,3 @@ export function getReviewQueue(): Promise<ReviewQueueData> {
   return request<ReviewQueueData>('/api/qa/review-queue');
 }
 
-export function getReliability(): Promise<ReliabilityAggregates> {
-  return request<ReliabilityAggregates>('/api/qa/reliability');
-}

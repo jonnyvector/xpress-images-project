@@ -15,6 +15,7 @@ from backend.qa.approvals import Approval, get_approval_store
 from backend.qa.qa_lane import get_qa_lane
 from backend.qa.reliability import aggregate, append_record
 from backend.qa.styles_classes import style_class
+from backend.qa.trust_config import load_trust_config
 from backend.routers.projects_common import (
     get_project_or_404,
     get_store,
@@ -107,7 +108,7 @@ def rejudge_image(
             detail=f"GT-005: image {image_id!r} is not part of this project",
         )
 
-    get_qa_lane().enqueue(store, project_id, image_id, x_api_key, kind=kind)
+    get_qa_lane().enqueue(store, project_id, image_id, x_api_key, kind=kind, automatic=False)
     return to_project_response(get_project_or_404(store, project_id))
 
 
@@ -128,10 +129,12 @@ def review_queue(request: Request) -> dict:
     """
     store = get_store(request)
     approvals = get_approval_store()
+    since = load_trust_config().review_all_since
     projects_out: list[dict] = []
     total = 0
     for project in store.list_projects():
-        if not project.qa_verdicts:
+        recent = bool(since) and any(r.created_at >= since for r in project.results)
+        if not project.qa_verdicts and not recent:
             continue  # no pipeline activity — not reviewable yet
         # Decided-ness is keyed by image IDENTITY, not project (D-006): a
         # replica shared across projects (library backfilled from its source)
@@ -145,7 +148,9 @@ def review_queue(request: Request) -> dict:
         variants = []
         for idx, record in enumerate(project.results):
             verdict = project.qa_verdicts.get(record.image_id)
-            if not verdict or verdict.get("qa_status") != "done":
+            judged = bool(verdict) and verdict.get("qa_status") == "done"
+            # With the judge off, new images are reviewed without a verdict.
+            if not judged and not (since and record.created_at >= since):
                 continue
             if approvals.get(record.image_id) is not None:
                 continue
@@ -154,7 +159,7 @@ def review_queue(request: Request) -> dict:
                 "index": idx,
                 "wood_name": record.wood_name,
                 "attempt": record.attempt,
-                "verdict": verdict,
+                "verdict": verdict if judged else None,
             })
         if not replica_pending and not variants:
             continue

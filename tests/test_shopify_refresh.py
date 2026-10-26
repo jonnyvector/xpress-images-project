@@ -1,8 +1,9 @@
-"""Refresh from Shopify: live snapshot drives coverage and stamps sign-offs.
+"""Refresh from Shopify: live snapshot (images + sales) drives coverage.
 
 The CLI call is replaced by a fake, so these tests never touch a store.
 """
 
+import json
 import shutil
 from pathlib import Path
 
@@ -23,12 +24,21 @@ def _listing(fully_imaged: bool, status: str = "ACTIVE") -> dict:
         "handle": "ar756",
         "title": "AR756 Raised Panel Thermofoil Cabinet Door",
         "status": status,
-        "wood_count": 2,
-        "ai_wood_count": 2 if fully_imaged else 1,
-        "missing_woods": [] if fully_imaged else ["Bisque"],
-        "mismatched_woods": [],
+        "variant_count": 2,
+        "own_image_count": 2 if fully_imaged else 1,
+        "missing_variants": [] if fully_imaged else ["Bisque"],
+        "shared_variants": [],
         "fully_imaged": fully_imaged,
     }
+
+
+SALES = {"days": 365, "by_variant": {"1": [3, 30.0]}, "by_product": {"9": [3, 30.0]}}
+
+
+@pytest.fixture(autouse=True)
+def fake_sales(monkeypatch):
+    """Never let a test read the real store's sales report."""
+    monkeypatch.setattr(cov_router, "fetch_sales", lambda: SALES)
 
 
 @pytest.fixture
@@ -63,7 +73,7 @@ def _row(response, title: str = TITLE) -> dict:
     )
 
 
-def test_refresh_reports_missing_woods_and_marks_source_live(client, monkeypatch):
+def test_refresh_reports_missing_variants_and_marks_source_live(client, monkeypatch):
     _fake_shopify(monkeypatch, [_listing(fully_imaged=False)])
     response = client.post("/api/coverage/shopify-refresh")
 
@@ -73,15 +83,16 @@ def test_refresh_reports_missing_woods_and_marks_source_live(client, monkeypatch
     assert body["shopify_synced_at"]
     row = _row(response)
     assert row["on_shopify"] is False
-    assert row["shopify_listings"][0]["missing_woods"] == ["Bisque"]
+    assert row["shopify_listings"][0]["missing_variants"] == ["Bisque"]
 
 
-def test_fully_imaged_refresh_stamps_signoff(client, data_dir, monkeypatch):
+def test_refresh_never_writes_signoffs(client, data_dir, monkeypatch):
     _fake_shopify(monkeypatch, [_listing(fully_imaged=True)])
     response = client.post("/api/coverage/shopify-refresh")
 
-    assert _row(response)["in_shopify"] is True
-    assert load_signoff(data_dir)[TITLE]["in_shopify"]["by"] == "shopify-live"
+    assert _row(response)["on_shopify"] is True
+    assert _row(response)["in_shopify"] is False
+    assert "in_shopify" not in load_signoff(data_dir).get(TITLE, {})
 
 
 def test_archived_listings_are_ignored(client, data_dir, monkeypatch):
@@ -189,3 +200,54 @@ def test_second_refresh_while_one_runs_is_refused(client, monkeypatch):
         assert client.post("/api/coverage/shopify-refresh").status_code == 409
     finally:
         cov_router._REFRESH_LOCK.release()
+
+
+def test_sales_saved_with_snapshot(client, data_dir, monkeypatch):
+    _fake_shopify(monkeypatch, [_listing(fully_imaged=True)])
+    assert client.post("/api/coverage/shopify-refresh").status_code == 200
+    snapshot = json.loads((data_dir / "shopify_live.json").read_text())
+    assert snapshot["sales"] == SALES
+    assert snapshot["sales_error"] is None
+
+
+def test_sales_failure_does_not_block_refresh(client, data_dir, monkeypatch):
+    _fake_shopify(monkeypatch, [_listing(fully_imaged=True)])
+
+    def no_scope():
+        raise ShopifyCliError("Access denied for shopifyqlQuery")
+
+    monkeypatch.setattr(cov_router, "fetch_sales", no_scope)
+    assert client.post("/api/coverage/shopify-refresh").status_code == 200
+    snapshot = json.loads((data_dir / "shopify_live.json").read_text())
+    assert snapshot["sales"] is None  # nothing to keep yet
+    assert "Access denied" in snapshot["sales_error"]
+
+
+def test_failed_sales_read_keeps_last_good_sales(client, data_dir, monkeypatch):
+    _fake_shopify(monkeypatch, [_listing(fully_imaged=True)])
+    assert client.post("/api/coverage/shopify-refresh").status_code == 200  # saves SALES
+
+    def no_scope():
+        raise ShopifyCliError("Access denied for shopifyqlQuery")
+
+    monkeypatch.setattr(cov_router, "fetch_sales", no_scope)
+    assert client.post("/api/coverage/shopify-refresh").status_code == 200
+    snapshot = json.loads((data_dir / "shopify_live.json").read_text())
+    assert snapshot["sales"] == SALES
+    assert "Access denied" in snapshot["sales_error"]
+
+
+def test_store_only_rows_accept_sign_off(client, data_dir, monkeypatch):
+    """Coverage lists active store products missing from the sales CSV; their
+    sign-off controls must work too."""
+    store_only = {
+        **_listing(fully_imaged=True),
+        "handle": "zz",
+        "title": "Zephyr Thermofoil Cabinet Door",
+    }
+    _fake_shopify(monkeypatch, [_listing(fully_imaged=True), store_only])
+    assert client.post("/api/coverage/shopify-refresh").status_code == 200
+    resp = client.put(
+        "/api/coverage/Zephyr Thermofoil Cabinet Door/exclusions", json={"colors": []}
+    )
+    assert resp.status_code == 200

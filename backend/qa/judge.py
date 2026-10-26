@@ -52,6 +52,42 @@ class JudgeResult:
     votes: int = 1
 
 
+# Generated doors are rendered at a fixed output shape (usually 9:16) whatever
+# the sample's shape, so a judge must not fail them for being taller/narrower.
+# Opus 5.5 did, on 84 of its 118 false alarms (judge eval, Oct 2026).
+SHAPE_NOTE = """
+NOTE: The generated image is always rendered at a fixed product-photo aspect ratio (usually
+9:16), so the door's OVERALL height-to-width can differ from the sample. That is expected:
+it must NOT lower any score or fail the image. Judge proportions against the door's WIDTH
+instead: stile and rail widths relative to the door width, panel margins, and the number
+and arrangement of panels.
+"""
+
+
+def rubric_prompt(candidate: Candidate, ignore_shape: bool = False) -> str:
+    template = RUBRIC_PROMPT
+    if ignore_shape:
+        anchor = "\nScore each criterion"
+        if anchor not in template:  # rubric reworded: don't silently drop the note
+            raise ValueError("SHAPE_NOTE anchor missing from RUBRIC_PROMPT")
+        template = template.replace(anchor, SHAPE_NOTE + anchor, 1)
+    return template.format(
+        swatch_line=(
+            "\nThe middle image is the target WOOD SWATCH for this variant."
+            if candidate.swatch_path
+            else ""
+        ),
+        kind=candidate.kind,
+        material_line=(f" rendered in {candidate.wood_name}" if candidate.wood_name else ""),
+    )
+
+
+def judge_images(candidate: Candidate) -> list[Path]:
+    """The images the judge sees, in prompt order: sample, swatch, generated."""
+    paths = [candidate.sample_path, candidate.swatch_path, candidate.image_path]
+    return [path for path in paths if path is not None]
+
+
 def _mime(data: bytes) -> str:
     return "image/png" if data.startswith(b"\x89PNG") else "image/jpeg"
 
@@ -73,8 +109,12 @@ class VisionJudge:
         self.model = model
         self.cache_dir = cache_dir
 
+    # Prompt variant; empty keeps the original hash (and its cached verdicts).
+    prompt_variant = ""
+
     def config_hash(self) -> str:
-        return hashlib.sha256(f"{self.model}|{RUBRIC_PROMPT}".encode()).hexdigest()[:12]
+        variant = f"|{self.prompt_variant}" if self.prompt_variant else ""
+        return hashlib.sha256(f"{self.model}|{RUBRIC_PROMPT}{variant}".encode()).hexdigest()[:12]
 
     def _cache_path(self, key: str) -> Path:
         safe = key.replace(":", "_")
@@ -99,24 +139,9 @@ class VisionJudge:
         return result
 
     def _judge_once(self, candidate: Candidate) -> JudgeResult:
-        prompt = RUBRIC_PROMPT.format(
-            swatch_line=(
-                "\nThe middle image is the target WOOD SWATCH for this variant."
-                if candidate.swatch_path
-                else ""
-            ),
-            kind=candidate.kind,
-            material_line=(
-                f" rendered in {candidate.wood_name}" if candidate.wood_name else ""
-            ),
-        )
+        prompt = rubric_prompt(candidate)
         try:
-            parts: list[types.Part] = []
-            if candidate.sample_path is not None:
-                parts.append(_image_part(candidate.sample_path))
-            if candidate.swatch_path is not None:
-                parts.append(_image_part(candidate.swatch_path))
-            parts.append(_image_part(candidate.image_path))
+            parts = [_image_part(path) for path in judge_images(candidate)]
             parts.append(types.Part.from_text(text=prompt))
         except OSError as exc:
             reason = f"unreadable image: {exc}"
@@ -126,9 +151,7 @@ class VisionJudge:
         last_error = ""
         for attempt in range(3):
             try:
-                response = self.client.models.generate_content(
-                    model=self.model, contents=contents
-                )
+                response = self.client.models.generate_content(model=self.model, contents=contents)
             except Exception as exc:  # network/API errors -> retry with backoff then error verdict
                 last_error = f"api error: {exc}"
                 time.sleep(2**attempt)
@@ -251,8 +274,11 @@ def parse_identity(key: str, text: str) -> IdentityResult:
     if missing:
         raise ValueError(f"region_sweep missing regions: {missing}")
     checks = [
-        {"fact": str(c.get("fact", "")), "holds": bool(c.get("holds")),
-         "observed": str(c.get("observed", ""))}
+        {
+            "fact": str(c.get("fact", "")),
+            "holds": bool(c.get("holds")),
+            "observed": str(c.get("observed", "")),
+        }
         for c in data.get("fact_checks") or []
     ]
     defects = [str(d) for d in data.get("defects") or []]
@@ -268,13 +294,19 @@ def parse_identity(key: str, text: str) -> IdentityResult:
         if answer.lower() != "matches" and not any(answer in d for d in defects):
             defects.append(f"{region}: {answer}")
     disqualified = bool(data.get("disqualified")) or bool(defects)
-    return IdentityResult(key=key, fact_checks=checks, region_sweep=sweep,
-                          defects=defects, disqualified=disqualified)
+    return IdentityResult(
+        key=key, fact_checks=checks, region_sweep=sweep, defects=defects, disqualified=disqualified
+    )
 
 
 def judge_replica_identity(
-    client, source_bytes: bytes, replica_bytes: bytes, facts: list[str],
-    *, model: str = DEFAULT_MODEL, key: str = "",
+    client,
+    source_bytes: bytes,
+    replica_bytes: bytes,
+    facts: list[str],
+    *,
+    model: str = DEFAULT_MODEL,
+    key: str = "",
     profile_bytes: bytes | None = None,
 ) -> IdentityResult:
     fallback = "- (no stated facts; rely on the region sweep)"
@@ -285,8 +317,7 @@ def judge_replica_identity(
     )
     parts = [types.Part.from_bytes(data=source_bytes, mime_type=_mime(source_bytes))]
     if profile_bytes is not None:
-        parts.append(types.Part.from_bytes(data=profile_bytes,
-                                           mime_type=_mime(profile_bytes)))
+        parts.append(types.Part.from_bytes(data=profile_bytes, mime_type=_mime(profile_bytes)))
     parts.append(types.Part.from_bytes(data=replica_bytes, mime_type=_mime(replica_bytes)))
     parts.append(types.Part.from_text(text=prompt))
     contents = [types.Content(role="user", parts=parts)]
@@ -298,5 +329,5 @@ def judge_replica_identity(
         except Exception as exc:  # noqa: BLE001 - retry then error result
             last = str(exc)
             if attempt < 2:
-                time.sleep(2 ** attempt)
+                time.sleep(2**attempt)
     return IdentityResult(key=key, verdict="error", reason=last)

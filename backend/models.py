@@ -130,16 +130,16 @@ class ImportResultsResponse(BaseModel):
 
 
 class ShopifyListing(BaseModel):
-    """One live Shopify product matched to a coverage row, with per-wood AI status."""
+    """One live Shopify product matched to a coverage row, with its variant image status."""
 
     handle: str
     title: str
     status: str
-    wood_count: int
-    ai_wood_count: int
-    fully_imaged: bool  # every wood done AND no variants cut off by the fetch limit
-    missing_woods: list[str] = []  # no AI image (wrong-wood images are in mismatched_woods)
-    mismatched_woods: list[str] = []  # an AI image of a different wood is attached
+    variant_count: int = 0
+    own_image_count: int = 0  # variants with an image that isn't an old shared photo
+    fully_imaged: bool  # every variant has its own image AND none cut off by the fetch limit
+    missing_variants: list[str] = []  # no image at all
+    shared_variants: list[str] = []  # showing a photo reused across many variants
 
 
 class CoverageProduct(BaseModel):
@@ -191,3 +191,54 @@ class SignoffRequest(BaseModel):
     value: bool
     acknowledge_gap: bool = False
     by: str = "operator"
+
+
+class CatalogLocalImage(BaseModel):
+    """A generated image in this app for a variant's colour (maybe not on Shopify yet)."""
+
+    project_id: str
+    wood_name: str
+    verdict: Literal["approved", "rejected"] | None = None
+    url: str
+
+
+class CatalogVariant(BaseModel):
+    id: str
+    title: str
+    material: str  # wood/colour option value
+    style: str | None = None  # Front Style option, when the product has one
+    units: int = 0  # units sold over the sales window
+    net_sales: float = 0.0
+    image_state: Literal["own", "shared", "none"]
+    shopify_image: str | None = None
+    local: CatalogLocalImage | None = None
+    cell: Literal["live", "generated", "missing"]
+
+
+class CatalogProduct(BaseModel):
+    id: str  # numeric Shopify product id
+    admin_url: str
+    handle: str
+    title: str
+    category: str
+    category_label: str
+    units: int = 0
+    net_sales: float = 0.0
+    other_units: int = 0  # sales of variants since deleted from the listing
+    variant_count: int
+    live: int
+    generated: int
+    missing: int
+    done: bool
+    project_id: str | None = None
+    project_name: str | None = None
+    variants: list[CatalogVariant] = []  # empty in the list view
+
+
+class CatalogResponse(BaseModel):
+    products: list[CatalogProduct]
+    synced_at: str | None = None
+    sales_days: int | None = None  # None = no sales data (see sales_error)
+    sales_error: str | None = None
+    error: str | None = None
+    shopify_admin_url: str

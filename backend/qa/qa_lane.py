@@ -35,6 +35,7 @@ from backend.qa.geometry import GeometryReport, measure_cached
 from backend.qa.judge import VisionJudge
 from backend.qa.policy import PolicyConfig, decide, load_policy
 from backend.qa.styles_classes import style_class
+from backend.qa.trust_config import load_trust_config
 from backend.state import new_image_id
 
 if TYPE_CHECKING:
@@ -135,8 +136,17 @@ class QaLane:
         kind: str,
         swatch_path: Path | None = None,
         regen: RegenContext | None = None,
+        automatic: bool = True,
     ) -> Future:
-        """Queue one image for QA. Returns the Future (verdict dict or None)."""
+        """Queue one image for QA. Returns the Future (verdict dict or None).
+
+        Automatic calls (after generation) are skipped while auto_judge is off
+        in trust_config.json; an explicit re-judge passes automatic=False.
+        """
+        if automatic and not load_trust_config().auto_judge:
+            skipped: Future = Future()
+            skipped.set_result(None)
+            return skipped
         # Pending is visible immediately — the UI shows "judging…" states
         # without racing the executor.
         store.set_qa_verdict(

@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from backend.routers import coverage, projects, qa, swatches
+from backend.routers import catalog, coverage, projects, qa, swatches
 from backend.state import ProjectStore
 
 PROJECTS_DIR = Path("output/.projects")
@@ -37,6 +37,7 @@ app.include_router(swatches.router, prefix="/api")
 app.include_router(projects.router, prefix="/api")
 app.include_router(coverage.router, prefix="/api")
 app.include_router(qa.router, prefix="/api")
+app.include_router(catalog.router, prefix="/api")
 
 # Static file mounts
 Path("swatches").mkdir(exist_ok=True)

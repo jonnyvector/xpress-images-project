@@ -31,7 +31,7 @@ export default function GenerateStep({ project, apiKey }: Props) {
       setCompleted(genStatus.completed);
       setTotal(genStatus.total);
 
-      // Refresh the project every poll so results and QA badges land live,
+      // Refresh the project every poll so results land live,
       // not only when the run finishes.
       try {
         const updated = await api.getProject(projectIdRef.current);

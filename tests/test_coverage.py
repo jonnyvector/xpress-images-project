@@ -388,3 +388,38 @@ def test_missing_canonical_project_yields_null_gap():
     )
     row = next(r for c in cats for r in c["products"] if r["title"] == title)
     assert row["gap"] is None
+
+
+def test_live_store_products_missing_from_sales_csv_still_get_rows(tmp_path: Path):
+    def listing(title: str, handle: str, status: str = "ACTIVE") -> dict:
+        return {
+            "handle": handle,
+            "title": title,
+            "status": status,
+            "variant_count": 1,
+            "own_image_count": 1,
+            "missing_variants": [],
+            "shared_variants": [],
+            "fully_imaged": True,
+        }
+
+    store = [
+        listing("Zeta Recessed Panel Cabinet Door", "zeta"),
+        listing("Zeta Drawer Front", "zeta-df"),
+        listing("ZMC | Zeta Cabinet Door", "zmc-zeta"),
+        listing("RTA 1-Door Base Cabinet - Frameless", "rta"),
+        listing("Omega Cabinet Door", "omega", status="DRAFT"),
+    ]
+    categories = compute_coverage(
+        [],
+        data_dir=tmp_path,
+        approval_store=ApprovalStore(path=tmp_path / "approvals.json"),
+        signoff={},
+        shopify=(store, {"source": "live", "synced_at": None}),
+    )
+    rows = {c["key"]: [p["title"] for p in c["products"]] for c in categories}
+    assert rows["wood_cabinet_doors"] == ["Zeta Recessed Panel Cabinet Door"]
+    assert rows["wood_drawer_fronts"] == ["Zeta Drawer Front"]
+    zeta = categories[0]["products"][0]
+    assert zeta["net_sales"] == 0
+    assert zeta["on_shopify"] is True

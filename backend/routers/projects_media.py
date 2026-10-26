@@ -13,6 +13,7 @@ from backend.filename_parsing import extract_wood_name
 from backend.generator import add_watermark
 from backend.materials import load_material_types
 from backend.models import ImportResultsResponse, ProjectResponse, SaveToFolderResponse
+from backend.qa.thumbs import thumbnail_jpeg
 from backend.routers.projects_common import (
     SAVE_DIR_DOORS,
     SAVE_DIR_DRAWERS,
@@ -59,13 +60,23 @@ def get_result_image(
     watermark: bool = True,
     watermark_offset: int = Query(0, ge=-600, le=600),
     image_scale: float = Query(1.0, ge=0.5, le=2.0),
+    width: int | None = Query(None, ge=64, le=1024),
 ) -> Response:
+    """width= returns a JPEG thumbnail (no watermark) for grids of many images."""
     store = get_store(request)
     project = get_project_or_404(store, project_id)
     if idx < 0 or idx >= len(project.results):
         raise HTTPException(status_code=404, detail="Result not found")
     record = project.results[idx]
     wood_name, image_data = record.wood_name, record.image_data
+
+    if width is not None:
+        # Thumbnail URLs carry v=<image_id>, so a new image is a new URL.
+        return Response(
+            content=thumbnail_jpeg(image_data, width),
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
 
     if watermark:
         image_data = add_watermark(

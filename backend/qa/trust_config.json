@@ -1,4 +1,6 @@
 {
+  "auto_judge": false,
+  "review_all_since": "2026-10-26T00:00:00+00:00",
   "small_batch_limit": 5,
   "bulk_unlocked": false,
   "bulk_unlocked_style_classes": [

@@ -1,12 +1,12 @@
-// One definition of "done" for the Coverage page. Sign-offs decide coverage
-// (the backend's rule); live Shopify data is evidence that can disagree.
+// Coverage is decided by Shopify alone: a product is done when every variant
+// its live listing(s) hold has its own image (backend/shopify_live.py).
 import type { CoverageProduct } from './types';
 
-export function isDone(p: CoverageProduct): boolean {
-  return p.variations_complete && p.in_shopify;
+export function activeListings(p: CoverageProduct) {
+  return p.shopify_listings.filter((l) => l.status === 'ACTIVE');
 }
 
-/** Signed off as on Shopify, but the live store shows AI images missing. */
-export function shopifyDisagrees(p: CoverageProduct): boolean {
-  return p.in_shopify && p.on_shopify === false;
+export function isDone(p: CoverageProduct): boolean {
+  const listings = activeListings(p);
+  return listings.length > 0 && listings.every((l) => l.fully_imaged);
 }

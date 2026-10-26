@@ -23,6 +23,12 @@ DEFAULT_TRUST_CONFIG_PATH = Path("backend/qa/trust_config.json")
 
 @dataclass
 class TrustConfig:
+    # Off: generated images are not sent to the AI judge (no Gemini spend, no
+    # auto-regeneration); the operator reviews everything by hand.
+    auto_judge: bool = False
+    # Variants created at/after this ISO time join the Review queue without a
+    # judge verdict. Older undecided variants stay out (thousands of them).
+    review_all_since: str = ""
     small_batch_limit: int = 5
     bulk_unlocked: bool = False
     bulk_unlocked_style_classes: list[str] = field(default_factory=list)
@@ -37,6 +43,8 @@ def load_trust_config(path: Path = DEFAULT_TRUST_CONFIG_PATH) -> TrustConfig:
     try:
         data = json.loads(path.read_text())
         return TrustConfig(
+            auto_judge=bool(data.get("auto_judge", False)),
+            review_all_since=str(data.get("review_all_since", "")),
             small_batch_limit=int(data.get("small_batch_limit", 5)),
             bulk_unlocked=bool(data.get("bulk_unlocked", False)),
             bulk_unlocked_style_classes=[

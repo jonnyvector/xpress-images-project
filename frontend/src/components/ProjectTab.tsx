@@ -1,7 +1,7 @@
 // One door's workspace: a header and three steps in order (Style → Replica →
 // Variants). The step lives in the URL (?step=) so refresh and back keep it;
 // with no step given, the door opens on whatever needs doing next.
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import type { Project } from '../types';
 import { displayName } from '../doorNames';
@@ -10,6 +10,7 @@ import UploadStep from './UploadStep';
 import SwatchGrid from './SwatchGrid';
 import GenerateStep from './GenerateStep';
 import ResultsGrid from './ResultsGrid';
+import ImageViewer from './ImageViewer';
 
 const STEPS = ['style', 'replica', 'variants'] as const;
 type Step = (typeof STEPS)[number];
@@ -86,6 +87,7 @@ export default memo(function ProjectTab({ project, apiKey }: Props) {
 
       <div className="door-variants" hidden={step !== 'variants'}>
           <aside className="door-variants-side">
+            {project.has_base_image && <ReplicaReference project={project} />}
             <GenerateStep project={project} apiKey={apiKey} />
             <SwatchGrid project={project} />
           </aside>
@@ -99,3 +101,25 @@ export default memo(function ProjectTab({ project, apiKey }: Props) {
     </div>
   );
 });
+
+// The replica every variant is built from, kept in view while generating.
+function ReplicaReference({ project }: { project: Project }) {
+  const [open, setOpen] = useState(false);
+  // learning_status changes when a re-learn finishes, so the image refreshes.
+  const src = `/api/projects/${project.id}/base-image?v=${project.base_image_id ?? project.learning_status}`;
+  return (
+    <figure className="replica-ref">
+      <img src={src} alt="Replica" className="zoomable" title="Click to zoom" onClick={() => setOpen(true)} />
+      <figcaption>
+        Replica {project.replica_approved ? '· approved' : '· not approved yet'}
+      </figcaption>
+      {open && (
+        <ImageViewer
+          images={[{ src, caption: 'Replica' }]}
+          index={0}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </figure>
+  );
+}

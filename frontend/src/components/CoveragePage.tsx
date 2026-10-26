@@ -1,11 +1,12 @@
-// Coverage: per category, how many best-selling products are done (variants
-// signed off AND on Shopify signed off), with live Shopify data alongside.
+// Coverage: per category, how many best-selling products have their AI images
+// on Shopify (see coverageStatus.isDone).
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import type { CoverageResponse } from '../types';
 import * as api from '../api';
 import { useProjects } from '../context/ProjectsContext';
-import { isDone, shopifyDisagrees } from '../coverageStatus';
+import { isDone } from '../coverageStatus';
+import { syncedAgo } from '../shopifySync';
 import CoverageTable, { type CoverageFilter } from './CoverageTable';
 import Segmented from './Segmented';
 
@@ -46,9 +47,6 @@ export default function CoveragePage() {
   const active = data.categories.find((c) => c.key === activeKey) ?? data.categories[0];
   const products = active?.products ?? [];
   const done = products.filter(isDone).length;
-  const variantsSigned = products.filter((p) => p.variations_complete).length;
-  const shopifySigned = products.filter((p) => p.in_shopify).length;
-  const disagree = products.filter(shopifyDisagrees).length;
   const pct = products.length ? Math.round((done / products.length) * 100) : 0;
 
   return (
@@ -92,9 +90,7 @@ export default function CoveragePage() {
               </div>
             </div>
             <div className="coverage-parts">
-              Done = variants signed off <em>and</em> on Shopify signed off.
-              <br />
-              {variantsSigned} have variants signed off · {shopifySigned} signed off as on Shopify
+              Done = every variant on the live Shopify listing has its own image, not an old photo reused across many variants.
             </div>
           </div>
 
@@ -104,8 +100,8 @@ export default function CoveragePage() {
             onChange={setFilter}
             options={[
               ['all', `All (${products.length})`],
+              ['done', `Done (${done})`],
               ['not_done', `Not done (${products.length - done})`],
-              ['disagree', `Shopify disagrees (${disagree})`],
             ]}
           />
 
@@ -125,14 +121,8 @@ export default function CoveragePage() {
 
 function syncLabel(data: CoverageResponse): string {
   if (data.shopify_error) return `${data.shopify_error}. Refresh to fix.`;
-  const syncedAt = data.shopify_synced_at ? new Date(data.shopify_synced_at) : null;
-  if (data.shopify_source === 'live' && syncedAt && !Number.isNaN(syncedAt.getTime())) {
-    const mins = Math.round((Date.now() - syncedAt.getTime()) / 60000);
-    if (mins < 1) return 'Shopify synced just now';
-    if (mins < 60) return `Shopify synced ${mins} min ago`;
-    if (mins < 60 * 24) return `Shopify synced ${Math.round(mins / 60)} h ago`;
-    return `Shopify synced ${syncedAt.toLocaleDateString()}`;
-  }
+  const ago = data.shopify_source === 'live' ? syncedAgo(data.shopify_synced_at) : null;
+  if (ago) return ago;
   if (data.shopify_source === 'csv') return 'Using an old Shopify CSV';
   return 'Not synced with Shopify yet';
 }

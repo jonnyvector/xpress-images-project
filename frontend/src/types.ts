@@ -164,35 +164,20 @@ export interface ShopifyListing {
   handle: string;
   title: string;
   status: string;
-  wood_count: number;
-  ai_wood_count: number;
+  variant_count: number;
+  own_image_count: number;
   fully_imaged: boolean;
-  missing_woods: string[];
-  mismatched_woods: string[];
+  missing_variants: string[];
+  shared_variants: string[];
 }
 
 // QA endpoints (/api/qa/*)
-export interface ReliabilityRates {
-  decisive_n: number;
-  agreement_rate: number | null;
-  deferral_n: number;
-  deferral_rate: number | null;
-  null_n: number;
-  disagreements: number;
-}
-
-export interface ReliabilityAggregates {
-  total: ReliabilityRates;
-  by_kind: Record<string, ReliabilityRates>;
-  by_style_class: Record<string, ReliabilityRates>;
-}
-
 export interface QueueVariant {
   image_id: string;
   index: number;
   wood_name: string;
   attempt: number;
-  verdict: QaVerdict;
+  verdict: QaVerdict | null; // null: judged by nobody (AI review off)
 }
 
 export interface QueueProject {
@@ -207,4 +192,56 @@ export interface QueueProject {
 export interface ReviewQueueData {
   projects: QueueProject[];
   total_pending: number;
+}
+
+// Command center (/products): every active door/drawer front on Shopify.
+export type CatalogCell = 'live' | 'generated' | 'missing';
+
+export interface CatalogLocalImage {
+  project_id: string;
+  wood_name: string;
+  verdict: 'approved' | 'rejected' | null;
+  url: string;
+}
+
+export interface CatalogVariant {
+  id: string;
+  title: string;
+  material: string;
+  style: string | null;
+  units: number;
+  net_sales: number;
+  image_state: 'own' | 'shared' | 'none';
+  shopify_image: string | null;
+  local: CatalogLocalImage | null;
+  cell: CatalogCell;
+}
+
+export interface CatalogProduct {
+  id: string;
+  admin_url: string;
+  handle: string;
+  title: string;
+  category: string;
+  category_label: string;
+  units: number;
+  net_sales: number;
+  other_units: number;
+  variant_count: number;
+  live: number;
+  generated: number;
+  missing: number;
+  done: boolean;
+  project_id: string | null;
+  project_name: string | null;
+  variants: CatalogVariant[];
+}
+
+export interface CatalogResponse {
+  products: CatalogProduct[];
+  synced_at: string | null;
+  sales_days: number | null;
+  sales_error: string | null;
+  error: string | null;
+  shopify_admin_url: string;
 }

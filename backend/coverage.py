@@ -35,7 +35,7 @@ _GENERIC_WORDS = {
 }
 
 
-def _words(text: str) -> list[str]:
+def words(text: str) -> list[str]:
     """Split into lowercase alphanumeric words."""
     return [w for w in re.split(r"[^a-z0-9]+", text.lower()) if w]
 
@@ -46,9 +46,9 @@ def extract_match_tokens(title: str) -> set[str]:
     base = re.sub(r"\([^)]*\)", " ", title)
     base = re.sub(r'\d+/\d+"?', " ", base)  # strip size fractions like 3/4"
 
-    candidates = _words(base)
+    candidates = words(base)
     for chunk in parentheticals:
-        candidates.extend(_words(chunk))
+        candidates.extend(words(chunk))
 
     tokens: set[str] = set()
     for word in candidates:
@@ -116,7 +116,7 @@ def load_products(csv_path: Path) -> list[tuple[str, float, int]]:
 
 def title_matches(tokens: set[str], candidate_title: str) -> bool:
     """True if any token is a whole word in candidate_title."""
-    return bool(tokens & set(_words(candidate_title)))
+    return bool(tokens & set(words(candidate_title)))
 
 
 # Shopify title words that describe construction, not which product it is.
@@ -133,7 +133,7 @@ _LISTING_GENERIC_WORDS = _GENERIC_WORDS | {
 @lru_cache(maxsize=4096)
 def _title_words(title: str) -> frozenset[str]:
     # Cached: every coverage row is scored against every listing title.
-    return frozenset(_words(title))
+    return frozenset(words(title))
 
 
 def _is_same_kind(category: dict, words: set[str]) -> bool:
@@ -143,6 +143,21 @@ def _is_same_kind(category: dict, words: set[str]) -> bool:
     if category["product_type"] == "Cabinet Door" and ("door" not in words or is_drawer):
         return False
     return ("thermofoil" in words) == (category["material"] == "rtf")
+
+
+def is_catalog_listing(category: dict, title: str) -> bool:
+    """A store product that belongs in this coverage category.
+
+    Only real doors and drawer fronts ("Cabinet Door" / "Drawer Front" in the
+    title), never ZMC listings or cabinets like "RTA 1-Door Base Cabinet".
+    """
+    words = _title_words(title)
+    if "zmc" in words:
+        return False
+    lowered = title.lower()
+    if "cabinet door" not in lowered and "drawer front" not in lowered:
+        return False
+    return _is_same_kind(category, words)
 
 
 def listings_fully_imaged(matches: list[dict]) -> bool | None:
@@ -186,6 +201,29 @@ def match_shopify_listings(category: dict, tokens: set[str], listings: list[dict
     return [listing for score, neg_extra, listing in scored if (score, neg_extra) == best]
 
 
+def joined_words(text: str) -> str:
+    """Lowercase alphanumerics only: 'journey_5-piece' -> 'journey5piece'."""
+    return "".join(words(text))
+
+
+def fits_listing(project_name: str, listing_title: str) -> bool:
+    """A name-matched project really is this listing's style.
+
+    Coverage rows match on any shared word, so plain "revere" matches "Revere
+    Mitered". Here every distinguishing word of the listing must be in the
+    project name; for a part-numbered listing (DRS131) the part number alone
+    is enough.
+    """
+    name_words = set(words(project_name))
+    joined = joined_words(project_name)
+    tokens = extract_match_tokens(listing_title) - _LISTING_GENERIC_WORDS
+    skus = {t for t in tokens if any(ch.isdigit() for ch in t)}
+    if skus and any(sku in joined for sku in skus):
+        return True
+    rest = tokens - skus
+    return bool(rest) and all(t in name_words or t in joined for t in rest)
+
+
 def project_matches(project: ProjectState, tokens: set[str]) -> bool:
     """True if any token is a whole word in the project's name."""
     return title_matches(tokens, project.name)
@@ -211,6 +249,10 @@ def load_shopify_source(data_dir: Path) -> tuple[list[dict], dict]:
     snapshot = load_snapshot(data_dir)
     if snapshot is not None:
         products = drop_archived(snapshot["products"])
+        if any(not all(k in p for k in _LISTING_KEYS) for p in products):
+            # Saved by an older version with a different "done" rule.
+            error = "Saved Shopify data is from an older version"
+            return [], {"source": None, "synced_at": None, "error": error}
         return products, {"source": "live", "synced_at": snapshot.get("fetched_at")}
     if (data_dir / SNAPSHOT_FILENAME).exists():
         # Don't quietly fall back to the old CSV: the live data was lost.
@@ -224,11 +266,67 @@ _LISTING_KEYS = (
     "handle",
     "title",
     "status",
-    "wood_count",
-    "ai_wood_count",
-    "missing_woods",
-    "mismatched_woods",
+    "variant_count",
+    "own_image_count",
+    "missing_variants",
+    "shared_variants",
 )
+
+
+def _coverage_row(
+    title: str,
+    net_sales: float,
+    quantity: int,
+    shopify_matches: list[dict],
+    *,
+    cat: dict,
+    candidates: list[ProjectState],
+    by_id: dict[str, ProjectState],
+    record: dict[str, dict],
+    store: ApprovalStore,
+    live: bool,
+) -> dict:
+    """One coverage row: a product with its projects, sign-offs and Shopify status."""
+    tokens = extract_match_tokens(title)
+    matched = [p for p in candidates if project_matches(p, tokens)]
+    matched.sort(key=lambda p: 0 if p.results else 1)  # results-bearing first
+    entry = record.get(title) or {}
+
+    canonical_id = entry.get("canonical_project_id")
+    canonical = by_id.get(canonical_id) if canonical_id else None
+    excluded = list(entry.get("excluded_colors") or [])
+    gap = compute_gap(cat["material"], excluded, canonical) if canonical is not None else None
+
+    variations_done = GATE_KEYS["variations"] in entry
+    shopify_done = GATE_KEYS["shopify"] in entry
+
+    primary = next((p for p in matched if p.results), None)
+    approved_count, approved_total = (
+        _approval_progress(primary, store) if primary is not None else (0, 0)
+    )
+
+    return {
+        "title": title,
+        "net_sales": net_sales,
+        "quantity": quantity,
+        "covered": variations_done,
+        "matched_project_ids": [p.id for p in matched],
+        "approved_count": approved_count,
+        "approved_total": approved_total,
+        "on_shopify": listings_fully_imaged(shopify_matches),
+        # Per-variant detail exists only in the live snapshot, not the CSV.
+        "shopify_listings": [{k: sp[k] for k in _LISTING_KEYS} for sp in shopify_matches]
+        if live
+        else [],
+        "variations_complete": variations_done,
+        "in_shopify": shopify_done,
+        "canonical_project_id": canonical_id,
+        "excluded_colors": excluded,
+        "gap": gap,
+        "stale": is_stale(entry, len(distinct_generated(canonical)))
+        if canonical is not None
+        else False,
+    }
 
 
 def compute_coverage(
@@ -257,60 +355,37 @@ def compute_coverage(
             if p.material_type == cat["material"] and p.product_type == cat["product_type"]
         ]
         products: list[dict] = []
-        n_variations = 0
-        n_shopify = 0
+        row_context = {
+            "cat": cat,
+            "candidates": candidates,
+            "by_id": by_id,
+            "record": record,
+            "store": store,
+            "live": live,
+        }
+        claimed: set[str] = set()
         for title, net_sales, quantity in load_products(data_dir / cat["csv"]):
-            tokens = extract_match_tokens(title)
-            matched = [p for p in candidates if project_matches(p, tokens)]
-            matched.sort(key=lambda p: 0 if p.results else 1)  # results-bearing first
-            entry = record.get(title) or {}
-
-            canonical_id = entry.get("canonical_project_id")
-            canonical = by_id.get(canonical_id) if canonical_id else None
-            excluded = list(entry.get("excluded_colors") or [])
-            gap = (
-                compute_gap(cat["material"], excluded, canonical) if canonical is not None else None
+            shopify_matches = match_shopify_listings(
+                cat, extract_match_tokens(title), shopify_products
             )
-
-            variations_done = GATE_KEYS["variations"] in entry
-            shopify_done = GATE_KEYS["shopify"] in entry
-            n_variations += int(variations_done)
-            n_shopify += int(shopify_done)
-
-            primary = next((p for p in matched if p.results), None)
-            approved_count, approved_total = (
-                _approval_progress(primary, store) if primary is not None else (0, 0)
-            )
-
-            shopify_matches = match_shopify_listings(cat, tokens, shopify_products)
-            on_shopify = listings_fully_imaged(shopify_matches)
-
+            claimed.update(m["handle"] for m in shopify_matches)
             products.append(
-                {
-                    "title": title,
-                    "net_sales": net_sales,
-                    "quantity": quantity,
-                    "covered": variations_done,
-                    "matched_project_ids": [p.id for p in matched],
-                    "approved_count": approved_count,
-                    "approved_total": approved_total,
-                    "on_shopify": on_shopify,
-                    # Per-wood detail exists only in the live snapshot, not the CSV.
-                    "shopify_listings": [
-                        {k: sp[k] for k in _LISTING_KEYS} for sp in shopify_matches
-                    ]
-                    if live
-                    else [],
-                    "variations_complete": variations_done,
-                    "in_shopify": shopify_done,
-                    "canonical_project_id": canonical_id,
-                    "excluded_colors": excluded,
-                    "gap": gap,
-                    "stale": is_stale(entry, len(distinct_generated(canonical)))
-                    if canonical is not None
-                    else False,
-                }
+                _coverage_row(title, net_sales, quantity, shopify_matches, **row_context)
             )
+
+        # Every other active product of this kind on the store, so coverage
+        # lists the whole catalogue, not only the best-sellers in the CSV.
+        if live:
+            extras = [
+                listing
+                for listing in shopify_products
+                if listing["handle"] not in claimed
+                and listing.get("status", "ACTIVE") == "ACTIVE"
+                and is_catalog_listing(cat, listing["title"])
+            ]
+            for listing in sorted(extras, key=lambda listing: listing["title"].lower()):
+                products.append(_coverage_row(listing["title"], 0.0, 0, [listing], **row_context))
+        n_variations = sum(p["variations_complete"] for p in products)
         categories.append(
             {
                 "key": cat["key"],
@@ -318,7 +393,7 @@ def compute_coverage(
                 "covered": n_variations,
                 "total": len(products),
                 "variations_complete": n_variations,
-                "in_shopify_count": n_shopify,
+                "in_shopify_count": sum(p["in_shopify"] for p in products),
                 "products": products,
             }
         )

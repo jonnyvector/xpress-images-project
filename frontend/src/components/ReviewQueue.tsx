@@ -1,5 +1,5 @@
 // The operator's review queue: everything awaiting a verdict, in one place.
-// Auto-polls, so replicas and variants land here the moment they're judged —
+// Auto-polls, so new replicas and variants land here as soon as they exist —
 // no tab hunting, no stale views. Each project shows its reference pair
 // (sample + replica) beside the items needing a decision.
 import { useCallback, useEffect, useState } from 'react';
@@ -8,7 +8,6 @@ import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 import ApprovalControls from './ApprovalControls';
 import ApproveAllButton from './ApproveAllButton';
-import QaBadge from './QaBadge';
 import { showError, onError } from '../notify';
 
 
@@ -51,7 +50,7 @@ export default function ReviewQueue() {
   if (queue.total_pending === 0) {
     return (
       <div className="status-success" style={{ marginTop: '1rem' }}>
-        Review queue is empty — everything the pipeline produced has your verdict.
+        Review queue is empty — every new image has your verdict.
       </div>
     );
   }
@@ -70,7 +69,6 @@ export default function ReviewQueue() {
             <ApproveAllButton
               projectId={p.project_id}
               imageIds={p.variants.map((v) => v.image_id)}
-              flaggedCount={p.variants.filter((v) => v.verdict.verdict === 'regenerate').length}
               onDone={onChanged}
             />
           </div>
@@ -87,7 +85,7 @@ export default function ReviewQueue() {
                 alt="Replica"
               />
               <figcaption>
-                Replica <QaBadge verdict={p.replica.verdict ?? undefined} />
+                Replica
                 {p.replica.pending && p.replica.image_id ? (
                   <ApprovalControls
                     project={projectStub(p)}
@@ -110,7 +108,6 @@ export default function ReviewQueue() {
                 <figcaption>
                   {v.wood_name}
                   {v.attempt > 0 && <span className="review-dim"> (attempt {v.attempt})</span>}{' '}
-                  <QaBadge verdict={v.verdict} />
                   <ApprovalControls
                     project={projectStub(p)}
                     imageId={v.image_id}

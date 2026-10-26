@@ -62,3 +62,13 @@ def swatches_dir(tmp_path: Path) -> Path:
     # Note: underscore filename while slug uses hyphens — mirrors the real swatches/ dir.
     (root / "wood" / "cherry_natural.jpg").write_bytes(JPEG)
     return root
+
+
+@pytest.fixture(autouse=True)
+def _auto_judge_on(monkeypatch):
+    """These tests exercise the judge pipeline, which trust_config.json now
+    switches off; run them as if auto_judge were on."""
+    import backend.qa.qa_lane as qa_lane
+    from backend.qa.trust_config import TrustConfig
+
+    monkeypatch.setattr(qa_lane, "load_trust_config", lambda: TrustConfig(auto_judge=True))

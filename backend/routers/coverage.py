@@ -9,11 +9,9 @@ from backend.coverage import (
     CATEGORIES,
     DATA_DIR,
     compute_coverage,
-    extract_match_tokens,
-    listings_fully_imaged,
+    is_catalog_listing,
     load_products,
     load_shopify_source,
-    match_shopify_listings,
 )
 from backend.models import (
     CanonicalRequest,
@@ -28,10 +26,11 @@ from backend.shopify_live import (
     ShopifyCliError,
     drop_archived,
     fetch_products,
+    fetch_sales,
+    load_snapshot,
     save_snapshot,
 )
 from backend.signoff import (
-    GATE_KEYS,
     SIGNOFF_FILENAME,
     SIGNOFF_LOCK,
     SignoffRecordError,
@@ -68,11 +67,18 @@ def _load_for_write() -> dict[str, dict]:
 
 
 def _known_titles() -> dict[str, str]:
-    """Map every sales-CSV product title to its material, for validation."""
+    """Every coverage row title (sales CSV + active store-only listings) -> material."""
     titles: dict[str, str] = {}
+    listings, meta = load_shopify_source(DATA_DIR)
     for cat in CATEGORIES:
         for title, _, _ in load_products(DATA_DIR / cat["csv"]):
             titles[title] = cat["material"]
+        if meta["source"] == "live":
+            for listing in listings:
+                if listing.get("status", "ACTIVE") == "ACTIVE" and is_catalog_listing(
+                    cat, listing["title"]
+                ):
+                    titles.setdefault(listing["title"], cat["material"])
     return titles
 
 
@@ -207,41 +213,16 @@ def _refresh(request: Request) -> CoverageResponse:
         raise HTTPException(
             status_code=502, detail="Shopify returned no products; kept the previous data."
         )
-    products = drop_archived(products)
-    # Stamp first: if the sign-off file can't be written, the refresh fails as a
-    # whole instead of half-applying (new snapshot, no stamps).
-    _stamp_shopify_signoffs(products, by="shopify-live")
-    save_snapshot(DATA_DIR, products)
+    # Sales are a nice-to-have: a missing read_reports scope must not block
+    # the image status refresh.
+    sales, sales_error = None, None
+    try:
+        sales = fetch_sales()
+    except ShopifyCliError as exc:
+        # Keep the last good sales rather than zeroing every product's ranking.
+        sales_error = str(exc)
+        sales = (load_snapshot(DATA_DIR) or {}).get("sales")
+    # Read-only toward sign-offs: "done" comes from the live data itself, so a
+    # refresh never writes to coverage_signoff.json.
+    save_snapshot(DATA_DIR, drop_archived(products), sales, sales_error)
     return _response(request)
-
-
-def _stamp_shopify_signoffs(products: list[dict], by: str) -> None:
-    """Record an in_shopify sign-off for every fully-imaged Shopify product.
-
-    A sync is a bulk way for the operator to record a decision they would
-    otherwise tick by hand, so it only ever ADDS stamps. It never revokes a
-    sign-off and never overwrites one already on the record: a human's judgment
-    (or an earlier sync's) outranks a later one. That also means a product
-    dropping off the store does not silently un-ship it.
-
-    Only the shopify gate is touched. variations_complete stays a human call —
-    nothing here can infer whether every needed colour was generated.
-    """
-    if not any(p["fully_imaged"] for p in products):
-        return
-
-    now = datetime.now(UTC).isoformat()
-    with SIGNOFF_LOCK:
-        try:
-            record = load_signoff_strict(DATA_DIR)
-        except SignoffRecordError as exc:
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-        for cat in CATEGORIES:
-            for title, _, _ in load_products(DATA_DIR / cat["csv"]):
-                if GATE_KEYS["shopify"] in (record.get(title) or {}):
-                    continue  # already signed off — never overwrite provenance
-                tokens = extract_match_tokens(title)
-                if listings_fully_imaged(match_shopify_listings(cat, tokens, products)):
-                    record = set_gate(record, title, "shopify", True, by=by, at=now)
-        save_signoff(DATA_DIR, record)

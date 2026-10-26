@@ -3,10 +3,10 @@ import type { Approval, Project } from '../types';
 import { useDispatch } from '../context/ProjectsContext';
 import * as api from '../api';
 import { usePollingTask } from '../hooks/usePollingTask';
+import ImageViewer, { type ViewerImage } from './ImageViewer';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import ApprovalControls from './ApprovalControls';
 import ApproveAllButton from './ApproveAllButton';
-import QaBadge from './QaBadge';
 import { showError, onError } from '../notify';
 
 interface Props {
@@ -20,6 +20,7 @@ export default function ResultsGrid({ project, part }: Props) {
   const [importFolder, setImportFolder] = useState('');
   const [importing, setImporting] = useState(false);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [viewer, setViewer] = useState<{ images: ViewerImage[]; index: number } | null>(null);
   const importStatusTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(importStatusTimer.current), []);
 
@@ -231,6 +232,20 @@ export default function ResultsGrid({ project, part }: Props) {
     }
   }, [project.id, watermarkOffset, imageScale]);
 
+  const replicaSrc = `/api/projects/${project.id}/base-image?v=${baseImageCacheBust}`;
+  const replicaImages: ViewerImage[] = [
+    ...(project.upload_filename ? [{ src: `/api/projects/${project.id}/upload`, caption: 'Your sample' }] : []),
+    { src: replicaSrc, caption: 'Replica' },
+  ];
+  const sortedResults = sortAlpha
+    ? [...project.results].sort((a, b) => a.wood_name.localeCompare(b.wood_name))
+    : project.results;
+  // Unwatermarked full-size files, for checking detail.
+  const variantImages: ViewerImage[] = sortedResults.map((r) => ({
+    src: `/api/projects/${project.id}/results/${r.index}/image?watermark=false&v=${r.image_id}`,
+    caption: r.wood_name,
+  }));
+
   return (
     <section>
       {part === 'variants' && project.truncated_runs.length > 0 && (
@@ -252,15 +267,24 @@ export default function ResultsGrid({ project, part }: Props) {
           <div className="replica-compare">
             {project.upload_filename && (
               <figure>
-                <img src={`/api/projects/${project.id}/upload`} alt="Your sample" />
+                <img
+                  src={`/api/projects/${project.id}/upload`}
+                  alt="Your sample"
+                  className="zoomable"
+                  onClick={() => setViewer({ images: replicaImages, index: 0 })}
+                />
                 <figcaption>Your sample</figcaption>
               </figure>
             )}
             <figure>
-              <img src={`/api/projects/${project.id}/base-image?v=${baseImageCacheBust}`} alt="Replica" />
+              <img
+                src={replicaSrc}
+                alt="Replica"
+                className="zoomable"
+                onClick={() => setViewer({ images: replicaImages, index: replicaImages.length - 1 })}
+              />
               <figcaption>
                 Replica{' '}
-                {project.base_image_id && <QaBadge verdict={project.qa_verdicts?.[project.base_image_id]} />}
               </figcaption>
             </figure>
           </div>
@@ -311,9 +335,6 @@ export default function ResultsGrid({ project, part }: Props) {
             <ApproveAllButton
               projectId={project.id}
               imageIds={undecidedVariantIds}
-              flaggedCount={
-                undecidedVariantIds.filter((id) => project.qa_verdicts?.[id]?.verdict === 'regenerate').length
-              }
               onDone={refreshApprovals}
             />
             <button
@@ -399,10 +420,7 @@ export default function ResultsGrid({ project, part }: Props) {
           </details>
 
           <div className="results-grid">
-            {(sortAlpha
-              ? [...project.results].sort((a, b) => a.wood_name.localeCompare(b.wood_name))
-              : project.results
-            ).map((result) => {
+            {sortedResults.map((result, position) => {
               const isRetrying = retryingIndices.has(result.index);
               return (
                 <div key={result.index} className="result-card" style={{ position: 'relative' }}>
@@ -419,6 +437,9 @@ export default function ResultsGrid({ project, part }: Props) {
                       src={`/api/projects/${project.id}/results/${result.index}/image?v=${result.image_id}&watermark_offset=${renderedWatermarkOffset}&image_scale=${renderedImageScale}&wmv=${watermarkCacheBust}`}
                       alt={result.wood_name}
                       loading="lazy"
+                      className="zoomable"
+                      title="Click to zoom"
+                      onClick={() => setViewer({ images: variantImages, index: position })}
                       style={{ display: 'block' }}
                     />
                   </div>
@@ -427,7 +448,6 @@ export default function ResultsGrid({ project, part }: Props) {
                     {result.attempt > 0 && (
                       <span style={{ color: '#888', fontSize: '0.75rem' }}> (attempt {result.attempt})</span>
                     )}{' '}
-                    <QaBadge verdict={project.qa_verdicts?.[result.image_id]} />
                   </div>
                   <ApprovalControls
                     project={project}
@@ -478,6 +498,14 @@ export default function ResultsGrid({ project, part }: Props) {
         </details>
       )}
       </>
+      )}
+      {viewer && (
+        <ImageViewer
+          images={viewer.images}
+          index={viewer.index}
+          onIndexChange={(index) => setViewer((v) => v && { ...v, index })}
+          onClose={() => setViewer(null)}
+        />
       )}
     </section>
   );
